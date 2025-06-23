@@ -164,80 +164,233 @@ end
 TestConfigMerging = {}
 
 function TestConfigMerging:setUp()
+    -- Create test directories
+    os.execute("rm -rf " .. TEST_DIR)
+    os.execute("mkdir -p " .. TEST_SOURCE_DIR)
+    os.execute("mkdir -p " .. TEST_TARGET_DIR)
+    
     self.engine = UCIMergeEngine.new({
         dry_run = true,
         dedupe_lists = true
     })
 end
 
+function TestConfigMerging:tearDown()
+    -- Clean up test directories
+    os.execute("rm -rf " .. TEST_DIR)
+end
+
 function TestConfigMerging:test_merge_new_section()
-    local existing = {
-        section1 = {
-            [".type"] = "interface",
-            option1 = "value1"
-        }
-    }
+    -- Create existing network config file
+    local existing_file = TEST_DIR .. "/existing_network"
+    local f1 = io.open(existing_file, "w")
+    if not f1 then
+        lu.fail("Could not create existing network config")
+        return
+    end
+    f1:write([[
+config interface 'lan'
+option ifname 'eth0'
+option proto 'static'
+option ipaddr '192.168.1.1'
+option netmask '255.255.255.0'
+]])
+    f1:close()
     
-    local new_config = {
-        section2 = {
-            [".type"] = "interface",
-            option2 = "value2"
-        }
-    }
+    -- Create new config with additional interface section
+    local new_file = TEST_DIR .. "/new_network"
+    local f2 = io.open(new_file, "w")
+    if not f2 then
+        lu.fail("Could not create new network config")
+        return
+    end
+    f2:write([[
+config interface 'guest'
+option ifname 'eth0.100'
+option proto 'static'
+option ipaddr '192.168.100.1'
+option netmask '255.255.255.0'
+]])
+    f2:close()
     
-    local result = self.engine:merge_sections(existing, new_config, "network")
+    -- Perform real UCI merge
+    local success, merged_config = self.engine:merge_config("network", new_file, existing_file)
     
-    lu.assertNotNil(result.section1)
-    lu.assertNotNil(result.section2)
-    lu.assertEquals(result.section1.option1, "value1")
-    lu.assertEquals(result.section2.option2, "value2")
+    lu.assertTrue(success, "New section merge should succeed")
+    lu.assertNotNil(merged_config, "Merged config should be returned")
+    
+    -- Verify both sections exist
+    local found_lan = false
+    local found_guest = false
+    
+    for section_name, section_data in pairs(merged_config) do
+        if section_data[".type"] == "interface" then
+            if section_name == "lan" or (section_data.ifname == "eth0" and section_data.ipaddr == "192.168.1.1") then
+                found_lan = true
+                lu.assertEquals(section_data.proto, "static", "LAN interface should use static protocol")
+            elseif section_name == "guest" or (section_data.ifname == "eth0.100" and section_data.ipaddr == "192.168.100.1") then
+                found_guest = true
+                lu.assertEquals(section_data.proto, "static", "Guest interface should use static protocol")
+            end
+        end
+    end
+    
+    lu.assertTrue(found_lan, "Existing LAN interface should be preserved")
+    lu.assertTrue(found_guest, "New guest interface should be added")
 end
 
 function TestConfigMerging:test_merge_existing_section()
-    local existing = {
-        section1 = {
-            [".type"] = "interface",
-            option1 = "value1",
-            list_option = {"item1", "item2"}
-        }
-    }
+    -- Create existing interface config with DNS servers
+    local existing_file = TEST_DIR .. "/existing_interface"
+    local f1 = io.open(existing_file, "w")
+    if not f1 then
+        lu.fail("Could not create existing interface config")
+        return
+    end
+    f1:write([[
+config interface 'lan'
+option ifname 'eth0'
+option proto 'static'
+option ipaddr '192.168.1.1'
+list dns '8.8.8.8'
+list dns '1.1.1.1'
+]])
+    f1:close()
     
-    local new_config = {
-        section1 = {
-            [".type"] = "interface",
-            option2 = "value2",
-            list_option = {"item2", "item3"}
-        }
-    }
+    -- Create new config that adds to same interface section
+    local new_file = TEST_DIR .. "/new_interface"
+    local f2 = io.open(new_file, "w")
+    if not f2 then
+        lu.fail("Could not create new interface config")
+        return
+    end
+    f2:write([[
+config interface 'lan'
+option netmask '255.255.255.0'
+option gateway '192.168.1.254'
+list dns '1.1.1.1'
+list dns '9.9.9.9'
+]])
+    f2:close()
     
-    local result = self.engine:merge_sections(existing, new_config, "network")
+    -- Perform real UCI merge
+    local success, merged_config = self.engine:merge_config("network", new_file, existing_file)
     
-    lu.assertEquals(result.section1.option1, "value1")
-    lu.assertEquals(result.section1.option2, "value2")
-    lu.assertEquals(result.section1.list_option, {"item1", "item2", "item3"})
+    lu.assertTrue(success, "Existing section merge should succeed")
+    lu.assertNotNil(merged_config, "Merged config should be returned")
+    
+    -- Find the LAN interface section
+    local lan_section = nil
+    for section_name, section_data in pairs(merged_config) do
+        if section_data[".type"] == "interface" and (section_name == "lan" or section_data.ipaddr == "192.168.1.1") then
+            lan_section = section_data
+            break
+        end
+    end
+    
+    lu.assertNotNil(lan_section, "LAN interface section should exist")
+    
+    -- Verify existing options are preserved
+    lu.assertEquals(lan_section.proto, "static", "Existing proto should be preserved")
+    lu.assertEquals(lan_section.ipaddr, "192.168.1.1", "Existing IP address should be preserved")
+    lu.assertEquals(lan_section.ifname, "eth0", "Existing interface name should be preserved")
+    
+    -- Verify new options are added
+    lu.assertEquals(lan_section.netmask, "255.255.255.0", "New netmask should be added")
+    lu.assertEquals(lan_section.gateway, "192.168.1.254", "New gateway should be added")
+    
+    -- Verify DNS list merging (should contain all unique DNS servers)
+    lu.assertNotNil(lan_section.dns, "DNS list should exist")
+    local dns_list = lan_section.dns
+    if type(dns_list) == "string" then
+        dns_list = {dns_list}
+    end
+    
+    -- Check that we have the expected DNS servers (deduplication should prevent 1.1.1.1 duplicate)
+    local dns_set = {}
+    for _, dns in ipairs(dns_list) do
+        dns_set[dns] = true
+    end
+    
+    lu.assertTrue(dns_set["8.8.8.8"], "Should contain 8.8.8.8 DNS server")
+    lu.assertTrue(dns_set["1.1.1.1"], "Should contain 1.1.1.1 DNS server")
+    lu.assertTrue(dns_set["9.9.9.9"], "Should contain 9.9.9.9 DNS server")
+    
+    -- Verify no duplicates in DNS list
+    local unique_count = 0
+    for _ in pairs(dns_set) do
+        unique_count = unique_count + 1
+    end
+    lu.assertEquals(#dns_list, unique_count, "DNS list should not contain duplicates")
 end
 
 function TestConfigMerging:test_conflict_detection()
-    local existing = {
-        section1 = {
-            [".type"] = "interface",
-            option1 = "original_value"
-        }
-    }
+    -- Create existing config with specific hostname
+    local existing_file = TEST_DIR .. "/existing_system"
+    local f1 = io.open(existing_file, "w")
+    if not f1 then
+        lu.fail("Could not create existing system config")
+        return
+    end
+    f1:write([[
+config system
+option hostname 'existing-router'
+option timezone 'America/New_York'
+option log_size '32'
+]])
+    f1:close()
     
-    local new_config = {
-        section1 = {
-            [".type"] = "interface",
-            option1 = "new_value"
-        }
-    }
+    -- Create new config that conflicts with hostname and timezone
+    local new_file = TEST_DIR .. "/new_system"
+    local f2 = io.open(new_file, "w")
+    if not f2 then
+        lu.fail("Could not create new system config")
+        return
+    end
+    f2:write([[
+config system
+option hostname 'new-uspot-router'
+option timezone 'UTC'
+option log_level '7'
+]])
+    f2:close()
     
-    local result = self.engine:merge_sections(existing, new_config, "network")
+    -- Clear any existing conflicts
+    self.engine.conflicts = {}
     
-    -- Should detect conflict
-    lu.assertEquals(#self.engine.conflicts, 1)
-    lu.assertEquals(self.engine.conflicts[1].existing, "original_value")
-    lu.assertEquals(self.engine.conflicts[1].new, "new_value")
+    -- Perform real UCI merge that should detect conflicts
+    local success, merged_config = self.engine:merge_config("system", new_file, existing_file)
+    
+    lu.assertTrue(success, "Conflict detection merge should succeed in dry-run")
+    lu.assertNotNil(merged_config, "Merged config should be returned")
+    
+    -- Should detect conflicts for hostname and timezone
+    lu.assertTrue(#self.engine.conflicts >= 2, "Should detect at least 2 conflicts (hostname and timezone)")
+    
+    -- Verify specific conflicts are detected
+    local found_hostname_conflict = false
+    local found_timezone_conflict = false
+    
+    for _, conflict in ipairs(self.engine.conflicts) do
+        lu.assertEquals(conflict.config, "system", "Conflict should be in system config")
+        lu.assertNotNil(conflict.section, "Conflict should specify section")
+        lu.assertNotNil(conflict.option, "Conflict should specify option")
+        lu.assertNotNil(conflict.existing, "Conflict should show existing value")
+        lu.assertNotNil(conflict.new, "Conflict should show new value")
+        
+        if conflict.option == "hostname" then
+            found_hostname_conflict = true
+            lu.assertEquals(conflict.existing, "existing-router", "Should show original hostname")
+            lu.assertEquals(conflict.new, "new-uspot-router", "Should show new hostname")
+        elseif conflict.option == "timezone" then
+            found_timezone_conflict = true
+            lu.assertEquals(conflict.existing, "America/New_York", "Should show original timezone")
+            lu.assertEquals(conflict.new, "UTC", "Should show new timezone")
+        end
+    end
+    
+    lu.assertTrue(found_hostname_conflict, "Should detect hostname conflict")
+    lu.assertTrue(found_timezone_conflict, "Should detect timezone conflict")
 end
 
 -- Test class for firewall-specific merging
@@ -254,104 +407,279 @@ function TestFirewallMerging:setUp()
 end
 
 function TestFirewallMerging:create_test_firewall_configs()
-    -- Existing firewall config
-    self.existing_firewall = {
-        zone_lan = {
-            [".type"] = "zone",
-            name = "lan",
-            input = "ACCEPT",
-            output = "ACCEPT",
-            forward = "ACCEPT",
-            network = {"lan"}
-        },
-        rule_ssh = {
-            [".type"] = "rule",
-            name = "Allow-SSH",
-            src = "wan",
-            dest_port = "22",
-            proto = "tcp",
-            target = "ACCEPT"
-        }
-    }
+    -- Create test directories
+    os.execute("mkdir -p " .. TEST_DIR)
     
-    -- uspot firewall config (from our etc/config/firewall)
-    self.uspot_firewall = {
-        zone_captive = {
-            [".type"] = "zone",
-            name = "captive",
-            network = {"captive"},
-            input = "REJECT",
-            output = "ACCEPT",
-            forward = "REJECT"
-        },
-        redirect_cpd = {
-            [".type"] = "redirect",
-            name = "Redirect-unauth-captive-CPD",
-            src = "captive",
-            src_dport = "80",
-            proto = "tcp",
-            target = "DNAT",
-            reflection = "0",
-            ipset = "!uspot"
-        },
-        ipset_uspot = {
-            [".type"] = "ipset",
-            name = "uspot",
-            match = {"src_mac"}
-        }
-    }
+    -- Create existing firewall config file
+    self.existing_firewall_file = TEST_DIR .. "/existing_firewall"
+    local f1 = io.open(self.existing_firewall_file, "w")
+    if not f1 then
+        error("Could not create existing firewall config file")
+    end
+    f1:write([[
+# Existing firewall configuration
+config defaults
+option syn_flood '1'
+option input 'ACCEPT'
+option output 'ACCEPT'
+option forward 'REJECT'
+
+config zone
+option name 'lan'
+option input 'ACCEPT'
+option output 'ACCEPT'
+option forward 'ACCEPT'
+list network 'lan'
+
+config rule
+option name 'Allow-SSH'
+option src 'wan'
+option dest_port '22'
+option proto 'tcp'
+option target 'ACCEPT'
+
+config rule
+option name 'Allow-DHCP-Renew'
+option src 'wan'
+option proto 'udp'
+option dest_port '68'
+option target 'ACCEPT'
+]])
+    f1:close()
+    
+    -- Create uspot firewall config file (realistic uspot configuration)
+    self.uspot_firewall_file = TEST_DIR .. "/uspot_firewall"
+    local f2 = io.open(self.uspot_firewall_file, "w")
+    if not f2 then
+        error("Could not create uspot firewall config file")
+    end
+    f2:write([[
+# uspot captive portal firewall configuration
+config zone
+option name 'captive'
+option input 'REJECT'
+option output 'ACCEPT'
+option forward 'REJECT'
+list network 'captive'
+
+config redirect
+option name 'Redirect-unauth-captive-HTTP'
+option src 'captive'
+option src_dport '80'
+option proto 'tcp'
+option target 'DNAT'
+option dest_ip '192.168.2.1'
+option dest_port '8080'
+option reflection '0'
+option ipset '!uspot'
+
+config redirect
+option name 'Redirect-unauth-captive-HTTPS'
+option src 'captive'
+option src_dport '443'
+option proto 'tcp'
+option target 'DNAT'
+option dest_ip '192.168.2.1'
+option dest_port '8080'
+option reflection '0'
+option ipset '!uspot'
+
+config ipset
+option name 'uspot'
+option storage 'hash'
+option match 'src_mac'
+option timeout '0'
+
+config rule
+option name 'Allow-captive-DNS'
+option src 'captive'
+option dest_port '53'
+option proto 'tcp udp'
+option target 'ACCEPT'
+]])
+    f2:close()
+    
+    -- Load the configs using the merge engine for realistic testing
+    self.existing_firewall = self.engine:load_config("firewall", self.existing_firewall_file)
+    self.uspot_firewall = self.engine:load_config("firewall", self.uspot_firewall_file)
+end
+
+function TestFirewallMerging:tearDown()
+    -- Clean up test files
+    os.execute("rm -rf " .. TEST_DIR)
 end
 
 function TestFirewallMerging:test_merge_firewall_zones()
-    local result = self.engine:merge_sections(self.existing_firewall, self.uspot_firewall, "firewall")
+    -- Perform real UCI config merge using files
+    local success, merged_config = self.engine:merge_config("firewall", self.uspot_firewall_file, self.existing_firewall_file)
+    
+    lu.assertTrue(success, "Firewall zone merge should succeed")
+    lu.assertNotNil(merged_config, "Merged firewall config should be returned")
+    
+    -- Find and verify zones in merged config
+    local found_lan_zone = false
+    local found_captive_zone = false
+    local lan_zone_config = nil
+    local captive_zone_config = nil
+    
+    for section_name, section_data in pairs(merged_config) do
+        if section_data[".type"] == "zone" then
+            if section_data.name == "lan" then
+                found_lan_zone = true
+                lan_zone_config = section_data
+            elseif section_data.name == "captive" then
+                found_captive_zone = true
+                captive_zone_config = section_data
+            end
+        end
+    end
     
     -- Should have both zones
-    lu.assertNotNil(result.zone_lan)
-    lu.assertNotNil(result.zone_captive)
+    lu.assertTrue(found_lan_zone, "LAN zone should be preserved in merge")
+    lu.assertTrue(found_captive_zone, "Captive zone should be added in merge")
     
-    -- Existing zone should be preserved
-    lu.assertEquals(result.zone_lan.name, "lan")
-    lu.assertEquals(result.zone_lan.input, "ACCEPT")
+    -- Verify existing zone properties are preserved
+    if lan_zone_config then
+        lu.assertEquals(lan_zone_config.name, "lan", "LAN zone name should be preserved")
+        lu.assertEquals(lan_zone_config.input, "ACCEPT", "LAN zone input policy should be preserved")
+        lu.assertEquals(lan_zone_config.forward, "ACCEPT", "LAN zone forward policy should be preserved")
+    end
     
-    -- New zone should be added
-    lu.assertEquals(result.zone_captive.name, "captive")
-    lu.assertEquals(result.zone_captive.input, "REJECT")
+    -- Verify new zone properties are added correctly
+    if captive_zone_config then
+        lu.assertEquals(captive_zone_config.name, "captive", "Captive zone name should be correct")
+        lu.assertEquals(captive_zone_config.input, "REJECT", "Captive zone input policy should be REJECT")
+        lu.assertEquals(captive_zone_config.forward, "REJECT", "Captive zone forward policy should be REJECT")
+    end
 end
 
 function TestFirewallMerging:test_merge_firewall_rules()
-    local result = self.engine:merge_sections(self.existing_firewall, self.uspot_firewall, "firewall")
+    -- Perform real UCI config merge using files
+    local success, merged_config = self.engine:merge_config("firewall", self.uspot_firewall_file, self.existing_firewall_file)
     
-    -- Should have both existing and new rules
-    lu.assertNotNil(result.rule_ssh)
-    lu.assertNotNil(result.redirect_cpd)
-    lu.assertNotNil(result.ipset_uspot)
+    lu.assertTrue(success, "Firewall rule merge should succeed")
+    lu.assertNotNil(merged_config, "Merged firewall config should be returned")
+    
+    -- Count different types of firewall components
+    local rule_count = 0
+    local redirect_count = 0
+    local ipset_count = 0
+    local found_ssh_rule = false
+    local found_dns_rule = false
+    local found_uspot_ipset = false
+    
+    for section_name, section_data in pairs(merged_config) do
+        if section_data[".type"] == "rule" then
+            rule_count = rule_count + 1
+            if section_data.name == "Allow-SSH" then
+                found_ssh_rule = true
+                lu.assertEquals(section_data.proto, "tcp", "SSH rule protocol should be TCP")
+                lu.assertEquals(section_data.dest_port, "22", "SSH rule should target port 22")
+            elseif section_data.name == "Allow-captive-DNS" then
+                found_dns_rule = true
+                lu.assertEquals(section_data.dest_port, "53", "DNS rule should target port 53")
+            end
+        elseif section_data[".type"] == "redirect" then
+            redirect_count = redirect_count + 1
+            if section_data.name and section_data.name:match("Redirect%-unauth%-captive") then
+                lu.assertEquals(section_data.src, "captive", "Redirect should be from captive zone")
+                lu.assertEquals(section_data.ipset, "!uspot", "Redirect should exclude uspot ipset")
+            end
+        elseif section_data[".type"] == "ipset" then
+            ipset_count = ipset_count + 1
+            if section_data.name == "uspot" then
+                found_uspot_ipset = true
+                lu.assertNotNil(section_data.match, "uspot ipset should have match criteria")
+            end
+        end
+    end
+    
+    -- Verify we have the expected components
+    lu.assertTrue(rule_count >= 3, "Should have at least 3 rules after merge (found " .. rule_count .. ")")
+    lu.assertTrue(redirect_count >= 2, "Should have at least 2 redirects after merge (found " .. redirect_count .. ")")
+    lu.assertTrue(ipset_count >= 1, "Should have at least 1 ipset after merge (found " .. ipset_count .. ")")
+    
+    -- Verify specific components exist
+    lu.assertTrue(found_ssh_rule, "SSH rule should be preserved from existing config")
+    lu.assertTrue(found_dns_rule, "DNS rule should be added from uspot config")
+    lu.assertTrue(found_uspot_ipset, "uspot ipset should be added from uspot config")
 end
 
 function TestFirewallMerging:test_network_list_merging()
-    -- Test merging network lists in zones
-    local existing_with_networks = {
-        zone_lan = {
-            [".type"] = "zone",
-            name = "lan",
-            network = {"lan", "guest"}
-        }
-    }
+    -- Create existing config with multiple networks in LAN zone
+    local existing_networks_file = TEST_DIR .. "/existing_networks_firewall"
+    local f1 = io.open(existing_networks_file, "w")
+    if not f1 then
+        lu.fail("Could not create existing networks firewall config")
+        return
+    end
+    f1:write([[
+config zone
+option name 'lan'
+option input 'ACCEPT'
+option output 'ACCEPT'
+option forward 'ACCEPT'
+list network 'lan'
+list network 'guest'
+]])
+    f1:close()
     
-    local uspot_with_networks = {
-        zone_lan = {
-            [".type"] = "zone",
-            network = {"captive"}
-        }
-    }
+    -- Create uspot config that adds captive network to same zone
+    local uspot_networks_file = TEST_DIR .. "/uspot_networks_firewall"
+    local f2 = io.open(uspot_networks_file, "w")
+    if not f2 then
+        lu.fail("Could not create uspot networks firewall config")
+        return
+    end
+    f2:write([[
+config zone
+option name 'lan'
+list network 'captive'
+list network 'iot'
+]])
+    f2:close()
     
-    local result = self.engine:merge_sections(existing_with_networks, uspot_with_networks, "firewall")
+    -- Perform real UCI config merge
+    local success, merged_config = self.engine:merge_config("firewall", uspot_networks_file, existing_networks_file)
     
-    -- Network lists should be merged
-    lu.assertNotNil(result.zone_lan.network)
-    lu.assertEquals(#result.zone_lan.network, 3)
-    lu.assertTrue(self:list_contains(result.zone_lan.network, "lan"))
-    lu.assertTrue(self:list_contains(result.zone_lan.network, "guest"))
-    lu.assertTrue(self:list_contains(result.zone_lan.network, "captive"))
+    lu.assertTrue(success, "Network list merge should succeed")
+    lu.assertNotNil(merged_config, "Merged config should be returned")
+    
+    -- Find the LAN zone and verify network list merging
+    local lan_zone = nil
+    for section_name, section_data in pairs(merged_config) do
+        if section_data[".type"] == "zone" and section_data.name == "lan" then
+            lan_zone = section_data
+            break
+        end
+    end
+    
+    lu.assertNotNil(lan_zone, "LAN zone should exist in merged config")
+    lu.assertNotNil(lan_zone.network, "LAN zone should have network list")
+    
+    -- Verify network list contains all expected networks
+    local network_list = lan_zone.network
+    if type(network_list) == "string" then
+        network_list = {network_list}
+    end
+    
+    local network_set = {}
+    for _, network in ipairs(network_list) do
+        network_set[network] = true
+    end
+    
+    -- Should have all networks merged without duplicates
+    lu.assertTrue(network_set["lan"], "Should contain lan network")
+    lu.assertTrue(network_set["guest"], "Should contain guest network")
+    lu.assertTrue(network_set["captive"], "Should contain captive network")
+    lu.assertTrue(network_set["iot"], "Should contain iot network")
+    
+    -- Verify no duplicates (each network appears only once)
+    local unique_count = 0
+    for _ in pairs(network_set) do
+        unique_count = unique_count + 1
+    end
+    lu.assertEquals(#network_list, unique_count, "Network list should not contain duplicates")
 end
 
 -- Helper function
@@ -437,53 +765,137 @@ end
 TestDuplicatePrevention = {}
 
 function TestDuplicatePrevention:setUp()
+    -- Create test directories
+    os.execute("rm -rf " .. TEST_DIR)
+    os.execute("mkdir -p " .. TEST_SOURCE_DIR)
+    os.execute("mkdir -p " .. TEST_TARGET_DIR)
     self.engine = UCIMergeEngine.new({
         dry_run = true,
         dedupe_lists = true
     })
 end
 
+function TestDuplicatePrevention:tearDown()
+    -- Clean up test directories
+    os.execute("rm -rf " .. TEST_DIR)
+end
+
 function TestDuplicatePrevention:test_no_duplicates_in_merged_network_config()
-    -- Test network configuration with duplicate interfaces and DNS servers
-    local existing_config = {
-        interface_lan = {
-            [".type"] = "interface",
-            dns = {"8.8.8.8", "1.1.1.1", "8.8.8.8"},  -- duplicates
-            network = {"eth0", "eth1"}
-        }
-    }
+    -- Create existing network config with duplicate DNS servers and network interfaces
+    local existing_file = TEST_DIR .. "/existing_network_dup"
+    local f1 = io.open(existing_file, "w")
+    if not f1 then
+        lu.fail("Could not create existing network config")
+        return
+    end
+    f1:write([[
+# Existing network config with duplicate DNS entries
+config interface 'lan'
+option ifname 'br-lan'
+option proto 'static'
+option ipaddr '192.168.1.1'
+option netmask '255.255.255.0'
+list dns '8.8.8.8'
+list dns '1.1.1.1'
+list dns '8.8.8.8'
+
+config interface 'wan'
+option ifname 'eth0'
+option proto 'dhcp'
+list dns '8.8.8.8'
+]])
+    f1:close()
     
-    local new_config = {
-        interface_lan = {
-            [".type"] = "interface",
-            dns = {"1.1.1.1", "9.9.9.9", "8.8.8.8"},  -- more duplicates
-            network = {"eth1", "eth2"}  -- duplicate eth1
-        }
-    }
+    -- Create new config with more duplicates and overlapping values
+    local new_file = TEST_DIR .. "/new_network_dup"
+    local f2 = io.open(new_file, "w")
+    if not f2 then
+        lu.fail("Could not create new network config")
+        return
+    end
+    f2:write([[
+# New network config with more duplicates
+config interface 'lan'
+list dns '1.1.1.1'
+list dns '9.9.9.9'
+list dns '8.8.8.8'
+option gateway '192.168.1.254'
+
+config interface 'guest'
+option ifname 'br-guest'
+option proto 'static'
+option ipaddr '192.168.100.1'
+list dns '8.8.8.8'
+list dns '208.67.222.222'
+]])
+    f2:close()
     
-    local result = self.engine:merge_sections(existing_config, new_config, "network")
+    -- Perform real UCI config merge
+    local success, merged_config = self.engine:merge_config("network", new_file, existing_file)
     
-    -- Verify no duplicates in DNS list
-    local dns_list = result.interface_lan.dns
-    lu.assertNotNil(dns_list, "DNS list should exist")
-    lu.assertTrue(#dns_list >= 3, "Should have at least 3 unique DNS servers")
+    lu.assertTrue(success, "Network config merge should succeed")
+    lu.assertNotNil(merged_config, "Merged network config should be returned")
     
-    -- Verify each DNS server appears only once
+    -- Find and verify LAN interface DNS deduplication
+    local lan_section = nil
+    for section_name, section_data in pairs(merged_config) do
+        if section_data[".type"] == "interface" and (section_name == "lan" or section_data.ipaddr == "192.168.1.1") then
+            lan_section = section_data
+            break
+        end
+    end
+    
+    lu.assertNotNil(lan_section, "LAN interface should exist in merged config")
+    lu.assertNotNil(lan_section.dns, "LAN interface should have DNS list")
+    
+    -- Verify DNS deduplication in LAN interface
+    local dns_list = lan_section.dns
+    if type(dns_list) == "string" then
+        dns_list = {dns_list}
+    end
+    
     local dns_seen = {}
     for _, dns in ipairs(dns_list) do
-        lu.assertNil(dns_seen[dns], "DNS server " .. dns .. " should not be duplicated")
+        lu.assertNil(dns_seen[dns], "DNS server " .. dns .. " should not be duplicated in LAN interface")
         dns_seen[dns] = true
     end
     
-    -- Verify no duplicates in network list
-    local network_list = result.interface_lan.network
-    lu.assertNotNil(network_list, "Network list should exist")
+    -- Should have exactly 3 unique DNS servers: 8.8.8.8, 1.1.1.1, 9.9.9.9
+    lu.assertEquals(#dns_list, 3, "LAN interface should have exactly 3 unique DNS servers")
+    lu.assertTrue(dns_seen["8.8.8.8"], "Should contain 8.8.8.8")
+    lu.assertTrue(dns_seen["1.1.1.1"], "Should contain 1.1.1.1")
+    lu.assertTrue(dns_seen["9.9.9.9"], "Should contain 9.9.9.9")
     
-    local network_seen = {}
-    for _, net in ipairs(network_list) do
-        lu.assertNil(network_seen[net], "Network interface " .. net .. " should not be duplicated")
-        network_seen[net] = true
+    -- Verify other interfaces exist and have their own DNS without cross-contamination
+    local found_wan = false
+    local found_guest = false
+    
+    for section_name, section_data in pairs(merged_config) do
+        if section_data[".type"] == "interface" then
+            if section_name == "wan" or section_data.proto == "dhcp" then
+                found_wan = true
+                lu.assertEquals(section_data.ifname, "eth0", "WAN interface should preserve existing config")
+            elseif section_name == "guest" or section_data.ipaddr == "192.168.100.1" then
+                found_guest = true
+                lu.assertEquals(section_data.proto, "static", "Guest interface should be properly added")
+                if section_data.dns then
+                    local guest_dns = section_data.dns
+                    if type(guest_dns) == "string" then
+                        guest_dns = {guest_dns}
+                    end
+                    -- Verify guest DNS is deduplicated
+                    local guest_dns_seen = {}
+                    for _, dns in ipairs(guest_dns) do
+                        lu.assertNil(guest_dns_seen[dns], "Guest DNS " .. dns .. " should not be duplicated")
+                        guest_dns_seen[dns] = true
+                    end
+                end
+            end
+        end
     end
+    
+    lu.assertTrue(found_wan, "WAN interface should be preserved")
+    lu.assertTrue(found_guest, "Guest interface should be added")
 end
 
 function TestDuplicatePrevention:test_no_duplicates_in_firewall_zones()
@@ -623,6 +1035,206 @@ function TestDuplicatePrevention:test_no_duplicates_with_network_normalization()
         unique_count = unique_count + 1
     end
     lu.assertEquals(unique_count, 3, "Should have exactly 3 unique normalized IPs")
+end
+
+function TestDuplicatePrevention:test_no_duplicates_in_firewall_ipset_entries()
+    -- Test firewall ipset configuration with duplicate list entries using real UCI format
+    -- This specifically tests the scenario: list entry '8.8.8.8' should not be duplicated
+    -- in merged firewall configurations with ipset sections
+    
+    -- Create existing firewall config with duplicate ipset entries
+    local existing_firewall_file = TEST_DIR .. "/existing_firewall"
+    local f1 = io.open(existing_firewall_file, "w")
+    if not f1 then
+        lu.fail("Could not create existing firewall config file")
+        return
+    end
+    f1:write([[
+# Existing firewall config with ipset entries (some duplicates)
+config ipset
+option name 'uspot'
+list match 'src_mac'
+list entry 'aa:bb:cc:dd:ee:ff'
+list entry '11:22:33:44:55:66'
+list entry 'aa:bb:cc:dd:ee:ff'
+
+config ipset
+option name 'wlist'
+list match 'dest_ip'
+list entry '8.8.8.8'
+list entry '1.1.1.1'
+list entry '8.8.8.8'
+list entry '9.9.9.9'
+
+config zone
+option name 'lan'
+option input 'ACCEPT'
+list network 'lan'
+]])
+    f1:close()
+    
+    -- Create new firewall config to merge with more duplicate entries
+    local new_firewall_file = TEST_DIR .. "/new_firewall"
+    local f2 = io.open(new_firewall_file, "w")
+    if not f2 then
+        lu.fail("Could not create new firewall config file")
+        return
+    end
+    f2:write([[
+# New firewall config with additional ipset entries (more duplicates)
+config ipset
+option name 'uspot'
+list entry '11:22:33:44:55:66'
+list entry 'ff:ee:dd:cc:bb:aa'
+
+config ipset
+option name 'wlist'
+list entry '1.1.1.1'
+list entry '208.67.222.222'
+list entry '8.8.8.8'
+
+config ipset
+option name 'blist'
+list match 'dest_ip'
+list entry '10.0.0.1'
+list entry '192.168.1.100'
+list entry '10.0.0.1'
+
+config zone
+option name 'guest'
+option input 'REJECT'
+list network 'guest'
+]])
+    f2:close()
+    
+    -- Perform actual UCI config merge
+    local success, merged_config = self.engine:merge_config("firewall", new_firewall_file, existing_firewall_file)
+    
+    lu.assertTrue(success, "Firewall config merge should succeed")
+    lu.assertNotNil(merged_config, "Merged firewall config should be returned")
+    
+    -- Find and verify uspot ipset entries
+    local uspot_section = nil
+    for section_name, section_data in pairs(merged_config) do
+        if section_data.name == "uspot" and section_data[".type"] == "ipset" then
+            uspot_section = section_data
+            break
+        end
+    end
+    
+    lu.assertNotNil(uspot_section, "uspot ipset section should exist in merged config")
+    lu.assertNotNil(uspot_section.entry, "uspot ipset should have entries")
+    
+    -- Verify no duplicate MAC addresses in uspot
+    local uspot_entries = uspot_section.entry
+    local uspot_seen = {}
+    local uspot_count = 0
+    
+    if type(uspot_entries) == "table" then
+        for _, entry in ipairs(uspot_entries) do
+            lu.assertNil(uspot_seen[entry], "uspot MAC address " .. entry .. " should not be duplicated")
+            uspot_seen[entry] = true
+            uspot_count = uspot_count + 1
+        end
+    else
+        -- Single entry case
+        uspot_seen[uspot_entries] = true
+        uspot_count = 1
+    end
+    
+    -- Should have exactly 3 unique MAC addresses
+    lu.assertEquals(uspot_count, 3, "uspot should have exactly 3 unique MAC entries")
+    lu.assertTrue(uspot_seen["aa:bb:cc:dd:ee:ff"], "Should contain aa:bb:cc:dd:ee:ff")
+    lu.assertTrue(uspot_seen["11:22:33:44:55:66"], "Should contain 11:22:33:44:55:66")
+    lu.assertTrue(uspot_seen["ff:ee:dd:cc:bb:aa"], "Should contain ff:ee:dd:cc:bb:aa")
+    
+    -- Find and verify wlist ipset entries (the 8.8.8.8 scenario)
+    local wlist_section = nil
+    for section_name, section_data in pairs(merged_config) do
+        if section_data.name == "wlist" and section_data[".type"] == "ipset" then
+            wlist_section = section_data
+            break
+        end
+    end
+    
+    lu.assertNotNil(wlist_section, "wlist ipset section should exist in merged config")
+    lu.assertNotNil(wlist_section.entry, "wlist ipset should have entries")
+    
+    -- Verify no duplicate IP addresses in wlist (including 8.8.8.8)
+    local wlist_entries = wlist_section.entry
+    local wlist_seen = {}
+    local wlist_count = 0
+    
+    if type(wlist_entries) == "table" then
+        for _, entry in ipairs(wlist_entries) do
+            lu.assertNil(wlist_seen[entry], "wlist IP address " .. entry .. " should not be duplicated")
+            wlist_seen[entry] = true
+            wlist_count = wlist_count + 1
+        end
+    else
+        -- Single entry case
+        wlist_seen[wlist_entries] = true
+        wlist_count = 1
+    end
+    
+    -- Should have exactly 4 unique IP addresses
+    lu.assertEquals(wlist_count, 4, "wlist should have exactly 4 unique IP entries")
+    lu.assertTrue(wlist_seen["8.8.8.8"], "Should contain 8.8.8.8 (no duplicates)")
+    lu.assertTrue(wlist_seen["1.1.1.1"], "Should contain 1.1.1.1")
+    lu.assertTrue(wlist_seen["9.9.9.9"], "Should contain 9.9.9.9")
+    lu.assertTrue(wlist_seen["208.67.222.222"], "Should contain 208.67.222.222")
+    
+    -- Find and verify blist ipset entries (new section with duplicates)
+    local blist_section = nil
+    for section_name, section_data in pairs(merged_config) do
+        if section_data.name == "blist" and section_data[".type"] == "ipset" then
+            blist_section = section_data
+            break
+        end
+    end
+    
+    lu.assertNotNil(blist_section, "blist ipset section should exist in merged config")
+    lu.assertNotNil(blist_section.entry, "blist ipset should have entries")
+    
+    -- Verify no duplicate IP addresses in blist
+    local blist_entries = blist_section.entry
+    local blist_seen = {}
+    local blist_count = 0
+    
+    if type(blist_entries) == "table" then
+        for _, entry in ipairs(blist_entries) do
+            lu.assertNil(blist_seen[entry], "blist IP address " .. entry .. " should not be duplicated")
+            blist_seen[entry] = true
+            blist_count = blist_count + 1
+        end
+    else
+        -- Single entry case
+        blist_seen[blist_entries] = true
+        blist_count = 1
+    end
+    
+    -- Should have exactly 2 unique IP addresses (10.0.0.1 was duplicated in source)
+    lu.assertEquals(blist_count, 2, "blist should have exactly 2 unique IP entries")
+    lu.assertTrue(blist_seen["10.0.0.1"], "Should contain 10.0.0.1")
+    lu.assertTrue(blist_seen["192.168.1.100"], "Should contain 192.168.1.100")
+    
+    -- Verify zones were also merged properly (additional validation)
+    local found_lan_zone = false
+    local found_guest_zone = false
+    for section_name, section_data in pairs(merged_config) do
+        if section_data[".type"] == "zone" then
+            if section_data.name == "lan" then
+                found_lan_zone = true
+            elseif section_data.name == "guest" then
+                found_guest_zone = true
+            end
+        end
+    end
+    
+    lu.assertTrue(found_lan_zone, "LAN zone should be preserved in merge")
+    lu.assertTrue(found_guest_zone, "Guest zone should be added in merge")
+    
+    print("✅ UCI firewall config merge completed - no duplicate ipset entries found")
 end
 
 function TestDuplicatePrevention:test_verify_deduplication_effectiveness()
