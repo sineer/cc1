@@ -12,6 +12,7 @@ RUN mkdir -p /app/etc/config /tmp/uci-config-backups
 # Copy UCI config tool and config files
 COPY bin/uci-config ./bin/
 COPY etc/config/* ./etc/config/
+COPY etc/config/production_samples/ ./etc/config/production_samples/
 COPY lib/*.lua ./lib/
 COPY test/*.lua ./test/
 
@@ -19,4 +20,4 @@ COPY test/*.lua ./test/
 RUN chmod +x /app/bin/uci-config
 
 # Set default command to run all tests
-CMD ["sh", "-c", "echo '=== UCI CONFIG TESTS ===' && lua test/test_uci_config.lua && echo '=== MERGE ENGINE TESTS ===' && lua test/test_merge_engine.lua && echo '=== ADVANCED INTEGRATION TESTS ===' && lua test/test_advanced_integration.lua"]
+CMD ["sh", "-c", "echo '=== UCI CONFIG TESTS ===' && lua test/test_uci_config.lua && echo '=== MERGE ENGINE TESTS ===' && lua test/test_merge_engine.lua && echo '=== ADVANCED INTEGRATION TESTS ===' && lua test/test_advanced_integration.lua && echo '=== PRODUCTION DEPLOYMENT TESTS ===' && lua test/test_production_deployment.lua"]

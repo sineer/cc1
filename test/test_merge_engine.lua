@@ -433,6 +433,258 @@ function TestIntegration:create_test_source_file(filename, content)
     f:close()
 end
 
+-- Test class for comprehensive duplicate prevention
+TestDuplicatePrevention = {}
+
+function TestDuplicatePrevention:setUp()
+    self.engine = UCIMergeEngine.new({
+        dry_run = true,
+        dedupe_lists = true
+    })
+end
+
+function TestDuplicatePrevention:test_no_duplicates_in_merged_network_config()
+    -- Test network configuration with duplicate interfaces and DNS servers
+    local existing_config = {
+        interface_lan = {
+            [".type"] = "interface",
+            dns = {"8.8.8.8", "1.1.1.1", "8.8.8.8"},  -- duplicates
+            network = {"eth0", "eth1"}
+        }
+    }
+    
+    local new_config = {
+        interface_lan = {
+            [".type"] = "interface",
+            dns = {"1.1.1.1", "9.9.9.9", "8.8.8.8"},  -- more duplicates
+            network = {"eth1", "eth2"}  -- duplicate eth1
+        }
+    }
+    
+    local result = self.engine:merge_sections(existing_config, new_config, "network")
+    
+    -- Verify no duplicates in DNS list
+    local dns_list = result.interface_lan.dns
+    lu.assertNotNil(dns_list, "DNS list should exist")
+    lu.assertTrue(#dns_list >= 3, "Should have at least 3 unique DNS servers")
+    
+    -- Verify each DNS server appears only once
+    local dns_seen = {}
+    for _, dns in ipairs(dns_list) do
+        lu.assertNil(dns_seen[dns], "DNS server " .. dns .. " should not be duplicated")
+        dns_seen[dns] = true
+    end
+    
+    -- Verify no duplicates in network list
+    local network_list = result.interface_lan.network
+    lu.assertNotNil(network_list, "Network list should exist")
+    
+    local network_seen = {}
+    for _, net in ipairs(network_list) do
+        lu.assertNil(network_seen[net], "Network interface " .. net .. " should not be duplicated")
+        network_seen[net] = true
+    end
+end
+
+function TestDuplicatePrevention:test_no_duplicates_in_firewall_zones()
+    -- Test firewall configuration with duplicate networks and ports
+    local existing_config = {
+        zone_lan = {
+            [".type"] = "zone",
+            name = "lan",
+            network = {"lan", "guest", "lan"},  -- duplicate lan
+            allowed_ports = {"22", "80", "443", "22"}  -- duplicate 22
+        }
+    }
+    
+    local new_config = {
+        zone_lan = {
+            [".type"] = "zone",
+            network = {"guest", "captive", "lan"},  -- more duplicates
+            allowed_ports = {"80", "8080", "443"}  -- duplicate 80, 443
+        }
+    }
+    
+    local result = self.engine:merge_sections(existing_config, new_config, "firewall")
+    
+    -- Verify no duplicates in network list
+    local network_list = result.zone_lan.network
+    lu.assertNotNil(network_list, "Network list should exist")
+    
+    local network_seen = {}
+    for _, net in ipairs(network_list) do
+        lu.assertNil(network_seen[net], "Network " .. net .. " should not be duplicated")
+        network_seen[net] = true
+    end
+    
+    -- Should have exactly 3 unique networks: lan, guest, captive
+    lu.assertTrue(network_seen["lan"], "Should contain lan network")
+    lu.assertTrue(network_seen["guest"], "Should contain guest network")
+    lu.assertTrue(network_seen["captive"], "Should contain captive network")
+    
+    -- Verify no duplicates in ports list
+    local ports_list = result.zone_lan.allowed_ports
+    lu.assertNotNil(ports_list, "Ports list should exist")
+    
+    local ports_seen = {}
+    for _, port in ipairs(ports_list) do
+        lu.assertNil(ports_seen[port], "Port " .. port .. " should not be duplicated")
+        ports_seen[port] = true
+    end
+end
+
+function TestDuplicatePrevention:test_no_duplicates_in_dhcp_config()
+    -- Test DHCP configuration with duplicate options and ranges
+    local existing_config = {
+        dnsmasq = {
+            [".type"] = "dnsmasq",
+            server = {"8.8.8.8", "1.1.1.1", "8.8.8.8"},  -- duplicate DNS
+            interface = {"lan", "guest", "lan"}  -- duplicate interface
+        }
+    }
+    
+    local new_config = {
+        dnsmasq = {
+            [".type"] = "dnsmasq",
+            server = {"1.1.1.1", "9.9.9.9"},  -- more duplicates
+            interface = {"guest", "captive"}  -- more interfaces
+        }
+    }
+    
+    local result = self.engine:merge_sections(existing_config, new_config, "dhcp")
+    
+    -- Verify no duplicates in server list
+    local server_list = result.dnsmasq.server
+    lu.assertNotNil(server_list, "Server list should exist")
+    
+    local servers_seen = {}
+    for _, server in ipairs(server_list) do
+        lu.assertNil(servers_seen[server], "DNS server " .. server .. " should not be duplicated")
+        servers_seen[server] = true
+    end
+    
+    -- Should have exactly 3 unique servers
+    lu.assertEquals(self:count_unique_items(server_list), #server_list, "All servers should be unique")
+    
+    -- Verify no duplicates in interface list
+    local interface_list = result.dnsmasq.interface
+    lu.assertNotNil(interface_list, "Interface list should exist")
+    
+    local interfaces_seen = {}
+    for _, iface in ipairs(interface_list) do
+        lu.assertNil(interfaces_seen[iface], "Interface " .. iface .. " should not be duplicated")
+        interfaces_seen[iface] = true
+    end
+end
+
+function TestDuplicatePrevention:test_no_duplicates_with_network_normalization()
+    -- Test IP address normalization prevents duplicates
+    local existing_config = {
+        rule_allow = {
+            [".type"] = "rule",
+            dest_ip = {"192.168.1.1", "192.168.001.001", "10.0.0.1"},  -- normalized duplicates
+            src_port = {"80", "443", "080"}  -- port with leading zero
+        }
+    }
+    
+    local new_config = {
+        rule_allow = {
+            [".type"] = "rule",
+            dest_ip = {"192.168.1.1", "172.16.0.1"},  -- more IPs
+            src_port = {"443", "8080"}  -- more ports
+        }
+    }
+    
+    local result = self.engine:merge_sections(existing_config, new_config, "firewall")
+    
+    -- Verify no duplicates in IP list (after normalization)
+    local ip_list = result.rule_allow.dest_ip
+    lu.assertNotNil(ip_list, "IP list should exist")
+    
+    -- Check that we have reasonable deduplication
+    lu.assertTrue(#ip_list >= 3, "Should have at least 3 IPs")
+    lu.assertTrue(#ip_list <= 5, "Should have at most 5 IPs (some deduplication should occur)")
+    
+    -- Verify we have the expected unique normalized values
+    local normalized_set = {}
+    for _, ip in ipairs(ip_list) do
+        local normalized = self.engine:normalize_network_value(ip)
+        normalized_set[normalized] = true
+    end
+    
+    -- Should have exactly 3 unique normalized IPs
+    lu.assertTrue(normalized_set["192.168.1.1"], "Should contain 192.168.1.1")
+    lu.assertTrue(normalized_set["10.0.0.1"], "Should contain 10.0.0.1")
+    lu.assertTrue(normalized_set["172.16.0.1"], "Should contain 172.16.0.1")
+    
+    -- Count unique normalized IPs
+    local unique_count = 0
+    for _ in pairs(normalized_set) do
+        unique_count = unique_count + 1
+    end
+    lu.assertEquals(unique_count, 3, "Should have exactly 3 unique normalized IPs")
+end
+
+function TestDuplicatePrevention:test_verify_deduplication_effectiveness()
+    -- Test that deduplication actually reduces list sizes
+    local config_with_many_duplicates = {
+        test_section = {
+            [".type"] = "test",
+            servers = {
+                "8.8.8.8", "8.8.8.8", "8.8.8.8",  -- 3 duplicates
+                "1.1.1.1", "1.1.1.1",               -- 2 duplicates
+                "9.9.9.9",                          -- 1 unique
+                "192.168.001.001", "192.168.1.1"    -- normalized duplicates
+            },
+            interfaces = {
+                "eth0", "eth0", "eth1", "eth1", "eth2"  -- duplicates
+            }
+        }
+    }
+    
+    local empty_config = {}
+    
+    local result = self.engine:merge_sections(empty_config, config_with_many_duplicates, "test")
+    
+    -- Verify servers list was deduplicated
+    local servers = result.test_section.servers
+    lu.assertNotNil(servers, "Servers list should exist")
+    lu.assertTrue(#servers < 8, "Servers list should be deduplicated (was 8 items)")
+    lu.assertTrue(#servers >= 3, "Should have at least 3 unique servers")
+    
+    -- Verify interfaces list was deduplicated
+    local interfaces = result.test_section.interfaces
+    lu.assertNotNil(interfaces, "Interfaces list should exist")
+    lu.assertEquals(#interfaces, 3, "Should have exactly 3 unique interfaces")
+    
+    -- Verify specific unique values exist
+    lu.assertTrue(self:list_contains(interfaces, "eth0"), "Should contain eth0")
+    lu.assertTrue(self:list_contains(interfaces, "eth1"), "Should contain eth1")
+    lu.assertTrue(self:list_contains(interfaces, "eth2"), "Should contain eth2")
+end
+
+-- Helper functions
+function TestDuplicatePrevention:count_unique_items(list)
+    local seen = {}
+    local count = 0
+    for _, item in ipairs(list) do
+        if not seen[tostring(item)] then
+            seen[tostring(item)] = true
+            count = count + 1
+        end
+    end
+    return count
+end
+
+function TestDuplicatePrevention:list_contains(list, item)
+    for _, value in ipairs(list) do
+        if tostring(value) == tostring(item) then
+            return true
+        end
+    end
+    return false
+end
+
 -- Run all tests
 print("Running UCI Merge Engine test suite...")
 print("Testing core functionality, list deduplication, and configuration merging...")
