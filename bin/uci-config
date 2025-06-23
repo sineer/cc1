@@ -1,0 +1,507 @@
+#!/usr/bin/env lua
+
+-- Add lib directory to Lua path for library modules
+local script_dir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
+package.path = script_dir .. "../lib/?.lua;" .. package.path
+
+--[[
+uci-config - UCI Configuration Merge Tool for OpenWRT 23.05+
+Version: 1.0.0
+
+Purpose:
+  Safe merging of UCI configurations with network connectivity preservation,
+  intelligent list deduplication, and comprehensive conflict reporting.
+  Designed for production use with uspot captive portal deployments.
+
+Core Features:
+  - Merge UCI configs with existing system configuration
+  - Smart duplicate removal from lists (network-aware)
+  - Conflict detection with detailed reporting
+  - Network safety validation
+  - Dry-run mode for testing
+  - Configuration backup and restore
+
+Usage: uci-config <command> [options] [target]
+
+Commands:
+  merge     Merge UCI configurations from directory
+  backup    Create timestamped configuration backup
+  validate  Validate UCI configuration syntax
+  help      Show this help information
+  
+  Not yet implemented:
+  restore   Restore configuration from backup
+  diff      Compare two UCI configurations
+
+Options:
+  --dry-run           Preview changes without applying them
+  --preserve-network  Ensure network connectivity is preserved
+  --dedupe-lists      Remove duplicate entries from UCI lists
+  --quiet             Suppress informational output
+  --verbose           Show detailed operation information
+  --name=<name>       Specify backup name (for backup command)
+  --force             Force operation without confirmation
+
+Examples:
+  # Preview merging uspot configs
+  uci-config merge --dry-run --verbose /path/to/uspot/configs
+  
+  # Create backup before changes
+  uci-config backup --name pre-uspot-deployment
+  
+  # Merge configs with all safety features
+  uci-config merge --preserve-network --dedupe-lists /path/to/configs
+  
+  # Validate current system configuration
+  uci-config validate
+
+Exit Codes:
+  0 - Success
+  1 - Error occurred
+--]]
+
+local uci = require("uci")
+local lfs = require("lfs")
+
+-- Initialize UCI cursor
+local cursor = uci.cursor()
+
+-- Tool configuration
+local VERSION = "1.0.0"
+local BACKUP_DIR = "/tmp/uci-config-backups"
+local CONFIG_DIR = "/etc/config"
+
+-- Command line argument parsing
+local args = {...}
+local command = args[1]
+local options = {}
+
+-- Define boolean flags (options that don't take values)
+local boolean_flags = {
+    ["dry-run"] = true,
+    ["preserve-network"] = true,
+    ["dedupe-lists"] = true,
+    ["quiet"] = true,
+    ["verbose"] = true,
+    ["force"] = true,
+    ["check-network"] = true
+}
+
+-- Parse command line options
+local i = 2
+while i <= #args do
+    local arg = args[i]
+    if arg:match("^%-%-") then
+        local key, value = arg:match("^%-%-([^=]+)=?(.*)")
+        if value and value ~= "" then
+            -- Handle --key=value format
+            options[key] = value
+        elseif boolean_flags[key] then
+            -- Handle boolean flags
+            options[key] = true
+        elseif i + 1 <= #args and not args[i + 1]:match("^%-%-") then
+            -- Handle --key value format for non-boolean options
+            options[key] = args[i + 1]
+            i = i + 1
+        else
+            -- Handle --key as boolean flag (fallback)
+            options[key] = true
+        end
+    else
+        options.target = arg
+    end
+    i = i + 1
+end
+
+-- Function: log
+-- Purpose: Unified logging with level-based filtering
+-- Parameters:
+--   level: "error", "info", or "verbose"
+--   message: Message to log
+-- Behavior:
+--   - error: Always shown (to stderr)
+--   - info: Shown unless --quiet is set
+--   - verbose: Only shown if --verbose is set
+local function log(level, message)
+    if level == "error" then
+        io.stderr:write("ERROR: " .. message .. "\n")
+    elseif level == "info" and not options.quiet then
+        print("INFO: " .. message)
+    elseif level == "verbose" and options.verbose then
+        print("VERBOSE: " .. message)
+    end
+end
+
+-- Function: file_exists
+-- Purpose: Check if a file exists at given path
+-- Parameters: path - File path to check
+-- Returns: boolean - true if exists
+local function file_exists(path)
+    local f = io.open(path, "r")
+    if f then
+        f:close()
+        return true
+    end
+    return false
+end
+
+-- Function: create_backup_dir
+-- Purpose: Ensure backup directory exists
+-- Creates: /tmp/uci-config-backups directory
+local function create_backup_dir()
+    lfs.mkdir(BACKUP_DIR)
+end
+
+-- Commands implementation
+local commands = {}
+
+function commands.help()
+    print([[
+uci-config - UCI Configuration Merge Tool for OpenWRT 23.05+
+Version: ]] .. VERSION .. [[
+
+
+CORE COMMANDS (Ready for Production Use):
+
+  merge     Merge UCI configurations with existing system config
+  backup    Create timestamped backup of current UCI configuration  
+  validate  Validate UCI configuration syntax
+  help      Show this help information
+
+PLANNED COMMANDS (Not Yet Implemented):
+
+  restore   Restore UCI configuration from backup
+  diff      Compare two UCI configurations
+
+Usage: uci-config <command> [options] [target]
+
+MERGE OPTIONS:
+  --dry-run           Preview changes without applying them
+  --preserve-network  Ensure network connectivity is preserved
+  --dedupe-lists      Remove duplicate entries from UCI lists
+  --verbose           Show detailed operation information
+
+BACKUP OPTIONS:
+  --name=<name>       Specify custom backup name
+  --dry-run           Show what would be backed up
+
+GENERAL OPTIONS:
+  --quiet             Suppress informational output
+  --force             Force operation without confirmation
+
+EXAMPLES:
+
+  # Safe merge workflow
+  uci-config backup --name pre-merge
+  uci-config merge --dry-run --verbose /path/to/configs
+  uci-config merge --dedupe-lists /path/to/configs
+  uci-config validate
+
+  # Quick preview
+  uci-config merge --dry-run /etc/uspot-configs
+  
+  # Production deployment with all safety features
+  uci-config merge --preserve-network --dedupe-lists /etc/uspot-configs
+
+For detailed usage examples, see docs/USAGE_EXAMPLES.md
+For technical details, see docs/HOW_IT_WORKS.md
+]])
+end
+
+-- Command: merge
+-- Purpose: Merge UCI configurations from a source directory
+-- Process:
+--   1. Load source and target configurations
+--   2. Apply merge with specified options
+--   3. Report conflicts and changes
+--   4. Save merged configs (unless dry-run)
+-- Options used:
+--   --dry-run: Preview without applying
+--   --preserve-network: Validate network safety
+--   --dedupe-lists: Remove list duplicates
+--   --verbose: Show detailed output
+function commands.merge()
+    local source_dir = options.target
+    if not source_dir then
+        log("error", "No source directory specified for merge")
+        log("error", "Usage: uci-config merge [options] <source-directory>")
+        return 1
+    end
+    
+    log("info", "Starting UCI configuration merge from: " .. source_dir)
+    
+    -- Report active options
+    if options["dry-run"] then
+        log("info", "DRY RUN MODE - No changes will be applied")
+    end
+    
+    if options["preserve-network"] then
+        log("info", "Network safety mode enabled")
+    end
+    
+    if options["dedupe-lists"] then
+        log("info", "List deduplication enabled")
+    end
+    
+    -- Load merge engine
+    local success, UCIMergeEngine = pcall(require, "uci_merge_engine")
+    if not success then
+        log("error", "Failed to load merge engine: " .. tostring(UCIMergeEngine))
+        log("error", "Ensure uci_merge_engine.lua is in the Lua path")
+        return 1
+    end
+    
+    -- Initialize merge engine with options
+    local merge_engine = UCIMergeEngine.new({
+        dry_run = options["dry-run"] or false,
+        dedupe_lists = options["dedupe-lists"] or false,
+        preserve_network = options["preserve-network"] or false,
+        preserve_existing = true  -- Always preserve existing values on conflict
+    })
+    
+    -- Perform merge
+    local merge_success, results = merge_engine:merge_directory(source_dir, "/etc/config")
+    
+    if not merge_success then
+        log("error", "Merge failed: " .. tostring(results))
+        return 1
+    end
+    
+    -- Display per-file results
+    if options.verbose then
+        log("info", "Merge completed successfully")
+        for config_name, result in pairs(results) do
+            if result.success then
+                log("info", "  " .. config_name .. ": merged successfully")
+                if result.conflicts > 0 then
+                    log("info", "    " .. result.conflicts .. " conflicts detected")
+                end
+            else
+                log("error", "  " .. config_name .. ": merge failed")
+            end
+        end
+    end
+    
+    -- Get and display merge summary
+    local summary = merge_engine:get_merge_summary()
+    
+    -- Report conflicts if any
+    if #summary.conflicts > 0 then
+        log("info", "Total conflicts detected: " .. #summary.conflicts)
+        for _, conflict in ipairs(summary.conflicts) do
+            log("verbose", "  Conflict in " .. conflict.config .. "." .. conflict.section .. "." .. conflict.option)
+            log("verbose", "    Existing: " .. tostring(conflict.existing))
+            log("verbose", "    New: " .. tostring(conflict.new))
+        end
+    end
+    
+    -- Summary of changes
+    if options["dry-run"] then
+        log("info", "Changes that would be made: " .. #summary.changes)
+        for _, change in ipairs(summary.changes) do
+            log("verbose", "  " .. change.action .. ": " .. (change.config or "unknown"))
+        end
+    else
+        log("info", "Applied " .. #summary.changes .. " changes")
+    end
+    
+    return 0
+end
+
+-- Command: backup
+-- Purpose: Create a compressed backup of all UCI configurations
+-- Process:
+--   1. Generate backup filename (timestamped or custom name)
+--   2. Create backup directory if needed
+--   3. Tar and compress /etc/config directory
+-- Options used:
+--   --name: Custom backup name (optional)
+--   --dry-run: Show what would be done
+-- Output: Backup saved to /tmp/uci-config-backups/
+function commands.backup()
+    local backup_name = options.name or ("backup-" .. os.date("%Y%m%d-%H%M%S"))
+    
+    log("info", "Creating backup: " .. backup_name)
+    create_backup_dir()
+    
+    local backup_path = BACKUP_DIR .. "/" .. backup_name .. ".tar.gz"
+    local cmd = string.format("tar -czf '%s' -C / etc/config", backup_path)
+    
+    if options["dry-run"] then
+        log("info", "DRY RUN: Would execute: " .. cmd)
+        log("info", "DRY RUN: Backup would be saved to: " .. backup_path)
+        return 0
+    end
+    
+    -- Execute backup command
+    local result = os.execute(cmd)
+    if result == 0 then
+        log("info", "Backup created successfully: " .. backup_path)
+        
+        -- Show backup size if verbose
+        if options.verbose then
+            local size_cmd = string.format("ls -lh '%s' | awk '{print $5}'", backup_path)
+            local handle = io.popen(size_cmd)
+            local size = handle:read("*a"):gsub("%s+", "")
+            handle:close()
+            log("verbose", "Backup size: " .. size)
+        end
+        
+        return 0
+    else
+        log("error", "Backup failed - check permissions and disk space")
+        return 1
+    end
+end
+
+-- Command: restore (NOT YET IMPLEMENTED)
+-- Purpose: Restore UCI configuration from a backup file
+-- Planned functionality:
+--   1. Validate backup file exists and is valid
+--   2. Create safety backup of current config
+--   3. Extract backup to /etc/config
+--   4. Validate restored configuration
+-- Status: Placeholder - needs implementation
+function commands.restore()
+    local backup_name = options.target
+    if not backup_name then
+        log("error", "No backup specified for restore")
+        log("error", "Usage: uci-config restore <backup-name>")
+        return 1
+    end
+    
+    log("info", "Restoring from backup: " .. backup_name)
+    
+    -- TODO: Implement restore logic
+    log("error", "Restore functionality not yet implemented")
+    log("info", "This feature will be available in a future version")
+    return 1
+end
+
+-- Command: validate
+-- Purpose: Validate UCI configuration files for syntax errors
+-- Process:
+--   1. Iterate through all files in /etc/config
+--   2. Attempt to parse each file with UCI
+--   3. Report any syntax errors found
+-- Options used:
+--   --verbose: Show each file being validated
+-- Note: This only checks syntax, not semantic validity
+function commands.validate()
+    log("info", "Validating UCI configuration files...")
+    
+    local valid = true
+    local total_files = 0
+    local failed_files = 0
+    
+    -- Validate each configuration file
+    for file in lfs.dir(CONFIG_DIR) do
+        if file ~= "." and file ~= ".." then
+            local path = CONFIG_DIR .. "/" .. file
+            local attr = lfs.attributes(path)
+            if attr and attr.mode == "file" then
+                total_files = total_files + 1
+                log("verbose", "Validating: " .. file)
+                
+                -- Try to load and parse the config file
+                local success, err = pcall(function()
+                    cursor:get_all(file)
+                end)
+                
+                if not success then
+                    log("error", "Invalid UCI syntax in " .. file .. ": " .. tostring(err))
+                    valid = false
+                    failed_files = failed_files + 1
+                else
+                    log("verbose", "  " .. file .. ": OK")
+                end
+            end
+        end
+    end
+    
+    -- Report results
+    if valid then
+        log("info", "UCI configuration validation passed")
+        log("info", "Validated " .. total_files .. " configuration files")
+        return 0
+    else
+        log("error", "UCI configuration validation failed")
+        log("error", failed_files .. " of " .. total_files .. " files have syntax errors")
+        return 1
+    end
+end
+
+-- Command: diff (NOT YET IMPLEMENTED)
+-- Purpose: Compare two UCI configuration files
+-- Planned functionality:
+--   1. Load both configurations
+--   2. Compare sections and options
+--   3. Show differences in readable format
+--   4. Highlight additions, deletions, and changes
+-- Status: Placeholder - needs implementation
+function commands.diff()
+    local file1 = args[2]
+    local file2 = args[3]
+    
+    if not file1 or not file2 then
+        log("error", "Two files required for diff")
+        log("error", "Usage: uci-config diff <file1> <file2>")
+        return 1
+    end
+    
+    log("info", "Comparing " .. file1 .. " and " .. file2)
+    
+    -- TODO: Implement diff logic
+    log("error", "Diff functionality not yet implemented")
+    log("info", "This feature will be available in a future version")
+    return 1
+end
+
+-- Function: main
+-- Purpose: Main entry point for CLI tool
+-- Process:
+--   1. Parse command from arguments
+--   2. Show help if no command given
+--   3. Execute requested command
+--   4. Return appropriate exit code
+-- Exit codes:
+--   0: Success
+--   1: Error occurred
+local function main()
+    if not command or command == "help" then
+        commands.help()
+        return 0
+    end
+    
+    -- Core commands (implemented)
+    local core_commands = {
+        merge = true,
+        backup = true,
+        validate = true
+    }
+    
+    -- Planned commands (not yet implemented)
+    local planned_commands = {
+        restore = true,
+        diff = true
+    }
+    
+    if core_commands[command] then
+        -- Execute the implemented command
+        return commands[command]()
+    elseif planned_commands[command] then
+        -- Handle planned but unimplemented commands
+        log("error", "Command '" .. command .. "' is planned but not yet implemented")
+        log("info", "Currently available commands: merge, backup, validate")
+        log("info", "Use 'uci-config help' for full information")
+        return 1
+    else
+        log("error", "Unknown command: " .. command)
+        log("info", "Use 'uci-config help' for usage information")
+        return 1
+    end
+end
+
+-- Execute main function and exit with appropriate code
+local exit_code = main()
+os.exit(exit_code)

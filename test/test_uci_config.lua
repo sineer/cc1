@@ -1,16 +1,20 @@
 #!/usr/bin/env lua
 
+-- Add lib directory to Lua path for library modules
+local script_dir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
+package.path = script_dir .. "../lib/?.lua;" .. package.path
+
 --[[
 Test suite for uci-config tool
 Uses luaunit for testing in Docker OpenWRT environment
 ]]
 
 -- Import luaunit (we'll need to install it in Docker)
-local lu = require('luaunit')
+local lu = require('luaunit_fixed')
 
 -- Test configuration
 local TEST_CONFIG_DIR = "/tmp/test-config"
-local UCI_CONFIG_TOOL = "/app/uci-config"
+local UCI_CONFIG_TOOL = "/app/bin/uci-config"
 
 -- Helper function to execute shell commands
 local function execute_command(cmd)

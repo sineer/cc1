@@ -1,12 +1,16 @@
 #!/usr/bin/env lua
 
+-- Add lib directory to Lua path for library modules
+local script_dir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
+package.path = script_dir .. "../lib/?.lua;" .. package.path
+
 --[[
 Advanced Integration Test Suite for UCI Config Merging
 Tests real-world scenarios of merging uspot configs with existing OpenWrt configs
 in Docker environment with comprehensive validation and rollback testing
 ]]
 
-local lu = require('luaunit_compat')
+local lu = require('luaunit_fixed')
 local UCIMergeEngine = require('uci_merge_engine')
 local lfs = require('lfs')
 

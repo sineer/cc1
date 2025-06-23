@@ -40,7 +40,7 @@ git clone https://github.com/your-username/uci-config-merge-tool.git
 cd uci-config-merge-tool
 
 # Make CLI tool executable
-chmod +x uci-config
+chmod +x bin/uci-config
 
 # Run tests (requires Docker)
 docker build -t uci-config-test .
@@ -51,26 +51,28 @@ docker run uci-config-test
 
 ```bash
 # Preview merging uspot configs with existing system
-./uci-config merge --dry-run --verbose /path/to/uspot/configs
+./bin/uci-config merge --dry-run --verbose /path/to/uspot/configs
 
 # Create backup before making changes
-./uci-config backup --name pre-uspot-merge
+./bin/uci-config backup --name pre-uspot-merge
 
-# Merge uspot configs with network safety checks
-./uci-config merge --preserve-network --dedupe-lists /path/to/uspot/configs
+# Merge uspot configs with safety features
+./bin/uci-config merge --preserve-network --dedupe-lists /path/to/uspot/configs
 
-# Validate current configuration
-./uci-config validate
+# Validate configuration after changes
+./bin/uci-config validate
 ```
 
 ## Architecture
 
 ### Core Components
 
-- **UCI Merge Engine** (`uci_merge_engine.lua`) - Core merging functionality with UCI cursor API
-- **CLI Interface** (`uci-config`) - Command-line tool with comprehensive options
+- **UCI Merge Engine** (`lib/uci_merge_engine.lua`) - Core merging functionality with UCI cursor API
+- **List Deduplicator** (`lib/list_deduplicator.lua`) - Intelligent list deduplication module
+- **CLI Interface** (`bin/uci-config`) - Command-line tool with three main commands: merge, backup, validate
 - **uspot Templates** (`etc/config/`) - Production-ready UCI configurations
-- **Test Suite** (`test_*.lua`) - Comprehensive testing framework
+- **Test Suite** (`test/`) - Comprehensive testing framework with luaunit
+- **Documentation** (`docs/`) - Usage examples and technical details
 
 ### Merge Strategies
 
@@ -94,16 +96,16 @@ Deploy a complete captive portal system on OpenWRT:
 
 ```bash
 # 1. Backup existing configuration
-./uci-config backup --name before-uspot
+./bin/uci-config backup --name before-uspot
 
 # 2. Preview the merge (shows conflicts and changes)
-./uci-config merge --dry-run --verbose etc/config/
+./bin/uci-config merge --dry-run --verbose etc/config/
 
 # 3. Apply uspot configuration safely
-./uci-config merge --preserve-network --dedupe-lists etc/config/
+./bin/uci-config merge --preserve-network --dedupe-lists etc/config/
 
 # 4. Validate the result
-./uci-config validate --check-network
+./bin/uci-config validate
 ```
 
 ### Network Configuration Management
@@ -112,10 +114,10 @@ Safely merge network configurations while preserving connectivity:
 
 ```bash
 # Merge with maximum safety
-./uci-config merge --preserve-network --dry-run new-configs/
+./bin/uci-config merge --preserve-network --dry-run new-configs/
 
 # Handle list duplicates intelligently
-./uci-config merge --dedupe-lists --strategy=network-aware configs/
+./bin/uci-config merge --dedupe-lists configs/
 ```
 
 ## Testing
@@ -208,9 +210,18 @@ This project follows Test-Driven Development (TDD):
 ### Code Structure
 
 ```
-├── uci-config              # Main CLI tool
-├── uci_merge_engine.lua     # Core merge functionality
-├── test_*.lua               # Test suites
+├── bin/                     # Executable scripts
+│   └── uci-config           # Main CLI tool
+├── lib/                     # Library modules
+│   ├── uci_merge_engine.lua # Core merge functionality
+│   └── list_deduplicator.lua # List deduplication module
+├── test/                    # Test suites
+│   ├── test_*.lua           # Test files
+│   ├── luaunit*.lua         # Testing framework
+│   └── run-tests.sh         # Test runner script
+├── docs/                    # Documentation
+│   ├── HOW_IT_WORKS.md      # Technical details
+│   └── USAGE_EXAMPLES.md    # Usage examples
 ├── etc/config/              # UCI configuration templates
 │   ├── firewall             # Firewall rules for captive portal
 │   ├── dhcp                 # DHCP configuration
@@ -218,6 +229,7 @@ This project follows Test-Driven Development (TDD):
 │   ├── uspot                # Main uspot configuration
 │   └── network              # Network interface configuration
 ├── Dockerfile               # OpenWRT testing environment
+├── docker-compose.yml       # Docker compose configuration
 └── README.md                # This file
 ```
 
