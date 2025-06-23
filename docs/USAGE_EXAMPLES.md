@@ -243,8 +243,10 @@ set -e  # Exit on error
 uci-config backup --name "auto-$(date +%s)"
 
 # Merge with all safety
-uci-config merge --preserve-network --dedupe-lists /deploy/configs
+uci-config merge --preserve-network --dedupe-lists ./etc/config/default
 
+# Same as the above but shorter with default options fo dedupe and perserve-network
+uci-config config --target default
 # Validate
 uci-config validate || {
     echo "Validation failed, check configuration"

@@ -164,6 +164,7 @@ Version: ]] .. VERSION .. [[
 CORE COMMANDS (Ready for Production Use):
 
   merge     Merge UCI configurations with existing system config
+  config    Merge configs with default safety options (--target shorthand)
   backup    Create timestamped backup of current UCI configuration  
   validate  Validate UCI configuration syntax
   help      Show this help information
@@ -179,6 +180,12 @@ MERGE OPTIONS:
   --dry-run           Preview changes without applying them
   --preserve-network  Ensure network connectivity is preserved
   --dedupe-lists      Remove duplicate entries from UCI lists
+  --verbose           Show detailed operation information
+
+CONFIG OPTIONS:
+  --target=<name>     Merge ./etc/config/<name> with default safety options
+                      (automatically enables --preserve-network, --dedupe-lists, --preserve-existing)
+  --dry-run           Preview changes without applying them
   --verbose           Show detailed operation information
 
 BACKUP OPTIONS:
@@ -197,11 +204,14 @@ EXAMPLES:
   uci-config merge --dedupe-lists /path/to/configs
   uci-config validate
 
-  # Quick preview
-  uci-config merge --dry-run /etc/uspot-configs
+  # Quick merge with default configs (recommended)
+  uci-config config --target default
+  
+  # Preview default configs merge
+  uci-config config --target default --dry-run --verbose
   
   # Production deployment with all safety features
-  uci-config merge --preserve-network --dedupe-lists /etc/uspot-configs
+  uci-config merge --preserve-network --dedupe-lists ./etc/config/default
 
 For detailed usage examples, see docs/USAGE_EXAMPLES.md
 For technical details, see docs/HOW_IT_WORKS.md
@@ -306,6 +316,62 @@ function commands.merge()
     end
     
     return 0
+end
+
+-- Command: config
+-- Purpose: Shorthand for merge with default safety options
+-- Process:
+--   1. Determine target directory from --target option
+--   2. Call merge with predefined safe options
+--   3. Equivalent to: merge --preserve-network --dedupe-lists --preserve-existing ./etc/config/<target>
+-- Options used:
+--   --target: Target config directory name (required)
+--   --dry-run: Preview without applying
+--   --verbose: Show detailed output
+function commands.config()
+    local target = options.target
+    if not target then
+        log("error", "No target specified for config command")
+        log("error", "Usage: uci-config config --target <config-name>")
+        log("info", "Example: uci-config config --target default")
+        return 1
+    end
+    
+    -- Construct source directory path
+    local source_dir = "./etc/config/" .. target
+    log("info", "Config command using target: " .. target)
+    log("info", "Source directory: " .. source_dir)
+    
+    -- Set up default options for config command (always safe)
+    local config_options = {
+        target = source_dir,
+        ["preserve-network"] = true,
+        ["dedupe-lists"] = true,
+        ["preserve-existing"] = true,
+        ["dry-run"] = options["dry-run"] or false,
+        verbose = options.verbose or false,
+        quiet = options.quiet or false
+    }
+    
+    -- Temporarily store original options and replace with config options
+    local original_options = options
+    options = config_options
+    
+    log("info", "Config command enabled with default safety options:")
+    log("info", "  --preserve-network (network safety)")
+    log("info", "  --dedupe-lists (duplicate removal)")
+    log("info", "  --preserve-existing (keep existing values on conflicts)")
+    if config_options["dry-run"] then
+        log("info", "  --dry-run (preview mode)")
+    end
+    
+    -- Call merge command with the configured options
+    local result = commands.merge()
+    
+    -- Restore original options
+    options = original_options
+    
+    return result
 end
 
 -- Command: backup
@@ -476,6 +542,7 @@ local function main()
     -- Core commands (implemented)
     local core_commands = {
         merge = true,
+        config = true,
         backup = true,
         validate = true
     }

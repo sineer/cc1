@@ -19,7 +19,7 @@ local TEST_ENV = {
     UCI_CONFIG_DIR = "/etc/config",
     BACKUP_DIR = "/tmp/uci-backup",
     TEST_TEMP_DIR = "/tmp/test-integration",
-    USPOT_CONFIG_DIR = "/app/etc/config",
+    USPOT_CONFIG_DIR = "/app/etc/config/default",
     DOCKER_CONTAINER = "openwrt-test"
 }
 

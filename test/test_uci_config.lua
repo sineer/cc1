@@ -56,9 +56,25 @@ function TestUCIConfig:test_validate_command()
 end
 
 function TestUCIConfig:test_merge_dry_run()
-    local result, success = execute_command(UCI_CONFIG_TOOL .. " merge --dry-run /app/etc/config")
+    local result, success = execute_command(UCI_CONFIG_TOOL .. " merge --dry-run /app/etc/config/default")
     lu.assertStrContains(result, "DRY RUN MODE")
     lu.assertStrContains(result, "No changes will be applied")
+end
+
+function TestUCIConfig:test_config_command_dry_run()
+    local result, success = execute_command(UCI_CONFIG_TOOL .. " config --target default --dry-run")
+    lu.assertStrContains(result, "Config command using target: default")
+    lu.assertStrContains(result, "Source directory: ./etc/config/default")
+    lu.assertStrContains(result, "default safety options")
+    lu.assertStrContains(result, "preserve-network")
+    lu.assertStrContains(result, "dedupe-lists")
+    lu.assertStrContains(result, "preserve-existing")
+end
+
+function TestUCIConfig:test_config_command_missing_target()
+    local result, success = execute_command(UCI_CONFIG_TOOL .. " config")
+    lu.assertStrContains(result, "No target specified")
+    lu.assertStrContains(result, "Usage: uci-config config --target")
 end
 
 function TestUCIConfig:test_invalid_command()
@@ -71,27 +87,27 @@ end
 TestUCIConfigFiles = {}
 
 function TestUCIConfigFiles:test_firewall_config_exists()
-    lu.assertTrue(self:file_exists("/app/etc/config/firewall"))
+    lu.assertTrue(self:file_exists("/app/etc/config/default/firewall"))
 end
 
 function TestUCIConfigFiles:test_dhcp_config_exists()
-    lu.assertTrue(self:file_exists("/app/etc/config/dhcp"))
+    lu.assertTrue(self:file_exists("/app/etc/config/default/dhcp"))
 end
 
 function TestUCIConfigFiles:test_uhttpd_config_exists()
-    lu.assertTrue(self:file_exists("/app/etc/config/uhttpd"))
+    lu.assertTrue(self:file_exists("/app/etc/config/default/uhttpd"))
 end
 
 function TestUCIConfigFiles:test_uspot_config_exists()
-    lu.assertTrue(self:file_exists("/app/etc/config/uspot"))
+    lu.assertTrue(self:file_exists("/app/etc/config/default/uspot"))
 end
 
 function TestUCIConfigFiles:test_network_config_exists()
-    lu.assertTrue(self:file_exists("/app/etc/config/network"))
+    lu.assertTrue(self:file_exists("/app/etc/config/default/network"))
 end
 
 function TestUCIConfigFiles:test_firewall_config_content()
-    local content = self:read_file("/app/etc/config/firewall")
+    local content = self:read_file("/app/etc/config/default/firewall")
     lu.assertStrContains(content, "config zone")
     lu.assertStrContains(content, "option name 'captive'")
     lu.assertStrContains(content, "config ipset")
@@ -99,7 +115,7 @@ function TestUCIConfigFiles:test_firewall_config_content()
 end
 
 function TestUCIConfigFiles:test_uspot_config_content()
-    local content = self:read_file("/app/etc/config/uspot")
+    local content = self:read_file("/app/etc/config/default/uspot")
     lu.assertStrContains(content, "config uspot 'captive'")
     lu.assertStrContains(content, "option interface 'captive'")
     lu.assertStrContains(content, "option setname 'uspot'")

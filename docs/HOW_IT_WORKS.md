@@ -123,11 +123,14 @@ Total conflicts detected: 3
 
 1. **User runs merge command:**
    ```bash
-   uci-config merge --dedupe-lists --preserve-network /etc/uspot-configs
+   uci-config merge --dedupe-lists --preserve-network ./etc/config/default
+   uci-config config --target default
    ```
+   NOTE: Above uci-config --target default is equivalent to uci-confi merge
+         with --dedupe-lists and --preserve-network for path ./etc/config/default
 
 2. **Tool loads configurations:**
-   - Reads all files from `/etc/uspot-configs`
+   - Reads all files from `./etc/config/<TARGET>`
    - Loads corresponding system configs from `/etc/config`
 
 3. **For each config file:**
