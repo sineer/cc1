@@ -1,0 +1,95 @@
+# uspot Captive Portal Firewall Configuration
+# OpenWRT 23.05+ UCI format
+# Based on uspot documentation requirements
+
+# Create a 'captive' zone for captive portal traffic
+config zone
+	option name 'captive'
+	list network 'captive'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+# Setup CPD hijacking for unauthenticated clients
+config redirect
+	option name 'Redirect-unauth-captive-CPD'
+	option src 'captive'
+	option src_dport '80'
+	option proto 'tcp'
+	option target 'DNAT'
+	option reflection '0'
+	option ipset '!uspot'
+
+# Allow DHCP and NTP for captive clients
+config rule
+	option name 'Allow-DHCP-NTP-captive'
+	option src 'captive'
+	option proto 'udp'
+	option dest_port '67 123'
+	option target 'ACCEPT'
+
+# Prevent access to LAN-side services from captive interface
+# Linux implements a weak host model and traffic crossing zone boundary isn't considered forwarding on the router:
+# it must be explicitly denied - NB order matter: DHCP is broadcast that would be caught by this rule
+config rule
+	option name 'Restrict-input-captive'
+	option src 'captive'
+	option dest_ip '!captive'
+	option target 'DROP'
+
+# Allow incoming traffic to CPD / web interface and local UAM server
+config rule
+	option name 'Allow-captive-CPD-WEB-UAM'
+	option src 'captive'
+	option dest_port '80 443 3990'
+	option proto 'tcp'
+	option target 'ACCEPT'
+
+# Allow forwarding traffic to wan from authenticated clients
+config rule
+	option name 'Forward-auth-captive'
+	option src 'captive'
+	option dest 'wan'
+	option proto 'any'
+	option target 'ACCEPT'
+	option ipset 'uspot'
+
+# Allow DNS for captive clients
+config rule
+	option name 'Allow-DNS-captive'
+	option src 'captive'
+	list proto 'udp'
+	list proto 'tcp'
+	option dest_port '53'
+	option target 'ACCEPT'
+
+# Allow RADIUS DAE (Dynamic Authorization Extensions) - RFC5176 support
+config rule
+	option name 'Allow-captive-DAE'
+	option src 'wan'
+	option proto 'udp'
+	option family 'ipv4'
+	option src_ip '0.0.0.0/0'
+	option dest_port '3799'
+	option target 'ACCEPT'
+
+# Create the ipset that will hold authenticated clients
+config ipset
+	option name 'uspot'
+	list match 'src_mac'
+
+# Optional whitelist for e.g. remote UAM host and/or dynamic hosts via dnsmasq ipset functionality
+config rule
+	option name 'Allow-Whitelist'
+	option src 'captive'
+	option dest 'wan'
+	option proto 'any'
+	option ipset 'wlist'
+	option target 'ACCEPT'
+
+# Associated whitelist ipset with prepopulated entries
+config ipset
+	option name 'wlist'
+	list match 'dest_ip'
+	list entry '8.8.8.8'
+	list entry '1.1.1.1'
