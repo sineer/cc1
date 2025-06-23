@@ -1,0 +1,36 @@
+# Backup files
+*.backup
+*.bak
+/tmp/uci-config-backups/
+
+# Test artifacts
+/tmp/test-*
+*.log
+
+# Lua compiled files
+*.luac
+
+# Docker build context (keep Dockerfile)
+.dockerignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Memory and session files (keep structure, ignore contents)
+memory/backups/*.json
+memory/data/entries.json
+memory/archive/
+
+# Runtime files
+*.pid
+*.sock
+
+# Development artifacts
+run-tests.local
