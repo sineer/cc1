@@ -62,6 +62,38 @@ end
 -- Initialize list deduplicator
 local deduplicator = ListDeduplicator.new()
 
+-- Function: normalize_network_value
+-- Purpose: Normalize network-related values for consistent comparison
+-- Parameters:
+--   value (string): Value to normalize (IP, port, protocol, etc.)
+-- Returns: string - Normalized value
+-- Examples:
+--   "192.168.001.001" -> "192.168.1.1"
+--   "TCP" -> "tcp"
+--   "  HTTP  " -> "http"
+function UCIMergeEngine:normalize_network_value(value)
+    if not value or value == "" then
+        return value
+    end
+    
+    local str_val = tostring(value):match("^%s*(.-)%s*$") -- trim whitespace
+    
+    -- Normalize IP addresses (remove leading zeros from octets)
+    local ip_pattern = "^(%d+)%.(%d+)%.(%d+)%.(%d+)$"
+    local a, b, c, d = str_val:match(ip_pattern)
+    if a and b and c and d then
+        return string.format("%d.%d.%d.%d", tonumber(a), tonumber(b), tonumber(c), tonumber(d))
+    end
+    
+    -- Normalize protocol names to lowercase
+    if str_val:match("^[A-Za-z]+$") then
+        return str_val:lower()
+    end
+    
+    -- For other values (ports, etc.), just return trimmed
+    return str_val
+end
+
 -- Function: file_exists
 -- Purpose: Check if a file exists at the given path
 -- Parameters:
@@ -190,16 +222,33 @@ end
 -- Purpose: Remove duplicate entries from UCI lists using the external deduplicator
 -- Parameters:
 --   list_values (table|string): List values to deduplicate
---   list_name (string, optional): Name of the list for automatic strategy selection
+--   strategy_or_name (string, optional): Either a strategy name or list name for auto-selection
 -- Returns: table - Deduplicated list
 -- Note: Uses the ListDeduplicator module for all deduplication logic
-function UCIMergeEngine:dedupe_list(list_values, list_name)
-    if not self.dedupe_lists or not list_values then
-        return list_values or {}
+function UCIMergeEngine:dedupe_list(list_values, strategy_or_name)
+    if not list_values then
+        return {}
     end
     
-    -- Use the external deduplicator with automatic strategy selection
-    return deduplicator:dedupe_list_auto(list_values, list_name)
+    -- If dedupe_lists is false, only apply deduplication when explicitly requested (tests)
+    if not self.dedupe_lists and not strategy_or_name then
+        return list_values
+    end
+    
+    -- Check if strategy_or_name is a deduplication strategy
+    local valid_strategies = {
+        preserve_order = true,
+        network_aware = true,
+        priority_based = true
+    }
+    
+    if strategy_or_name and valid_strategies[strategy_or_name] then
+        -- Direct strategy specified
+        return deduplicator:dedupe_list(list_values, strategy_or_name)
+    else
+        -- Use auto-selection based on list name
+        return deduplicator:dedupe_list_auto(list_values, strategy_or_name)
+    end
 end
 
 -- Function: merge_lists

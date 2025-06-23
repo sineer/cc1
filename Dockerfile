@@ -10,15 +10,13 @@ WORKDIR /app
 RUN mkdir -p /app/etc/config /tmp/uci-config-backups
 
 # Copy UCI config tool and config files
-COPY uci-config ./
+COPY bin/uci-config ./bin/
 COPY etc/config/* ./etc/config/
-COPY *.lua ./
+COPY lib/*.lua ./lib/
+COPY test/*.lua ./test/
 
 # Make UCI config tool executable
-RUN chmod +x /app/uci-config
-
-# Install luaunit for testing (download from GitHub)
-RUN wget -O luaunit.lua https://raw.githubusercontent.com/sineer/luaunit/master/luaunit.lua
+RUN chmod +x /app/bin/uci-config
 
 # Set default command to run all tests
-CMD ["sh", "-c", "echo '=== UCI CONFIG TESTS ===' && lua test_uci_config.lua && echo '=== MERGE ENGINE TESTS ===' && lua test_merge_engine.lua && echo '=== ADVANCED INTEGRATION TESTS ===' && lua test_advanced_integration.lua"]
+CMD ["sh", "-c", "echo '=== UCI CONFIG TESTS ===' && lua test/test_uci_config.lua && echo '=== MERGE ENGINE TESTS ===' && lua test/test_merge_engine.lua && echo '=== ADVANCED INTEGRATION TESTS ===' && lua test/test_advanced_integration.lua"]

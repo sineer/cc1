@@ -1,8 +1,8 @@
 #!/usr/bin/env lua
 
--- Add lib directory to Lua path for library modules
+-- Add lib and test directories to Lua path for library modules
 local script_dir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
-package.path = script_dir .. "../lib/?.lua;" .. package.path
+package.path = script_dir .. "../lib/?.lua;" .. script_dir .. "?.lua;" .. package.path
 
 --[[
 Advanced Integration Test Suite for UCI Config Merging

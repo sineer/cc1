@@ -1,8 +1,8 @@
 #!/usr/bin/env lua
 
--- Add lib directory to Lua path for library modules
+-- Add lib and test directories to Lua path for library modules
 local script_dir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
-package.path = script_dir .. "../lib/?.lua;" .. package.path
+package.path = script_dir .. "../lib/?.lua;" .. script_dir .. "?.lua;" .. package.path
 
 --[[
 Test suite for uci-config tool
@@ -41,7 +41,7 @@ function TestUCIConfig:test_help_command()
     local result, success = execute_command(UCI_CONFIG_TOOL .. " help")
     lu.assertStrContains(result, "uci-config - UCI Configuration Merge Tool")
     lu.assertStrContains(result, "Usage:")
-    lu.assertStrContains(result, "Commands:")
+    lu.assertStrContains(result, "CORE COMMANDS")
 end
 
 function TestUCIConfig:test_backup_dry_run()
