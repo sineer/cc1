@@ -97,13 +97,20 @@ function UCIMergeEngine:save_config(config_name, config_data)
             for option_name, option_value in pairs(section_data) do
                 if option_name ~= ".type" and option_name ~= ".name" then
                     if type(option_value) == "table" then
-                        -- Handle UCI lists
+                        -- Handle UCI lists - convert to space-separated values
+                        local list_values = {}
                         for _, list_value in ipairs(option_value) do
-                            self.cursor:add_list(config_name, section_name, option_name, list_value)
+                            table.insert(list_values, tostring(list_value))
+                        end
+                        if #list_values > 0 then
+                            -- Set as space-separated string for UCI list format
+                            local list_string = table.concat(list_values, " ")
+                            self.cursor:set(config_name, section_name, option_name, list_string)
                         end
                     else
-                        -- Handle UCI options
-                        self.cursor:set(config_name, section_name, option_name, option_value)
+                        -- Handle UCI options - ensure value is string
+                        local string_value = tostring(option_value)
+                        self.cursor:set(config_name, section_name, option_name, string_value)
                     end
                 end
             end

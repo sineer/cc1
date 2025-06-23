@@ -6,4 +6,4 @@ services:
     volumes:
       - .:/app
     working_dir: /app
-    command: lua test_rectangle.lua
+    command: sh -c "echo '=== UCI CONFIG TESTS ===' && lua test_uci_config.lua && echo '=== MERGE ENGINE TESTS ===' && lua test_merge_engine.lua && echo '=== ADVANCED INTEGRATION TESTS ===' && lua test_advanced_integration.lua"

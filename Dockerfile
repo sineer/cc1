@@ -21,4 +21,4 @@ RUN chmod +x /app/uci-config
 RUN wget -O luaunit.lua https://raw.githubusercontent.com/sineer/luaunit/master/luaunit.lua
 
 # Set default command to run all tests
-CMD ["sh", "-c", "lua test_uci_config.lua && echo '\\n=== MERGE ENGINE TESTS ===' && lua test_merge_engine.lua"]
+CMD ["sh", "-c", "echo '=== UCI CONFIG TESTS ===' && lua test_uci_config.lua && echo '=== MERGE ENGINE TESTS ===' && lua test_merge_engine.lua && echo '=== ADVANCED INTEGRATION TESTS ===' && lua test_advanced_integration.lua"]
