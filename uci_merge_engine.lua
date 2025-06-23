@@ -323,18 +323,30 @@ function UCIMergeEngine:merge_directory(source_dir, target_dir)
     target_dir = target_dir or "/etc/config"
     local results = {}
     
+    -- Check if source directory exists
+    local attr = lfs.attributes(source_dir)
+    if not attr or attr.mode ~= "directory" then
+        return false, "Source directory does not exist: " .. source_dir
+    end
+    
     -- Get list of config files to merge
     local config_files = {}
-    for file in lfs.dir(source_dir) do
-        if file ~= "." and file ~= ".." then
-            local source_path = source_dir .. "/" .. file
-            local target_path = target_dir .. "/" .. file
-            table.insert(config_files, {
-                name = file,
-                source = source_path,
-                target = target_path
-            })
+    local success, err = pcall(function()
+        for file in lfs.dir(source_dir) do
+            if file ~= "." and file ~= ".." then
+                local source_path = source_dir .. "/" .. file
+                local target_path = target_dir .. "/" .. file
+                table.insert(config_files, {
+                    name = file,
+                    source = source_path,
+                    target = target_path
+                })
+            end
         end
+    end)
+    
+    if not success then
+        return false, "Error reading source directory: " .. (err or "unknown error")
     end
     
     -- Merge each configuration file
