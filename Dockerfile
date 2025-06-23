@@ -3,7 +3,7 @@ FROM openwrt/rootfs:x86-64-23.05.0
 # Update package list and install required packages
 RUN mkdir -p /var/lock && \
     opkg update && \
-    opkg install lua luafilesystem
+    opkg install lua luafilesystem libuci-lua
 
 # Create working directory and directories for UCI configs
 WORKDIR /app
@@ -20,5 +20,5 @@ RUN chmod +x /app/uci-config
 # Install luaunit for testing (download from GitHub)
 RUN wget -O luaunit.lua https://raw.githubusercontent.com/sineer/luaunit/master/luaunit.lua
 
-# Set default command to run uci-config tests
-CMD ["lua", "test_uci_config.lua"]
+# Set default command to run all tests
+CMD ["sh", "-c", "lua test_uci_config.lua && echo '\\n=== MERGE ENGINE TESTS ===' && lua test_merge_engine.lua"]

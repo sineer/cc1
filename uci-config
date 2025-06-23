@@ -44,19 +44,41 @@ local args = {...}
 local command = args[1]
 local options = {}
 
+-- Define boolean flags (options that don't take values)
+local boolean_flags = {
+    ["dry-run"] = true,
+    ["preserve-network"] = true,
+    ["dedupe-lists"] = true,
+    ["quiet"] = true,
+    ["verbose"] = true,
+    ["force"] = true,
+    ["check-network"] = true
+}
+
 -- Parse command line options
-for i = 2, #args do
+local i = 2
+while i <= #args do
     local arg = args[i]
     if arg:match("^%-%-") then
         local key, value = arg:match("^%-%-([^=]+)=?(.*)")
         if value and value ~= "" then
+            -- Handle --key=value format
             options[key] = value
+        elseif boolean_flags[key] then
+            -- Handle boolean flags
+            options[key] = true
+        elseif i + 1 <= #args and not args[i + 1]:match("^%-%-") then
+            -- Handle --key value format for non-boolean options
+            options[key] = args[i + 1]
+            i = i + 1
         else
+            -- Handle --key as boolean flag (fallback)
             options[key] = true
         end
     else
         options.target = arg
     end
+    i = i + 1
 end
 
 -- Helper functions
@@ -152,8 +174,65 @@ function commands.merge()
         log("info", "List deduplication enabled")
     end
     
-    -- TODO: Implement actual merge logic
-    log("info", "Merge functionality not yet implemented")
+    -- Load merge engine
+    local success, UCIMergeEngine = pcall(require, "uci_merge_engine")
+    if not success then
+        log("error", "Failed to load merge engine: " .. tostring(UCIMergeEngine))
+        return 1
+    end
+    
+    -- Initialize merge engine with options
+    local merge_engine = UCIMergeEngine.new({
+        dry_run = options["dry-run"] or false,
+        dedupe_lists = options["dedupe-lists"] or false,
+        preserve_network = options["preserve-network"] or false,
+        preserve_existing = true
+    })
+    
+    -- Perform merge
+    local merge_success, results = merge_engine:merge_directory(source_dir, "/etc/config")
+    
+    if not merge_success then
+        log("error", "Merge failed: " .. tostring(results))
+        return 1
+    end
+    
+    -- Display results
+    if options.verbose then
+        log("info", "Merge completed successfully")
+        for config_name, result in pairs(results) do
+            if result.success then
+                log("info", "  " .. config_name .. ": merged successfully")
+                if result.conflicts > 0 then
+                    log("info", "    " .. result.conflicts .. " conflicts detected")
+                end
+            else
+                log("error", "  " .. config_name .. ": merge failed")
+            end
+        end
+    end
+    
+    -- Get merge summary
+    local summary = merge_engine:get_merge_summary()
+    
+    if #summary.conflicts > 0 then
+        log("info", "Total conflicts detected: " .. #summary.conflicts)
+        for _, conflict in ipairs(summary.conflicts) do
+            log("verbose", "  Conflict in " .. conflict.config .. "." .. conflict.section .. "." .. conflict.option)
+            log("verbose", "    Existing: " .. tostring(conflict.existing))
+            log("verbose", "    New: " .. tostring(conflict.new))
+        end
+    end
+    
+    if options["dry-run"] then
+        log("info", "Changes that would be made: " .. #summary.changes)
+        for _, change in ipairs(summary.changes) do
+            log("verbose", "  " .. change.action .. ": " .. (change.config or "unknown"))
+        end
+    else
+        log("info", "Applied " .. #summary.changes .. " changes")
+    end
+    
     return 0
 end
 
