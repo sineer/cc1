@@ -73,7 +73,7 @@ function TestDockerOpenWrtIntegration:verify_docker_environment()
     end
     
     -- Check uspot config source files
-    lu.assertTrue(self:file_exists(TEST_ENV.USPOT_CONFIG_DIR .. "/uspot"))
+    lu.assertTrue(self:file_exists(TEST_ENV.USPOT_CONFIG_DIR .. "/ubispot"))
     lu.assertTrue(self:file_exists(TEST_ENV.USPOT_CONFIG_DIR .. "/firewall"))
     
     self:log("Docker OpenWrt environment verified successfully")
@@ -200,32 +200,32 @@ function TestDockerOpenWrtIntegration:verify_merged_network_config(original_conf
 end
 
 function TestDockerOpenWrtIntegration:verify_new_uspot_config_from_results(results)
-    lu.assertNotNil(results.uspot, "uspot config should be in merge results")
-    lu.assertTrue(results.uspot.success, "uspot config merge should succeed")
+    lu.assertNotNil(results.ubispot, "ubispot config should be in merge results")
+    lu.assertTrue(results.ubispot.success, "ubispot config merge should succeed")
     
     -- Since this is dry run mode, we should check the engine's changes instead
     local uspot_changes = 0
     for _, change in ipairs(self.engine.changes) do
-        if change.config == "uspot" then
+        if change.config == "ubispot" then
             uspot_changes = uspot_changes + 1
         end
     end
     
-    lu.assertTrue(uspot_changes > 0, "uspot config changes should be recorded")
+    lu.assertTrue(uspot_changes > 0, "ubispot config changes should be recorded")
     
     self:log("uspot config verification completed")
 end
 
 function TestDockerOpenWrtIntegration:verify_new_uspot_config()
-    local uspot_config = self:read_uci_config("uspot")
-    lu.assertNotNil(uspot_config, "uspot config should exist after merge")
+    local uspot_config = self:read_uci_config("ubispot")
+    lu.assertNotNil(uspot_config, "ubispot config should exist after merge")
     
     -- Verify main uspot sections
     local captive_section_found = false
     local auth_modes_found = 0
     
     for section_name, section_data in pairs(uspot_config) do
-        if section_data[".type"] == "uspot" then
+        if section_data[".type"] == "ubispot" then
             auth_modes_found = auth_modes_found + 1
             
             if section_name == "captive" then
