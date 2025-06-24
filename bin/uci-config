@@ -2,15 +2,16 @@
 
 -- Add lib directory to Lua path for library modules
 local script_dir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
-package.path = script_dir .. "../lib/?.lua;" .. package.path
+package.path = script_dir .. "../lib/?.lua;" .. script_dir .. "../lib/commands/?.lua;" .. package.path
 
 --[[
 uci-config - UCI Configuration Merge Tool for OpenWRT 23.05+
-Version: 1.0.0
+Version: 2.0.0
 
 Purpose:
   Safe merging of UCI configurations with network connectivity preservation,
-  intelligent list deduplication, and comprehensive conflict reporting.
+  intelligent list deduplication, comprehensive conflict reporting, and
+  automatic service restart management.
   Designed for production use with uspot captive portal deployments.
 
 Core Features:
@@ -18,16 +19,19 @@ Core Features:
   - Smart duplicate removal from lists (network-aware)
   - Conflict detection with detailed reporting
   - Network safety validation
+  - Automatic service restart after config changes
+  - Service restart rollback on failure
   - Dry-run mode for testing
   - Configuration backup and restore
 
 Usage: uci-config <command> [options] [target]
 
 Commands:
-  merge     Merge UCI configurations from directory
+  merge     Merge UCI configurations from directory with service restart
+  config    Merge configs with default safety options (--target shorthand)
   backup    Create timestamped configuration backup
-  validate  Validate UCI configuration syntax
-  remove    Remove configurations matching those in target
+  validate  Validate UCI configuration syntax and structure
+  remove    Remove configurations matching those in target with service restart
   help      Show this help information
   
   Not yet implemented:
@@ -38,128 +42,65 @@ Options:
   --dry-run           Preview changes without applying them
   --preserve-network  Ensure network connectivity is preserved
   --dedupe-lists      Remove duplicate entries from UCI lists
+  --no-restart        Skip automatic service restarts
+  --rollback-on-failure Rollback changes if service restart fails (default)
   --quiet             Suppress informational output
   --verbose           Show detailed operation information
   --name=<name>       Specify backup name (for backup command)
   --force             Force operation without confirmation
-  --target=<name>     Target configuration name (for config/undo commands)
+  --target=<name>     Target configuration name (for config/remove commands)
 
 Examples:
-  # Preview merging uspot configs
+  # Preview merging uspot configs with service restart info
   uci-config merge --dry-run --verbose /path/to/uspot/configs
   
   # Create backup before changes
   uci-config backup --name pre-uspot-deployment
   
-  # Merge configs with all safety features
+  # Merge configs with all safety features and service restart
   uci-config merge --preserve-network --dedupe-lists /path/to/configs
   
-  # Remove configurations matching target
+  # Merge without service restarts
+  uci-config merge --no-restart /path/to/configs
+  
+  # Remove configurations matching target with service restart
   uci-config remove --target default --dry-run
   
   # Validate current system configuration
-  uci-config validate
+  uci-config validate --check-services
 
 Exit Codes:
   0 - Success
   1 - Error occurred
 --]]
 
-local uci = require("uci")
-local lfs = require("lfs")
-
--- Initialize UCI cursor
-local cursor = uci.cursor()
+-- Load command modules
+local MergeCommand = require("merge_command")
+local BackupCommand = require("backup_command")
+local ValidateCommand = require("validate_command")
+local RemoveCommand = require("remove_command")
 
 -- Tool configuration
-local VERSION = "1.0.0"
-local BACKUP_DIR = "/tmp/uci-config-backups"
-local CONFIG_DIR = "/etc/config"
-local METADATA_DIR = "/tmp/uci-config-metadata"
+local VERSION = "2.0.0"
 
 -- Command line argument parsing
 local args = {...}
 local command = args[1]
-local options = {}
-
--- Define boolean flags (options that don't take values)
-local boolean_flags = {
-    ["dry-run"] = true,
-    ["preserve-network"] = true,
-    ["dedupe-lists"] = true,
-    ["quiet"] = true,
-    ["verbose"] = true,
-    ["force"] = true,
-    ["check-network"] = true,
-    ["preserve-existing"] = true
-}
-
--- Parse command line options
-local i = 2
-while i <= #args do
-    local arg = args[i]
-    if arg:match("^%-%-") then
-        local key, value = arg:match("^%-%-([^=]+)=?(.*)")
-        if value and value ~= "" then
-            -- Handle --key=value format
-            options[key] = value
-        elseif boolean_flags[key] then
-            -- Handle boolean flags
-            options[key] = true
-        elseif i + 1 <= #args and not args[i + 1]:match("^%-%-") then
-            -- Handle --key value format for non-boolean options
-            options[key] = args[i + 1]
-            i = i + 1
-        else
-            -- Handle --key as boolean flag (fallback)
-            options[key] = true
-        end
-    else
-        options.target = arg
-    end
-    i = i + 1
-end
 
 -- Function: log
--- Purpose: Unified logging with level-based filtering
+-- Purpose: Unified logging for CLI messages
 -- Parameters:
 --   level: "error", "info", or "verbose"
 --   message: Message to log
--- Behavior:
---   - error: Always shown (to stderr)
---   - info: Shown unless --quiet is set
---   - verbose: Only shown if --verbose is set
 local function log(level, message)
     if level == "error" then
         io.stderr:write("ERROR: " .. message .. "\n")
-    elseif level == "info" and not options.quiet then
-        print("INFO: " .. message)
-    elseif level == "verbose" and options.verbose then
-        print("VERBOSE: " .. message)
+    else
+        print(message)
     end
 end
 
--- Function: file_exists
--- Purpose: Check if a file exists at given path
--- Parameters: path - File path to check
--- Returns: boolean - true if exists
-local function file_exists(path)
-    local f = io.open(path, "r")
-    if f then
-        f:close()
-        return true
-    end
-    return false
-end
-
--- Function: create_backup_dir
--- Purpose: Ensure backup directory exists
--- Creates: /tmp/uci-config-backups directory
-local function create_backup_dir()
-    lfs.mkdir(BACKUP_DIR)
-end
-
--- Commands implementation
+-- Command implementations
 local commands = {}
 
 function commands.help()
@@ -170,11 +111,11 @@ Version: ]] .. VERSION .. [[
 
 CORE COMMANDS (Ready for Production Use):
 
-  merge     Merge UCI configurations with existing system config
+  merge     Merge UCI configurations with existing system config and service restart
   config    Merge configs with default safety options (--target shorthand)
-  remove    Remove configurations matching those in target directory
+  remove    Remove configurations matching those in target directory with service restart
   backup    Create timestamped backup of current UCI configuration  
-  validate  Validate UCI configuration syntax
+  validate  Validate UCI configuration syntax and structure
   help      Show this help information
 
 PLANNED COMMANDS (Not Yet Implemented):
@@ -185,50 +126,66 @@ PLANNED COMMANDS (Not Yet Implemented):
 Usage: uci-config <command> [options] [target]
 
 MERGE OPTIONS:
-  --dry-run           Preview changes without applying them
-  --preserve-network  Ensure network connectivity is preserved
-  --dedupe-lists      Remove duplicate entries from UCI lists
-  --verbose           Show detailed operation information
+  --dry-run               Preview changes without applying them
+  --preserve-network      Ensure network connectivity is preserved
+  --dedupe-lists          Remove duplicate entries from UCI lists
+  --no-restart            Skip automatic service restarts
+  --rollback-on-failure   Rollback changes if service restart fails (default)
+  --verbose               Show detailed operation information
 
 CONFIG OPTIONS:
-  --target=<name>     Merge ./etc/config/<name> with default safety options
-                      (automatically enables --preserve-network, --dedupe-lists, --preserve-existing)
-  --dry-run           Preview changes without applying them
-  --verbose           Show detailed operation information
+  --target=<name>         Merge ./etc/config/<name> with default safety options
+                          (automatically enables --preserve-network, --dedupe-lists, --preserve-existing)
+  --dry-run               Preview changes without applying them
+  --no-restart            Skip automatic service restarts
+  --verbose               Show detailed operation information
 
 REMOVE OPTIONS:
-  --target=<name>     Remove sections matching those in ./etc/config/<name>
-  --dry-run           Preview what would be removed without applying changes
-  --verbose           Show detailed removal information
+  --target=<name>         Remove sections matching those in ./etc/config/<name>
+  --dry-run               Preview what would be removed without applying changes
+  --no-restart            Skip automatic service restarts
+  --verbose               Show detailed removal information
 
 BACKUP OPTIONS:
-  --name=<name>       Specify custom backup name
-  --dry-run           Show what would be backed up
+  --name=<name>           Specify custom backup name
+  --dry-run               Show what would be backed up
+  --cleanup               Remove old backups (keep last 10)
+
+VALIDATE OPTIONS:
+  --source-dir=<path>     Validate configs from specific directory
+  --check-services        Check if associated services are available
+  --show-structure        Display configuration structure information
 
 GENERAL OPTIONS:
-  --quiet             Suppress informational output
-  --force             Force operation without confirmation
+  --quiet                 Suppress informational output
+  --force                 Force operation without confirmation
 
 EXAMPLES:
 
-  # Safe merge workflow
+  # Safe merge workflow with service restart
   uci-config backup --name pre-merge
   uci-config merge --dry-run --verbose /path/to/configs
   uci-config merge --dedupe-lists /path/to/configs
-  uci-config validate
+  uci-config validate --check-services
 
   # Quick merge with default configs (recommended)
   uci-config config --target default
   
-  # Preview default configs merge
+  # Preview default configs merge with service info
   uci-config config --target default --dry-run --verbose
   
   # Production deployment with all safety features
   uci-config merge --preserve-network --dedupe-lists ./etc/config/default
   
+  # Merge without service restarts
+  uci-config merge --no-restart ./etc/config/default
+  
   # Remove configurations matching default target
   uci-config remove --target default --dry-run  # Preview removal
   uci-config remove --target default            # Actually remove
+  
+  # Validate configurations with service checking
+  uci-config validate --check-services --verbose
 
 For detailed usage examples, see docs/USAGE_EXAMPLES.md
 For technical details, see docs/HOW_IT_WORKS.md
@@ -236,401 +193,91 @@ For technical details, see docs/HOW_IT_WORKS.md
 end
 
 -- Command: merge
--- Purpose: Merge UCI configurations from a source directory
--- Process:
---   1. Load source and target configurations
---   2. Apply merge with specified options
---   3. Report conflicts and changes
---   4. Save merged configs (unless dry-run)
--- Options used:
---   --dry-run: Preview without applying
---   --preserve-network: Validate network safety
---   --dedupe-lists: Remove list duplicates
---   --verbose: Show detailed output
+-- Purpose: Merge UCI configurations from a source directory with service restart
 function commands.merge()
-    local source_dir = options.target
-    if not source_dir then
-        log("error", "No source directory specified for merge")
-        log("error", "Usage: uci-config merge [options] <source-directory>")
-        return 1
-    end
-    
-    log("info", "Starting UCI configuration merge from: " .. source_dir)
-    
-    -- Report active options
-    if options["dry-run"] then
-        log("info", "DRY RUN MODE - No changes will be applied")
-    end
-    
-    if options["preserve-network"] then
-        log("info", "Network safety mode enabled")
-    end
-    
-    if options["dedupe-lists"] then
-        log("info", "List deduplication enabled")
-    end
-    
-    -- Load merge engine
-    local success, UCIMergeEngine = pcall(require, "uci_merge_engine")
-    if not success then
-        log("error", "Failed to load merge engine: " .. tostring(UCIMergeEngine))
-        log("error", "Ensure uci_merge_engine.lua is in the Lua path")
-        return 1
-    end
-    
-    -- Initialize merge engine with options
-    local merge_engine = UCIMergeEngine.new({
-        dry_run = options["dry-run"] or false,
-        dedupe_lists = options["dedupe-lists"] or false,
-        preserve_network = options["preserve-network"] or false,
-        preserve_existing = true  -- Always preserve existing values on conflict
-    })
-    
-    -- Perform merge
-    local merge_success, results = merge_engine:merge_directory(source_dir, "/etc/config")
-    
-    if not merge_success then
-        log("error", "Merge failed: " .. tostring(results))
-        return 1
-    end
-    
-    -- Display per-file results
-    if options.verbose then
-        log("info", "Merge completed successfully")
-        for config_name, result in pairs(results) do
-            if result.success then
-                log("info", "  " .. config_name .. ": merged successfully")
-                if result.conflicts > 0 then
-                    log("info", "    " .. result.conflicts .. " conflicts detected")
-                end
-            else
-                log("error", "  " .. config_name .. ": merge failed")
-            end
-        end
-    end
-    
-    -- Get and display merge summary
-    local summary = merge_engine:get_merge_summary()
-    
-    -- Report conflicts if any
-    if #summary.conflicts > 0 then
-        log("info", "Total conflicts detected: " .. #summary.conflicts)
-        for _, conflict in ipairs(summary.conflicts) do
-            log("verbose", "  Conflict in " .. conflict.config .. "." .. conflict.section .. "." .. conflict.option)
-            log("verbose", "    Existing: " .. tostring(conflict.existing))
-            log("verbose", "    New: " .. tostring(conflict.new))
-        end
-    end
-    
-    -- Summary of changes
-    if options["dry-run"] then
-        log("info", "Changes that would be made: " .. #summary.changes)
-        for _, change in ipairs(summary.changes) do
-            log("verbose", "  " .. change.action .. ": " .. (change.config or "unknown"))
-        end
-    else
-        log("info", "Applied " .. #summary.changes .. " changes")
-    end
-    
-    return 0
+    local merge_cmd = MergeCommand.new()
+    return merge_cmd:execute(args)
 end
 
--- Command: config
+-- Command: config  
 -- Purpose: Shorthand for merge with default safety options
--- Process:
---   1. Determine target directory from --target option
---   2. Call merge with predefined safe options
---   3. Equivalent to: merge --preserve-network --dedupe-lists --preserve-existing ./etc/config/<target>
--- Options used:
---   --target: Target config directory name (required)
---   --dry-run: Preview without applying
---   --verbose: Show detailed output
 function commands.config()
-    local target = options.target
-    if not target then
+    -- Parse command line to extract options
+    local CommandBase = require("command_base")
+    local base = CommandBase.new("config")
+    local options, target = base:parse_options(args, 2)
+    
+    if not options.target then
         log("error", "No target specified for config command")
         log("error", "Usage: uci-config config --target <config-name>")
         log("info", "Example: uci-config config --target default")
         return 1
     end
     
-    -- Construct source directory path
-    local source_dir = "./etc/config/" .. target
-    log("info", "Config command using target: " .. target)
-    log("info", "Source directory: " .. source_dir)
-    
-    -- Set up default options for config command (always safe)
+    -- Construct source directory path and set default options
+    local source_dir = "./etc/config/" .. options.target
     local config_options = {
         target = source_dir,
         ["preserve-network"] = true,
         ["dedupe-lists"] = true,
         ["preserve-existing"] = true,
         ["dry-run"] = options["dry-run"] or false,
+        ["no-restart"] = options["no-restart"] or false,
+        ["rollback-on-failure"] = options["rollback-on-failure"] ~= false,
         verbose = options.verbose or false,
         quiet = options.quiet or false
     }
     
-    -- Temporarily store original options and replace with config options
-    local original_options = options
-    options = config_options
-    
-    log("info", "Config command enabled with default safety options:")
-    log("info", "  --preserve-network (network safety)")
-    log("info", "  --dedupe-lists (duplicate removal)")
-    log("info", "  --preserve-existing (keep existing values on conflicts)")
+    print("CONFIG INFO: Config command using target: " .. options.target)
+    print("CONFIG INFO: Source directory: " .. source_dir)
+    print("CONFIG INFO: Config command enabled with default safety options:")
+    print("CONFIG INFO:   --preserve-network (network safety)")
+    print("CONFIG INFO:   --dedupe-lists (duplicate removal)")
+    print("CONFIG INFO:   --preserve-existing (keep existing values on conflicts)")
+    if not config_options["no-restart"] then
+        print("CONFIG INFO:   --rollback-on-failure (rollback on service restart failure)")
+    end
     if config_options["dry-run"] then
-        log("info", "  --dry-run (preview mode)")
+        print("CONFIG INFO:   --dry-run (preview mode)")
     end
     
-    -- Call merge command with the configured options
-    local result = commands.merge()
-    
-    -- Restore original options
-    options = original_options
-    
-    return result
+    -- Execute merge command with configured options
+    local merge_cmd = MergeCommand.new()
+    return merge_cmd:execute(args, config_options)
 end
 
 -- Command: backup
 -- Purpose: Create a compressed backup of all UCI configurations
--- Process:
---   1. Generate backup filename (timestamped or custom name)
---   2. Create backup directory if needed
---   3. Tar and compress /etc/config directory
--- Options used:
---   --name: Custom backup name (optional)
---   --dry-run: Show what would be done
--- Output: Backup saved to /tmp/uci-config-backups/
 function commands.backup()
-    local backup_name = options.name or ("backup-" .. os.date("%Y%m%d-%H%M%S"))
-    
-    log("info", "Creating backup: " .. backup_name)
-    create_backup_dir()
-    
-    local backup_path = BACKUP_DIR .. "/" .. backup_name .. ".tar.gz"
-    local cmd = string.format("tar -czf '%s' -C / etc/config", backup_path)
-    
-    if options["dry-run"] then
-        log("info", "DRY RUN: Would execute: " .. cmd)
-        log("info", "DRY RUN: Backup would be saved to: " .. backup_path)
-        return 0
-    end
-    
-    -- Execute backup command
-    local result = os.execute(cmd)
-    if result == 0 then
-        log("info", "Backup created successfully: " .. backup_path)
-        
-        -- Show backup size if verbose
-        if options.verbose then
-            local size_cmd = string.format("ls -lh '%s' | awk '{print $5}'", backup_path)
-            local handle = io.popen(size_cmd)
-            local size = handle:read("*a"):gsub("%s+", "")
-            handle:close()
-            log("verbose", "Backup size: " .. size)
-        end
-        
-        return 0
-    else
-        log("error", "Backup failed - check permissions and disk space")
-        return 1
-    end
+    local backup_cmd = BackupCommand.new()
+    return backup_cmd:execute(args)
 end
 
 -- Command: restore (NOT YET IMPLEMENTED)
 -- Purpose: Restore UCI configuration from a backup file
--- Planned functionality:
---   1. Validate backup file exists and is valid
---   2. Create safety backup of current config
---   3. Extract backup to /etc/config
---   4. Validate restored configuration
--- Status: Placeholder - needs implementation
 function commands.restore()
-    local backup_name = options.target
-    if not backup_name then
-        log("error", "No backup specified for restore")
-        log("error", "Usage: uci-config restore <backup-name>")
-        return 1
-    end
-    
-    log("info", "Restoring from backup: " .. backup_name)
-    
-    -- TODO: Implement restore logic
     log("error", "Restore functionality not yet implemented")
     log("info", "This feature will be available in a future version")
     return 1
 end
 
 -- Command: validate
--- Purpose: Validate UCI configuration files for syntax errors
--- Process:
---   1. Iterate through all files in /etc/config
---   2. Attempt to parse each file with UCI
---   3. Report any syntax errors found
--- Options used:
---   --verbose: Show each file being validated
--- Note: This only checks syntax, not semantic validity
+-- Purpose: Validate UCI configuration files for syntax and structure
 function commands.validate()
-    log("info", "Validating UCI configuration files...")
-    
-    local valid = true
-    local total_files = 0
-    local failed_files = 0
-    
-    -- Validate each configuration file
-    for file in lfs.dir(CONFIG_DIR) do
-        if file ~= "." and file ~= ".." then
-            local path = CONFIG_DIR .. "/" .. file
-            local attr = lfs.attributes(path)
-            if attr and attr.mode == "file" then
-                total_files = total_files + 1
-                log("verbose", "Validating: " .. file)
-                
-                -- Try to load and parse the config file
-                local success, err = pcall(function()
-                    cursor:get_all(file)
-                end)
-                
-                if not success then
-                    log("error", "Invalid UCI syntax in " .. file .. ": " .. tostring(err))
-                    valid = false
-                    failed_files = failed_files + 1
-                else
-                    log("verbose", "  " .. file .. ": OK")
-                end
-            end
-        end
-    end
-    
-    -- Report results
-    if valid then
-        log("info", "UCI configuration validation passed")
-        log("info", "Validated " .. total_files .. " configuration files")
-        return 0
-    else
-        log("error", "UCI configuration validation failed")
-        log("error", failed_files .. " of " .. total_files .. " files have syntax errors")
-        return 1
-    end
+    local validate_cmd = ValidateCommand.new()
+    return validate_cmd:execute(args)
 end
 
 -- Command: remove
--- Purpose: Remove configurations matching those in target directory
--- Process:
---   1. Load configurations from target directory
---   2. For each config, remove matching sections from system
---   3. Report what was removed
--- Options used:
---   --target: Target config directory name (required)
---   --dry-run: Preview what would be removed
---   --verbose: Show detailed output
+-- Purpose: Remove configurations matching those in target directory with service restart
 function commands.remove()
-    local target = options.target
-    if not target then
-        log("error", "No target specified for remove command")
-        log("error", "Usage: uci-config remove --target <config-name>")
-        log("info", "Example: uci-config remove --target default")
-        return 1
-    end
-    
-    -- Construct source directory path
-    local source_dir = "./etc/config/" .. target
-    log("info", "Remove command using target: " .. target)
-    log("info", "Source directory: " .. source_dir)
-    
-    if options["dry-run"] then
-        log("info", "DRY RUN MODE - No changes will be applied")
-    end
-    
-    -- Check if source directory exists
-    local attr = lfs.attributes(source_dir)
-    if not attr or attr.mode ~= "directory" then
-        log("error", "Target directory does not exist: " .. source_dir)
-        return 1
-    end
-    
-    local total_removed = 0
-    local total_configs = 0
-    
-    -- Process each config file in target directory
-    for file in lfs.dir(source_dir) do
-        if file ~= "." and file ~= ".." then
-            local source_path = source_dir .. "/" .. file
-            local file_attr = lfs.attributes(source_path)
-            if file_attr and file_attr.mode == "file" then
-                total_configs = total_configs + 1
-                log("verbose", "Processing config: " .. file)
-                
-                -- Load the target configuration
-                local target_config = {}
-                local success, err = pcall(function()
-                    -- Create temporary cursor for source file
-                    local temp_cursor = uci.cursor(source_dir)
-                    target_config = temp_cursor:get_all(file) or {}
-                end)
-                
-                if not success then
-                    log("error", "Failed to load target config " .. file .. ": " .. tostring(err))
-                else
-                    -- Remove matching sections from system config
-                    local removed_sections = 0
-                    for section_name, section_data in pairs(target_config) do
-                        -- Check if section exists in system config
-                        local exists = cursor:get(file, section_name)
-                        if exists then
-                            if not options["dry-run"] then
-                                cursor:delete(file, section_name)
-                            end
-                            removed_sections = removed_sections + 1
-                            log("verbose", "  Removed section: " .. section_name)
-                        end
-                    end
-                    
-                    if removed_sections > 0 then
-                        total_removed = total_removed + removed_sections
-                        if not options["dry-run"] then
-                            cursor:commit(file)
-                        end
-                        log("info", "  " .. file .. ": removed " .. removed_sections .. " sections")
-                    else
-                        log("verbose", "  " .. file .. ": no matching sections found")
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Summary
-    if options["dry-run"] then
-        log("info", "Would remove " .. total_removed .. " sections from " .. total_configs .. " configurations")
-    else
-        log("info", "Removed " .. total_removed .. " sections from " .. total_configs .. " configurations")
-    end
-    
-    return 0
+    local remove_cmd = RemoveCommand.new()
+    return remove_cmd:execute(args)
 end
 
 -- Command: diff (NOT YET IMPLEMENTED)
 -- Purpose: Compare two UCI configuration files
--- Planned functionality:
---   1. Load both configurations
---   2. Compare sections and options
---   3. Show differences in readable format
---   4. Highlight additions, deletions, and changes
--- Status: Placeholder - needs implementation
 function commands.diff()
-    local file1 = args[2]
-    local file2 = args[3]
-    
-    if not file1 or not file2 then
-        log("error", "Two files required for diff")
-        log("error", "Usage: uci-config diff <file1> <file2>")
-        return 1
-    end
-    
-    log("info", "Comparing " .. file1 .. " and " .. file2)
-    
-    -- TODO: Implement diff logic
     log("error", "Diff functionality not yet implemented")
     log("info", "This feature will be available in a future version")
     return 1
@@ -638,14 +285,6 @@ end
 
 -- Function: main
 -- Purpose: Main entry point for CLI tool
--- Process:
---   1. Parse command from arguments
---   2. Show help if no command given
---   3. Execute requested command
---   4. Return appropriate exit code
--- Exit codes:
---   0: Success
---   1: Error occurred
 local function main()
     if not command or command == "help" then
         commands.help()
@@ -673,7 +312,7 @@ local function main()
     elseif planned_commands[command] then
         -- Handle planned but unimplemented commands
         log("error", "Command '" .. command .. "' is planned but not yet implemented")
-        log("info", "Currently available commands: merge, backup, validate")
+        log("info", "Currently available commands: merge, config, backup, validate, remove")
         log("info", "Use 'uci-config help' for full information")
         return 1
     else
