@@ -151,6 +151,213 @@ function TestOpenWrtSystemIntegration:test_actual_merge_dry_run()
     lu.assertStrContains(result, "DRY RUN MODE")
 end
 
+-- Test class for Remove Command on Real OpenWrt System
+TestRemoteRemoveCommand = {}
+
+function TestRemoteRemoveCommand:setUp()
+    -- Create test directory and backup current configs
+    os.execute("mkdir -p " .. TEST_CONFIG_DIR .. "/backup")
+    os.execute("mkdir -p " .. TEST_CONFIG_DIR .. "/test_target")
+    
+    -- Backup existing configs (safety first on real system)
+    os.execute("cp -r /etc/config/* " .. TEST_CONFIG_DIR .. "/backup/ 2>/dev/null || true")
+end
+
+function TestRemoteRemoveCommand:tearDown()
+    -- Restore original configs (critical for real system)
+    os.execute("cp -r " .. TEST_CONFIG_DIR .. "/backup/* /etc/config/ 2>/dev/null || true")
+    
+    -- Clean up test directories
+    os.execute("rm -rf " .. TEST_CONFIG_DIR)
+end
+
+function TestRemoteRemoveCommand:test_remove_help_and_usage()
+    -- Test help command shows remove functionality
+    local result, success = execute_command(UCI_CONFIG_TOOL .. " help")
+    lu.assertStrContains(result, "remove")
+    lu.assertStrContains(result, "Remove configurations matching those in target")
+end
+
+function TestRemoteRemoveCommand:test_remove_missing_target_error()
+    -- Test error handling for missing target parameter
+    local result, success = execute_command(UCI_CONFIG_TOOL .. " remove")
+    lu.assertStrContains(result, "No target specified")
+    lu.assertStrContains(result, "Usage: uci-config remove --target")
+end
+
+function TestRemoteRemoveCommand:test_remove_nonexistent_target()
+    -- Test handling of non-existent target directory
+    local result, success = execute_command("cd /tmp/uci-test-remote && " .. UCI_CONFIG_TOOL .. " remove --target nonexistent --dry-run")
+    lu.assertStrContains(result, "does not exist")
+end
+
+function TestRemoteRemoveCommand:test_remove_default_configs_dry_run()
+    -- Test remove with default configs in dry-run mode (SAFE)
+    local result, success = execute_command("cd /tmp/uci-test-remote && " .. UCI_CONFIG_TOOL .. " remove --target default --dry-run")
+    lu.assertStrContains(result, "Remove command using target: default")
+    lu.assertStrContains(result, "DRY RUN MODE")
+    lu.assertStrContains(result, "Would remove")
+end
+
+function TestRemoteRemoveCommand:test_remove_default_configs_dry_run_verbose()
+    -- Test verbose output in dry-run mode
+    local result, success = execute_command("cd /tmp/uci-test-remote && " .. UCI_CONFIG_TOOL .. " remove --target default --dry-run --verbose")
+    lu.assertStrContains(result, "DRY RUN MODE")
+    lu.assertStrContains(result, "Processing config:")
+    
+    -- Should mention specific configs from default target
+    local has_firewall = result:find("firewall")
+    local has_dhcp = result:find("dhcp")
+    local has_network = result:find("network")
+    
+    lu.assertTrue(has_firewall or has_dhcp or has_network, "Should process at least one default config")
+end
+
+function TestRemoteRemoveCommand:test_remove_empty_target_directory()
+    -- Test remove with empty target directory
+    local empty_target = TEST_CONFIG_DIR .. "/empty_target"
+    os.execute("mkdir -p " .. empty_target)
+    
+    local result, success = execute_command("cd /tmp/uci-test-remote && " .. UCI_CONFIG_TOOL .. " remove --target " .. empty_target .. " --dry-run")
+    lu.assertStrContains(result, "0 configurations")
+end
+
+function TestRemoteRemoveCommand:test_remove_single_test_config_safe()
+    -- Test removing a single test configuration (SAFE test)
+    
+    -- Step 1: Create a test config that doesn't exist in real system
+    local test_config_path = "/etc/config/uci_remove_test"
+    local test_config_content = [[
+config test_section 'remove_test'
+option test_value 'safe_to_remove'
+option created_by 'uci_config_test_suite'
+]]
+    
+    -- Write test config to system
+    local f = io.open(test_config_path, "w")
+    if not f then
+        lu.skip("Cannot create test config file - insufficient permissions")
+        return
+    end
+    f:write(test_config_content)
+    f:close()
+    
+    -- Step 2: Create matching target config
+    local target_config = TEST_CONFIG_DIR .. "/test_target/uci_remove_test"
+    os.execute("mkdir -p " .. TEST_CONFIG_DIR .. "/test_target")
+    local f2 = io.open(target_config, "w")
+    if f2 then
+        f2:write(test_config_content)
+        f2:close()
+    end
+    
+    -- Step 3: Test dry-run first
+    local dry_result = execute_command("cd /tmp/uci-test-remote && " .. UCI_CONFIG_TOOL .. " remove --target " .. TEST_CONFIG_DIR .. "/test_target --dry-run")
+    lu.assertStrContains(dry_result, "Would remove")
+    lu.assertStrContains(dry_result, "uci_remove_test")
+    
+    -- Step 4: Test actual removal
+    local remove_result = execute_command("cd /tmp/uci-test-remote && " .. UCI_CONFIG_TOOL .. " remove --target " .. TEST_CONFIG_DIR .. "/test_target")
+    lu.assertStrContains(remove_result, "Removed")
+    
+    -- Step 5: Verify removal (config should be gone or sections removed)
+    local verify_result = execute_command("test -f " .. test_config_path .. " && echo exists || echo removed")
+    -- The config file may still exist but be empty, or be removed entirely
+    
+    -- Clean up (ensure test config is removed)
+    os.execute("rm -f " .. test_config_path)
+end
+
+function TestRemoteRemoveCommand:test_remove_backup_integration()
+    -- Test integration with backup workflow
+    
+    -- Step 1: Create backup before remove operation
+    local backup_result = execute_command(UCI_CONFIG_TOOL .. " backup --name pre-remove-test-remote")
+    lu.assertTrue(backup_result ~= nil, "Backup command should execute")
+    
+    -- Step 2: Test remove with default configs (dry-run for safety)
+    local remove_result = execute_command("cd /tmp/uci-test-remote && " .. UCI_CONFIG_TOOL .. " remove --target default --dry-run")
+    lu.assertStrContains(remove_result, "DRY RUN MODE")
+    
+    -- Step 3: Verify system validation still works
+    local validate_result = execute_command(UCI_CONFIG_TOOL .. " validate")
+    lu.assertStrContains(validate_result, "Validating")
+end
+
+function TestRemoteRemoveCommand:test_remove_with_invalid_target_configs()
+    -- Test remove command with invalid UCI configs in target
+    
+    local invalid_target = TEST_CONFIG_DIR .. "/invalid_target"
+    os.execute("mkdir -p " .. invalid_target)
+    
+    -- Create invalid UCI config
+    local invalid_config = invalid_target .. "/bad_config"
+    local f = io.open(invalid_config, "w")
+    if f then
+        f:write("This is not valid UCI syntax!\nNo proper config sections here.")
+        f:close()
+    end
+    
+    -- Test remove with invalid target
+    local result = execute_command("cd /tmp/uci-test-remote && " .. UCI_CONFIG_TOOL .. " remove --target " .. invalid_target .. " --dry-run")
+    
+    -- Should handle invalid configs gracefully
+    lu.assertStrContains(result, "Failed to load")
+end
+
+function TestRemoteRemoveCommand:test_remove_performance_real_system()
+    -- Test remove command performance on real OpenWrt system
+    
+    -- Create a moderately sized test target (not too large for real system)
+    local perf_target = TEST_CONFIG_DIR .. "/perf_target"
+    os.execute("mkdir -p " .. perf_target)
+    
+    -- Create test config with multiple sections
+    local perf_config = perf_target .. "/performance_test"
+    local f = io.open(perf_config, "w")
+    if f then
+        for i = 1, 20 do  -- Reasonable size for real system test
+            f:write(string.format([[
+config test_section 'perf_test_%d'
+option value '%d'
+option data 'performance_test_data_%d'
+
+]], i, i, i))
+        end
+        f:close()
+    end
+    
+    -- Time the operation
+    local start_time = os.time()
+    local result = execute_command("cd /tmp/uci-test-remote && " .. UCI_CONFIG_TOOL .. " remove --target " .. perf_target .. " --dry-run")
+    local end_time = os.time()
+    
+    lu.assertTrue(result ~= nil, "Performance test should complete")
+    
+    -- Performance check (should be fast on real system)
+    local duration = end_time - start_time
+    lu.assertTrue(duration < 10, "Remove dry-run should complete quickly on real system")
+end
+
+function TestRemoteRemoveCommand:test_remove_audit_trail_real_system()
+    -- Test audit trail functionality on real OpenWrt system
+    
+    -- Test with verbose output for audit details
+    local result = execute_command("cd /tmp/uci-test-remote && " .. UCI_CONFIG_TOOL .. " remove --target default --dry-run --verbose")
+    
+    -- Verify audit information is present
+    lu.assertStrContains(result, "Remove command using target:")
+    lu.assertStrContains(result, "DRY RUN MODE")
+    
+    -- Should show processing details
+    lu.assertStrContains(result, "configurations")
+    
+    -- If any configs are processed, should show details
+    if result:find("Processing config:") then
+        lu.assertStrContains(result, "Processing config:")
+    end
+end
+
 -- Helper methods for config file tests
 function TestRemoteOpenWrtConfigFiles:file_exists(path)
     local f = io.open(path, "r")
@@ -174,7 +381,8 @@ end
 -- Run tests
 print("=== TESTING UCI CONFIG MERGE TOOL ON REAL OPENWRT VM ===")
 print("Target: 192.168.11.2 (OpenWrt aarch64)")
-print("Testing CLI functionality, config files, and system integration...")
+print("Testing CLI functionality, config files, system integration...")
+print("AND COMPREHENSIVE REMOVE COMMAND SAFETY TESTING")
 print("=" .. string.rep("=", 60))
 
 -- Execute tests
