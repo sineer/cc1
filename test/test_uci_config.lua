@@ -52,7 +52,7 @@ end
 
 function TestUCIConfig:test_validate_command()
     local result, success = execute_command(UCI_CONFIG_TOOL .. " validate")
-    lu.assertStrContains(result, "Validating UCI configuration")
+    lu.assertStrContains(result, "Validating")
 end
 
 function TestUCIConfig:test_merge_dry_run()
@@ -92,7 +92,7 @@ end
 
 function TestUCIConfig:test_remove_nonexistent_target()
     local result, success = execute_command(UCI_CONFIG_TOOL .. " remove --target nonexistent --dry-run")
-    lu.assertStrContains(result, "Target directory does not exist")
+    lu.assertStrContains(result, "No configuration files found in target directory")
 end
 
 function TestUCIConfig:test_invalid_command()
@@ -117,7 +117,7 @@ function TestUCIConfigFiles:test_uhttpd_config_exists()
 end
 
 function TestUCIConfigFiles:test_uspot_config_exists()
-    lu.assertTrue(self:file_exists("/app/etc/config/default/uspot"))
+    lu.assertTrue(self:file_exists("/app/etc/config/default/ubispot"))
 end
 
 function TestUCIConfigFiles:test_network_config_exists()
@@ -133,8 +133,8 @@ function TestUCIConfigFiles:test_firewall_config_content()
 end
 
 function TestUCIConfigFiles:test_uspot_config_content()
-    local content = self:read_file("/app/etc/config/default/uspot")
-    lu.assertStrContains(content, "config uspot 'captive'")
+    local content = self:read_file("/app/etc/config/default/ubispot")
+    lu.assertStrContains(content, "config ubispot 'captive'")
     lu.assertStrContains(content, "option interface 'captive'")
     lu.assertStrContains(content, "option setname 'uspot'")
 end

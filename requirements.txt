@@ -1,0 +1,2 @@
+# MCP Test Server Dependencies
+mcp>=1.0.0

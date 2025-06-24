@@ -1,0 +1,28 @@
+
+config uhttpd 'ubispot'
+	list listen_http '10.0.0.1:80'
+	option redirect_https '0'
+	option max_requests '5'
+	option no_dirlists '1'
+	option home '/www-ubispot'
+	list ucode_prefix '/hotspot=/usr/share/ubispot/handler.uc'
+	list ucode_prefix '/cpd=/usr/share/ubispot/handler-cpd.uc'
+	option error_page '/cpd'
+	# if using TLS and/or supporting RFC8908 CapPort API:
+#	list listen_https '10.0.0.1:443'
+#	option cert '/usr/share/certs/captive.pem'	# to be provided manually
+#	option key '/usr/share/certs/captive.key'	# to be provided manually
+#	# for RFC8908 support:
+#	list ucode_prefix '/api=/usr/share/ubispot/handler-api.uc'
+
+# if using RADIUS UAM authentication:
+config uhttpd 'uam3990'
+	list listen_http '0.0.0.0:3990'
+	option redirect_https '0'
+	option max_requests '5'
+	option no_dirlists '1'
+	option home '/www-ubispot'
+	list ucode_prefix '/logon=/usr/share/ubispot/handler-uam.uc'
+	list ucode_prefix '/logoff=/usr/share/ubispot/handler-uam.uc'
+	list ucode_prefix '/logout=/usr/share/ubispot/handler-uam.uc'
+

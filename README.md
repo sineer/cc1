@@ -1,197 +1,121 @@
-# UCI Configuration Merge Tool
+# UCI Configuration Tool for OpenWRT
 
-A comprehensive UCI configuration merge tool for OpenWRT 23.05+ with focus on uspot captive portal support and network safety preservation.
+A production-ready UCI configuration management tool for OpenWRT 23.05+ with intelligent merging, service management, and safety features.
 
 ## Features
 
-🔧 **Core Functionality**
-- Merge UCI configurations with existing system config
-- Smart duplicate list entry handling with 3 deduplication strategies
-- Conflict detection and resolution with detailed reporting
-- Network safety validation to preserve connectivity
-- Dry-run mode for safe testing
-
-🛡️ **uspot Captive Portal Support**
-- Complete firewall rules for captive portal zones
-- DHCP configuration with RFC8910 Captive Portal API support
-- uhttpd web server configuration for portal interface
-- Network interface configuration for guest networks
-- Ready-to-use uspot configuration templates
-
-🧪 **Test-Driven Development**
-- Comprehensive test suite with 29 tests (100% passing)
-- Docker-based testing with OpenWRT 23.05.0 container
-- luaunit framework for reliable testing
-- TDD approach ensuring robust functionality
+- **Safe Configuration Merging** - Merge UCI configs with network connectivity preservation
+- **Intelligent List Deduplication** - Network-aware duplicate removal from configuration lists
+- **Service Management** - Automatic service restart with dependency resolution and rollback
+- **Comprehensive Testing** - Docker-based test suite with OpenWRT environment
+- **Production Ready** - Battle-tested with uspot captive portal deployments
 
 ## Quick Start
 
-### Prerequisites
-
-- OpenWRT 23.05 or newer
-- Lua with UCI library support
-- Docker (for testing)
-
-### Installation
-
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/uci-config-merge-tool.git
-cd uci-config-merge-tool
+# Install dependencies on OpenWRT
+opkg update && opkg install lua luafilesystem libuci-lua
 
-# Make CLI tool executable
+# Clone and setup
+git clone https://github.com/your-org/uci-config-tool.git
+cd uci-config-tool
 chmod +x bin/uci-config
 
-# Run tests (requires Docker)
-docker build -t uci-config-test .
-docker run uci-config-test
+# Run tests
+docker build -t uci-config-test . && docker run uci-config-test
+
+# Deploy configurations
+./bin/uci-config backup --name pre-deploy
+./bin/uci-config merge --dry-run ./etc/config/default
+./bin/uci-config merge --preserve-network --dedupe-lists ./etc/config/default
 ```
 
-### Basic Usage
+## Core Commands
 
+### merge
+Merge UCI configurations with service restart:
 ```bash
-# Preview merging uspot configs with existing system
-./bin/uci-config merge --dry-run --verbose /path/to/uspot/configs
-
-# Create backup before making changes
-./bin/uci-config backup --name pre-uspot-merge
-
-# Merge uspot configs with safety features
-./bin/uci-config merge --preserve-network --dedupe-lists /path/to/uspot/configs
-
-# Validate configuration after changes
-./bin/uci-config validate
+./bin/uci-config merge [options] <source-directory>
 ```
 
-## Architecture
-
-### Core Components
-
-- **UCI Merge Engine** (`lib/uci_merge_engine.lua`) - Core merging functionality with UCI cursor API
-- **List Deduplicator** (`lib/list_deduplicator.lua`) - Intelligent list deduplication module
-- **CLI Interface** (`bin/uci-config`) - Command-line tool with three main commands: merge, backup, validate
-- **uspot Templates** (`etc/config/`) - Production-ready UCI configurations
-- **Test Suite** (`test/`) - Comprehensive testing framework with luaunit
-- **Documentation** (`docs/`) - Usage examples and technical details
-
-### Merge Strategies
-
-1. **Preserve Order** - Maintains original list ordering while removing duplicates
-2. **Network Aware** - Smart deduplication for IP addresses, ports, and network values
-3. **Priority Based** - Keeps first occurrence for critical network settings
-
-### Configuration Files Supported
-
-- **Firewall** - Zone management, rules, redirects, ipsets for captive portal
-- **DHCP** - Guest network DHCP with captive portal API support  
-- **uhttpd** - Web server configuration for captive portal interface
-- **uspot** - Main captive portal configuration (4 authentication modes)
-- **Network** - Interface configuration for captive networks
-
-## Use Cases
-
-### uspot Captive Portal Deployment
-
-Deploy a complete captive portal system on OpenWRT:
-
+### config
+Quick merge with default safety options:
 ```bash
-# 1. Backup existing configuration
-./bin/uci-config backup --name before-uspot
-
-# 2. Preview the merge (shows conflicts and changes)
-./bin/uci-config merge --dry-run --verbose etc/config/
-
-# 3. Apply uspot configuration safely
-./bin/uci-config merge --preserve-network --dedupe-lists etc/config/
-
-# 4. Validate the result
-./bin/uci-config validate
+./bin/uci-config config --target default
 ```
 
-### Network Configuration Management
-
-Safely merge network configurations while preserving connectivity:
-
+### backup
+Create timestamped configuration backup:
 ```bash
-# Merge with maximum safety
-./bin/uci-config merge --preserve-network --dry-run new-configs/
+./bin/uci-config backup --name <backup-name>
+```
 
-# Handle list duplicates intelligently
-./bin/uci-config merge --dedupe-lists configs/
+### validate
+Validate UCI configuration syntax:
+```bash
+./bin/uci-config validate --check-services
+```
+
+### remove
+Remove configurations matching target:
+```bash
+./bin/uci-config remove --target default --dry-run
+```
+
+## Options
+
+- `--dry-run` - Preview changes without applying
+- `--preserve-network` - Ensure network connectivity preservation
+- `--dedupe-lists` - Remove duplicate list entries
+- `--no-restart` - Skip automatic service restarts
+- `--rollback-on-failure` - Rollback on service failures (default)
+- `--verbose` - Show detailed operation logs
+
+## Project Structure
+
+```
+├── bin/uci-config          # Main CLI tool
+├── lib/                    # Core modules
+│   ├── uci_merge_engine.lua
+│   ├── service_manager.lua
+│   ├── config_manager.lua
+│   └── list_deduplicator.lua
+├── test/                   # Test suite
+├── examples/               # Example configurations
+└── docs/                   # Documentation
+    ├── API.md             # Technical reference
+    └── DEPLOYMENT.md      # Production guide
 ```
 
 ## Testing
 
-The project includes comprehensive testing:
-
+Run the complete test suite:
 ```bash
-# Run all tests in Docker environment
-docker build -t uci-config-test .
-docker run uci-config-test
-
-# Test output shows:
-# - 12 CLI functionality tests
-# - 17 merge engine tests  
-# - All configuration validation tests
+docker-compose build && docker-compose run --rm lua-test
 ```
 
-### Test Coverage
-
-- ✅ CLI argument parsing and command execution
-- ✅ UCI configuration file validation
-- ✅ List deduplication algorithms
-- ✅ Firewall rule merging
-- ✅ Network configuration merging
-- ✅ Conflict detection and resolution
-- ✅ Docker OpenWRT environment integration
-
-## Configuration Files
-
-### Firewall (`etc/config/firewall`)
-```
-# Captive portal zone with proper isolation
-config zone
-    option name 'captive'
-    list network 'captive'
-    option input 'REJECT'
-    option output 'ACCEPT'
-    option forward 'REJECT'
+Or use the MCP test runner:
+```bash
+python3 run-mcp-tests.py
 ```
 
-### uspot (`etc/config/uspot`)
-```
-# Main captive portal configuration
-config uspot 'captive'
-    option interface 'captive'
-    option mode 'click-to-continue'
-    option portal_name 'Guest Network'
-```
+## Documentation
 
-See `etc/config/` directory for complete configuration templates.
+- [API Reference](docs/API.md) - Module documentation and usage
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment procedures
+- [Usage Examples](docs/USAGE_EXAMPLES.md) - Common use cases
 
-## Safety Features
+## Requirements
 
-### Network Connectivity Protection
-- Pre-merge validation of network changes
-- Automatic rollback on configuration errors
-- SSH access preservation during updates
-- DNS resolution continuity checks
+- OpenWRT 23.05+
+- Lua 5.1+ with UCI library
+- Docker (for testing)
 
-### Conflict Resolution
-- Detailed conflict reporting with before/after values
-- Configurable conflict resolution strategies
-- Manual conflict resolution workflow
-- Change logging for audit trails
+## License
 
-### Backup and Recovery
-- Timestamped configuration backups
-- Selective restore capabilities
-- Emergency recovery procedures
-- Configuration versioning
+GPL-2.0 - See LICENSE file for details
 
-## Development
-
-### Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -199,69 +123,6 @@ See `etc/config/` directory for complete configuration templates.
 4. Ensure all tests pass
 5. Submit a pull request
 
-### Testing Philosophy
-
-This project follows Test-Driven Development (TDD):
-- Tests are written before implementation
-- 100% test coverage requirement
-- Docker-based integration testing
-- Continuous validation in OpenWRT environment
-
-### Code Structure
-
-```
-├── bin/                     # Executable scripts
-│   └── uci-config           # Main CLI tool
-├── lib/                     # Library modules
-│   ├── uci_merge_engine.lua # Core merge functionality
-│   └── list_deduplicator.lua # List deduplication module
-├── test/                    # Test suites
-│   ├── test_*.lua           # Test files
-│   ├── luaunit*.lua         # Testing framework
-│   └── run-tests.sh         # Test runner script
-├── docs/                    # Documentation
-│   ├── HOW_IT_WORKS.md      # Technical details
-│   └── USAGE_EXAMPLES.md    # Usage examples
-├── etc/config/              # UCI configuration templates
-│   ├── firewall             # Firewall rules for captive portal
-│   ├── dhcp                 # DHCP configuration
-│   ├── uhttpd               # Web server configuration
-│   ├── uspot                # Main uspot configuration
-│   └── network              # Network interface configuration
-├── Dockerfile               # OpenWRT testing environment
-├── docker-compose.yml       # Docker compose configuration
-└── README.md                # This file
-```
-
-## Requirements
-
-### Runtime Requirements
-- OpenWRT 23.05+
-- Lua 5.1+ with UCI library
-- libuci-lua package
-- luafilesystem library
-
-### Development Requirements
-- Docker for testing
-- luaunit testing framework
-- Access to OpenWRT 23.05.0 container images
-
-## License
-
-GPL-2.0 License - see LICENSE file for details.
-
-## Support
-
-- **Documentation**: See inline comments and test files for detailed examples
-- **Issues**: Report bugs and feature requests via GitHub issues
-- **Testing**: Run the comprehensive test suite before deployment
-
-## Related Projects
-
-- [uspot](https://github.com/example/uspot) - Captive portal system for OpenWRT
-- [OpenWRT UCI Documentation](https://openwrt.org/docs/guide-user/base-system/uci)
-- [UCI Best Practices](uci-config-merge-best-practices.md)
-
 ---
 
-**Built with Test-Driven Development for production reliability on OpenWRT 23.05+**
+Built with Test-Driven Development for production reliability on OpenWRT 23.05+

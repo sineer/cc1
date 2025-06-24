@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "uci-config-test-server": {
+      "command": "python3",
+      "args": ["mcp-test-server.py"],
+      "env": {
+        "PYTHONPATH": "."
+      }
+    }
+  }
+}

@@ -1,36 +1,38 @@
-# Backup files
-*.backup
-*.bak
-/tmp/uci-config-backups/
-
-# Test artifacts
-/tmp/test-*
+# Build artifacts
+*.tar.gz
 *.log
 
-# Lua compiled files
-*.luac
+# Backup directories
+/tmp/uci-config-backups/
+backups/
 
-# Docker build context (keep Dockerfile)
-.dockerignore
+# Log files
+logs/*.log
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# Memory and session files (keep structure, ignore contents)
-memory/backups/*.json
-memory/data/entries.json
-memory/archive/
+# Docker volumes
+.docker/
 
-# Runtime files
-*.pid
-*.sock
+# Local testing
+test-output/
+coverage/
 
-# Development artifacts
-run-tests.local
+# Deployment artifacts
+deployment-*.txt
+deploy-*.log

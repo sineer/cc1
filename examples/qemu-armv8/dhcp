@@ -1,0 +1,14 @@
+
+
+config dhcp 'captive'
+	option interface 'captive'
+	option start '2'
+	option limit '1000'
+	option leasetime '2h'
+	# XXX list dhcp_option '114,http://captive.local/api'
+	# XXX list dhcp_option '42,10.0.0.1'
+
+config domain 'captive_domain1'
+	option ip '10.0.0.1'
+	option name 'captive.local'
+
