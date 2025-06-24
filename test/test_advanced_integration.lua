@@ -783,9 +783,17 @@ function TestNetworkEdgeCases:test_invalid_ip_addresses()
         ""
     }
     
+    -- Test that the engine handles invalid IPs gracefully in actual merges
     for _, ip in ipairs(invalid_ips) do
-        local normalized = self.engine:normalize_network_value(ip)
-        lu.assertNotNil(normalized, "Should handle invalid IP: " .. ip)
+        local test_config = {
+            test_rule = {
+                [".type"] = "rule",
+                dest_ip = {ip}
+            }
+        }
+        -- Should not crash when processing invalid IPs
+        local result = self.engine:merge_sections({}, test_config, "firewall")
+        lu.assertNotNil(result, "Should handle invalid IP gracefully: " .. ip)
     end
 end
 
@@ -800,9 +808,17 @@ function TestNetworkEdgeCases:test_extreme_port_ranges()
         "80,,443", -- Empty port in list
     }
     
+    -- Test that the engine handles extreme port configs gracefully in actual merges
     for _, ports in ipairs(port_configs) do
-        local normalized = self.engine:normalize_network_value(ports)
-        lu.assertNotNil(normalized, "Should handle port config: " .. ports)
+        local test_config = {
+            test_rule = {
+                [".type"] = "rule",
+                src_port = {ports}
+            }
+        }
+        -- Should not crash when processing extreme port configs
+        local result = self.engine:merge_sections({}, test_config, "firewall")
+        lu.assertNotNil(result, "Should handle port config gracefully: " .. ports)
     end
 end
 

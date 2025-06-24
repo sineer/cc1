@@ -27,6 +27,8 @@ Usage:
 
 local lfs = require("lfs")
 local uci = require("uci")
+local Logger = require("logger")
+local FSUtils = require("fs_utils")
 
 local ConfigManager = {}
 ConfigManager.__index = ConfigManager
@@ -53,23 +55,16 @@ function ConfigManager.new(options)
     -- Initialize UCI cursor
     self.cursor = uci.cursor()
     
+    -- Initialize logger with safety checks
+    self.logger = Logger.new({
+        module_name = "CONFIG",
+        quiet = self.quiet or false,
+        verbose = self.verbose or false
+    })
+    
     return self
 end
 
--- Function: log
--- Purpose: Unified logging with level-based filtering
--- Parameters:
---   level: "error", "info", or "verbose"
---   message: Message to log
-local function log(self, level, message)
-    if level == "error" then
-        io.stderr:write("CONFIG ERROR: " .. message .. "\n")
-    elseif level == "info" and not self.quiet then
-        print("CONFIG INFO: " .. message)
-    elseif level == "verbose" and self.verbose then
-        print("CONFIG VERBOSE: " .. message)
-    end
-end
 
 -- Function: file_exists
 -- Purpose: Check if a file exists at the given path
@@ -116,7 +111,7 @@ function ConfigManager:get_template_configs(template_name)
     local template_path = self.template_dir .. "/" .. template_name
     
     if not self:directory_exists(template_path) then
-        log(self, "error", "Template directory does not exist: " .. template_path)
+        self.logger:error("Template directory does not exist: " .. template_path)
         return {}
     end
     
@@ -134,7 +129,7 @@ function ConfigManager:get_template_configs(template_name)
     end)
     
     if not success then
-        log(self, "error", "Error reading template directory: " .. tostring(err))
+        self.logger:error("Error reading template directory: " .. tostring(err))
         return {}
     end
     
@@ -146,7 +141,7 @@ end
 -- Returns: table - List of system configuration file names
 function ConfigManager:get_system_configs()
     if not self:directory_exists(self.config_dir) then
-        log(self, "error", "System config directory does not exist: " .. self.config_dir)
+        self.logger:error("System config directory does not exist: " .. self.config_dir)
         return {}
     end
     
@@ -164,7 +159,7 @@ function ConfigManager:get_system_configs()
     end)
     
     if not success then
-        log(self, "error", "Error reading system config directory: " .. tostring(err))
+        self.logger:error("Error reading system config directory: " .. tostring(err))
         return {}
     end
     
@@ -189,8 +184,11 @@ function ConfigManager:validate_config_syntax(config_name, config_path)
         if config_path then
             -- For non-system configs, use temporary cursor
             local temp_cursor = uci.cursor("/tmp", "/tmp/.uci")
-            local cmd = string.format("cp '%s' '/tmp/%s'", config_path, config_name)
-            os.execute(cmd)
+            local temp_path = "/tmp/" .. config_name
+            local copy_success, copy_error = FSUtils.safe_copy(config_path, temp_path)
+            if not copy_success then
+                error("Failed to copy config to temporary location: " .. copy_error)
+            end
             temp_cursor:get_all(config_name)
         else
             -- For system configs, use main cursor
@@ -234,9 +232,9 @@ function ConfigManager:validate_config_files(config_names, source_dir)
         
         if not success then
             overall_success = false
-            log(self, "error", "Validation failed for " .. config_name .. ": " .. message)
+            self.logger:error("Validation failed for " .. config_name .. ": " .. message)
         else
-            log(self, "verbose", "Validation passed for " .. config_name)
+            self.logger:verbose("Validation passed for " .. config_name)
         end
     end
     
@@ -276,8 +274,12 @@ function ConfigManager:get_config_metadata(config_name, config_path)
         if config_path then
             -- For non-system configs, use temporary cursor
             local temp_cursor = uci.cursor("/tmp", "/tmp/.uci")
-            local cmd = string.format("cp '%s' '/tmp/%s'", config_path, config_name)
-            os.execute(cmd)
+            local temp_path = "/tmp/" .. config_name
+            local copy_success, copy_error = FSUtils.safe_copy(config_path, temp_path)
+            if not copy_success then
+                self.logger:error("Failed to copy config for metadata extraction: " .. copy_error)
+                return {}
+            end
             return temp_cursor:get_all(config_name) or {}
         else
             return self.cursor:get_all(config_name) or {}
@@ -367,11 +369,57 @@ function ConfigManager:compare_config_files(config_name, source_path, target_pat
 end
 
 -- Function: create_backup_directory
--- Purpose: Ensure backup directory exists
+-- Purpose: Ensure backup directory exists with filesystem health checks
 function ConfigManager:create_backup_directory()
+    -- Check filesystem health for backup location (lenient for backup operations)
+    local parent_dir = self.backup_dir:match("^(.*)/[^/]*$") or "/"
+    local health = FSUtils.check_filesystem_health(parent_dir)
+    
+    -- For backup operations, only fail on critical space issues, not write permissions
+    local critical_errors = {}
+    for _, error_msg in ipairs(health.errors) do
+        if error_msg:match("Less than 1MB free space") then
+            table.insert(critical_errors, error_msg)
+        else
+            -- Downgrade write permission errors to warnings for backup operations
+            if self.logger and type(self.logger.verbose) == "function" then
+                self.logger:verbose("Backup directory warning: " .. error_msg)
+            else
+                print("CONFIG VERBOSE: Backup directory warning: " .. error_msg)
+            end
+        end
+    end
+    
+    if #critical_errors > 0 then
+        for _, error_msg in ipairs(critical_errors) do
+            self.logger:error("Critical backup directory issue: " .. error_msg)
+        end
+        for _, recommendation in ipairs(health.recommendations) do
+            self.logger:error("Recommendation: " .. recommendation)
+        end
+        error("Cannot create backup directory due to critical space issues")
+    end
+    
+    -- Log all warnings
+    for _, warning in ipairs(health.warnings) do
+        if self.logger and type(self.logger.verbose) == "function" then
+            self.logger:verbose("Backup directory warning: " .. warning)
+        else
+            print("CONFIG VERBOSE: Backup directory warning: " .. warning)
+        end
+    end
+    
     if not self:directory_exists(self.backup_dir) then
-        lfs.mkdir(self.backup_dir)
-        log(self, "verbose", "Created backup directory: " .. self.backup_dir)
+        local success, error_msg = FSUtils.ensure_directory_exists(self.backup_dir)
+        if not success then
+            self.logger:error("Failed to create backup directory: " .. error_msg)
+            error("Cannot create backup directory: " .. error_msg)
+        end
+        if self.logger and type(self.logger.verbose) == "function" then
+            self.logger:verbose("Created backup directory: " .. self.backup_dir)
+        else
+            print("CONFIG VERBOSE: Created backup directory: " .. self.backup_dir)
+        end
     end
 end
 
@@ -403,7 +451,7 @@ function ConfigManager:get_backup_list()
     end)
     
     if not success then
-        log(self, "error", "Error reading backup directory: " .. tostring(err))
+        self.logger:error("Error reading backup directory: " .. tostring(err))
         return {}
     end
     
@@ -424,7 +472,7 @@ function ConfigManager:cleanup_old_backups(max_backups)
     local backups = self:get_backup_list()
     
     if #backups <= max_backups then
-        log(self, "verbose", "No backup cleanup needed (" .. #backups .. " backups)")
+        self.logger:verbose("No backup cleanup needed (" .. #backups .. " backups)")
         return
     end
     
@@ -435,12 +483,12 @@ function ConfigManager:cleanup_old_backups(max_backups)
         if success then
             removed_count = removed_count + 1
         else
-            log(self, "error", "Failed to remove old backup: " .. backup.filename)
+            self.logger:error("Failed to remove old backup: " .. backup.filename)
         end
     end
     
     if removed_count > 0 then
-        log(self, "info", "Cleaned up " .. removed_count .. " old backup(s)")
+        self.logger:info("Cleaned up " .. removed_count .. " old backup(s)")
     end
 end
 

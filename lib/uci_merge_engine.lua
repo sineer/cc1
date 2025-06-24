@@ -32,6 +32,17 @@ Core Features:
 local uci = require("uci")
 local lfs = require("lfs")
 local ListDeduplicator = require("list_deduplicator")
+local FSUtils = require("fs_utils")
+
+-- Local utility function: file_exists
+local function file_exists(path)
+    local f = io.open(path, "r")
+    if f then
+        f:close()
+        return true
+    end
+    return false
+end
 
 local UCIMergeEngine = {}
 UCIMergeEngine.__index = UCIMergeEngine
@@ -62,52 +73,7 @@ end
 -- Initialize list deduplicator
 local deduplicator = ListDeduplicator.new()
 
--- Function: normalize_network_value
--- Purpose: Normalize network-related values for consistent comparison
--- Parameters:
---   value (string): Value to normalize (IP, port, protocol, etc.)
--- Returns: string - Normalized value
--- Examples:
---   "192.168.001.001" -> "192.168.1.1"
---   "TCP" -> "tcp"
---   "  HTTP  " -> "http"
-function UCIMergeEngine:normalize_network_value(value)
-    if not value or value == "" then
-        return value
-    end
-    
-    local str_val = tostring(value):match("^%s*(.-)%s*$") -- trim whitespace
-    
-    -- Normalize IP addresses (remove leading zeros from octets)
-    local ip_pattern = "^(%d+)%.(%d+)%.(%d+)%.(%d+)$"
-    local a, b, c, d = str_val:match(ip_pattern)
-    if a and b and c and d then
-        return string.format("%d.%d.%d.%d", tonumber(a), tonumber(b), tonumber(c), tonumber(d))
-    end
-    
-    -- Normalize protocol names to lowercase
-    if str_val:match("^[A-Za-z]+$") then
-        return str_val:lower()
-    end
-    
-    -- For other values (ports, etc.), just return trimmed
-    return str_val
-end
 
--- Function: file_exists
--- Purpose: Check if a file exists at the given path
--- Parameters:
---   path (string): File path to check
--- Returns: boolean - true if file exists, false otherwise
--- Internal: Helper function for file operations
-function UCIMergeEngine:file_exists(path)
-    local f = io.open(path, "r")
-    if f then
-        f:close()
-        return true
-    end
-    return false
-end
 
 -- Function: deep_copy
 -- Purpose: Create a deep copy of a table, including nested tables and metatables
@@ -141,11 +107,14 @@ end
 -- Example:
 --   local config = engine:load_config('firewall', '/path/to/firewall.conf')
 function UCIMergeEngine:load_config(config_name, config_path)
-    if config_path and self:file_exists(config_path) then
+    if config_path and file_exists(config_path) then
         -- Load from specific file path using temporary cursor
         local temp_cursor = uci.cursor("/tmp", "/tmp/.uci")
-        local cmd = string.format("cp '%s' '/tmp/%s'", config_path, config_name)
-        os.execute(cmd)
+        local temp_path = "/tmp/" .. config_name
+        local copy_success, copy_error = FSUtils.safe_copy(config_path, temp_path)
+        if not copy_success then
+            error("Failed to copy config file: " .. copy_error)
+        end
         return temp_cursor:get_all(config_name) or {}
     else
         -- Load from system UCI configuration

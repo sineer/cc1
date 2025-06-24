@@ -26,6 +26,8 @@ Usage:
   local success, results = manager:restart_services_for_configs({"firewall", "network"})
 ]]
 
+local Logger = require("logger")
+
 local ServiceManager = {}
 ServiceManager.__index = ServiceManager
 
@@ -52,23 +54,16 @@ function ServiceManager.new(options)
     self.service_operations = {}
     self.rollback_stack = {}
     
+    -- Initialize logger
+    self.logger = Logger.new({
+        module_name = "SERVICE",
+        quiet = self.quiet,
+        verbose = self.verbose
+    })
+    
     return self
 end
 
--- Function: log
--- Purpose: Unified logging with level-based filtering
--- Parameters:
---   level: "error", "info", or "verbose"
---   message: Message to log
-local function log(self, level, message)
-    if level == "error" then
-        io.stderr:write("SERVICE ERROR: " .. message .. "\n")
-    elseif level == "info" and not self.quiet then
-        print("SERVICE INFO: " .. message)
-    elseif level == "verbose" and self.verbose then
-        print("SERVICE VERBOSE: " .. message)
-    end
-end
 
 -- Function: get_config_service_mapping
 -- Purpose: Get the mapping of UCI configuration files to init.d services
@@ -125,10 +120,10 @@ end
 --   description (string): Description for logging
 -- Returns: boolean, string - success status and output
 function ServiceManager:execute_command(command, description)
-    log(self, "verbose", "Executing: " .. command)
+    self.logger:verbose("Executing: " .. command)
     
     if self.dry_run then
-        log(self, "info", "DRY RUN: Would execute - " .. description)
+        self.logger:info("DRY RUN: Would execute - " .. description)
         return true, "DRY RUN: " .. command
     end
     
@@ -141,11 +136,11 @@ function ServiceManager:execute_command(command, description)
     local success = handle:close()
     
     if not success then
-        log(self, "error", description .. " failed: " .. output)
+        self.logger:error(description .. " failed: " .. output)
         return false, output
     end
     
-    log(self, "verbose", description .. " succeeded: " .. output)
+    self.logger:verbose(description .. " succeeded: " .. output)
     return true, output
 end
 
@@ -196,7 +191,7 @@ end
 -- Returns: boolean, string - success status and output
 function ServiceManager:restart_service(service_name)
     if not self:is_service_available(service_name) then
-        log(self, "verbose", "Service " .. service_name .. " not available, skipping")
+        self.logger:verbose("Service " .. service_name .. " not available, skipping")
         return true, "Service not available"
     end
     
@@ -215,10 +210,10 @@ function ServiceManager:restart_service(service_name)
             timestamp = os.time()
         })
         
-        log(self, "info", "Successfully restarted " .. service_name)
+        self.logger:info("Successfully restarted " .. service_name)
         return true, output
     else
-        log(self, "error", "Failed to restart " .. service_name .. ": " .. output)
+        self.logger:error("Failed to restart " .. service_name .. ": " .. output)
         return false, output
     end
 end
@@ -237,7 +232,7 @@ function ServiceManager:resolve_restart_order(services)
     -- Depth-first search to resolve dependencies
     local function visit(service)
         if visiting[service] then
-            log(self, "error", "Circular dependency detected involving " .. service)
+            self.logger:error("Circular dependency detected involving " .. service)
             return false
         end
         
@@ -275,7 +270,7 @@ function ServiceManager:resolve_restart_order(services)
         if not visited[service] then
             if not visit(service) then
                 -- Fallback to original order on circular dependency
-                log(self, "error", "Using fallback restart order due to dependency issues")
+                self.logger:error("Using fallback restart order due to dependency issues")
                 return services
             end
         end
@@ -291,12 +286,12 @@ end
 -- Returns: boolean, table - overall success and detailed results per service
 function ServiceManager:restart_services_for_configs(config_names)
     if self.no_restart then
-        log(self, "info", "Service restart disabled via --no-restart option")
+        self.logger:info("Service restart disabled via --no-restart option")
         return true, {}
     end
     
     if not config_names or #config_names == 0 then
-        log(self, "verbose", "No configuration files specified, no services to restart")
+        self.logger:verbose("No configuration files specified, no services to restart")
         return true, {}
     end
     
@@ -310,21 +305,21 @@ function ServiceManager:restart_services_for_configs(config_names)
         if service and not services_set[service] then
             table.insert(services_to_restart, service)
             services_set[service] = true
-            log(self, "verbose", "Config " .. config_name .. " requires restart of " .. service)
+            self.logger:verbose("Config " .. config_name .. " requires restart of " .. service)
         else
-            log(self, "verbose", "No service restart required for config: " .. config_name)
+        self.logger:verbose("No service restart required for config: " .. config_name)
         end
     end
     
     if #services_to_restart == 0 then
-        log(self, "info", "No services require restart")
+        self.logger:info("No services require restart")
         return true, {}
     end
     
     -- Resolve restart order based on dependencies
     local ordered_services = self:resolve_restart_order(services_to_restart)
     
-    log(self, "info", "Restarting services in order: " .. table.concat(ordered_services, ", "))
+    self.logger:info("Restarting services in order: " .. table.concat(ordered_services, ", "))
     
     -- Restart services in dependency order
     local results = {}
@@ -341,7 +336,7 @@ function ServiceManager:restart_services_for_configs(config_names)
             overall_success = false
             
             if self.rollback_on_failure then
-                log(self, "error", "Service restart failed, initiating rollback")
+                self.logger:error("Service restart failed, initiating rollback")
                 self:rollback_service_operations()
                 break
             end
@@ -356,16 +351,16 @@ end
 -- Note: This attempts to restore services to their previous state
 function ServiceManager:rollback_service_operations()
     if #self.service_operations == 0 then
-        log(self, "verbose", "No service operations to rollback")
+        self.logger:verbose("No service operations to rollback")
         return
     end
     
-    log(self, "info", "Rolling back " .. #self.service_operations .. " service operations")
+    self.logger:info("Rolling back " .. #self.service_operations .. " service operations")
     
     -- Rollback in reverse order
     for i = #self.service_operations, 1, -1 do
         local op = self.service_operations[i]
-        log(self, "verbose", "Rolling back " .. op.action .. " on " .. op.service)
+        self.logger:verbose("Rolling back " .. op.action .. " on " .. op.service)
         
         if op.original_status == "running" then
             -- Service was running, ensure it's started

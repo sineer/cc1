@@ -1,0 +1,442 @@
+{
+  "timestamp": "2025-06-23T15:29:23.853Z",
+  "version": "1.0",
+  "entries": [
+    {
+      "id": "entry_mc97unvs_muhi4et3f",
+      "key": "uci_research_findings",
+      "value": "UCI Configuration Merge Best Practices for OpenWRT 23.05+ research completed. Key findings: UCI is centralized config system with 3-tier hierarchy (packages/sections/options), changes staged in /tmp/.uci before commit, best practices include backup/validation/batch-mode/named-sections, conflict resolution for -opkg files and list duplications, avoid pitfalls like uncommitted changes and device-specific configs. Comprehensive guide written to uci-config-merge-best-practices.md",
+      "type": "string",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-23T14:53:01.672Z",
+      "updatedAt": "2025-06-23T14:53:01.672Z",
+      "lastAccessedAt": "2025-06-23T14:53:01.672Z",
+      "version": 1,
+      "size": 511,
+      "compressed": false,
+      "checksum": "155eeafe0eddc396ef277c90135fc33b82c1e3363df23b242e2b385b316c5717",
+      "references": [],
+      "dependencies": []
+    },
+    {
+      "id": "entry_mc98joeo_7r2xnv0w6",
+      "key": "uci_config_requirements",
+      "value": {
+        "project_name": "UCI Configuration Merge Tool",
+        "version": "1.0.0",
+        "target_platform": "OpenWRT 23.05+",
+        "language": "Lua",
+        "development_approach": "TDD",
+        "core_functionality_requirements": {
+          "merge_operations": {
+            "description": "Primary merge functionality for UCI configurations",
+            "requirements": [
+              "Merge UCI configuration files while preserving custom settings",
+              "Support three-way merge (base, current, incoming)",
+              "Handle named and unnamed sections (@type[index])",
+              "Merge packages, sections, and options/lists hierarchically",
+              "Preserve list order and prevent duplicates",
+              "Support incremental merging with staging",
+              "Detect and resolve conflicts automatically where possible",
+              "Maintain configuration integrity during merge operations"
+            ]
+          },
+          "backup_operations": {
+            "description": "Comprehensive backup and restore functionality",
+            "requirements": [
+              "Create timestamped backups before merge operations",
+              "Support selective backup of specific packages/sections",
+              "Compress backups using tar.gz format",
+              "Maintain backup metadata and change logs",
+              "Implement automated backup rotation",
+              "Support backup verification and integrity checks",
+              "Provide backup comparison and diff capabilities"
+            ]
+          },
+          "validation_operations": {
+            "description": "Configuration validation and verification",
+            "requirements": [
+              "Validate UCI syntax before and after merge",
+              "Check configuration integrity using uci validate",
+              "Verify section references and dependencies",
+              "Validate option values against type constraints",
+              "Check for required options and missing values",
+              "Detect configuration conflicts and inconsistencies",
+              "Provide detailed validation reports"
+            ]
+          },
+          "rollback_operations": {
+            "description": "Safe rollback and recovery functionality",
+            "requirements": [
+              "Implement one-click rollback to previous state",
+              "Support selective rollback of specific packages",
+              "Maintain rollback history with change tracking",
+              "Provide rollback preview and impact analysis",
+              "Support emergency recovery procedures",
+              "Implement failsafe rollback mechanisms",
+              "Restore from backup with configuration verification"
+            ]
+          }
+        },
+        "lua_uci_cursor_api_requirements": {
+          "description": "Integration with Lua UCI cursor API",
+          "requirements": [
+            "Use libuci-lua for all UCI operations",
+            "Implement cursor object management and cleanup",
+            "Support cursor:get(), cursor:set(), cursor:delete() operations",
+            "Implement cursor:add() for section creation",
+            "Use cursor:commit() for atomic operations",
+            "Support cursor:revert() for staging area management",
+            "Implement cursor:foreach() for iteration",
+            "Use cursor:load() and cursor:unload() for package management",
+            "Support cursor:changes() for tracking modifications",
+            "Implement proper error handling for cursor operations"
+          ],
+          "api_patterns": {
+            "initialization": "local uci = require('uci'); local cursor = uci.cursor()",
+            "batch_operations": "Use cursor:batch() for multiple operations",
+            "error_handling": "Check cursor:error() after operations",
+            "memory_management": "Proper cursor cleanup and garbage collection"
+          }
+        },
+        "tdd_development_requirements": {
+          "description": "Test-driven development approach requirements",
+          "requirements": [
+            "Write unit tests before implementation",
+            "Test all merge scenarios and edge cases",
+            "Mock UCI filesystem operations for testing",
+            "Create test fixtures for various UCI configurations",
+            "Implement integration tests with real UCI files",
+            "Test error conditions and recovery procedures",
+            "Performance testing for large configurations",
+            "Regression testing suite for CI/CD"
+          ],
+          "testing_framework": {
+            "unit_testing": "Lua busted framework for unit tests",
+            "mocking": "Mock UCI cursor operations for isolated testing",
+            "fixtures": "Sample UCI configurations for testing",
+            "coverage": "Code coverage reporting and analysis"
+          },
+          "test_categories": [
+            "Unit tests for core merge logic",
+            "Integration tests with UCI API",
+            "Configuration validation tests",
+            "Backup and restore tests",
+            "Rollback functionality tests",
+            "Error handling and recovery tests",
+            "Performance and stress tests",
+            "CLI interface tests"
+          ]
+        },
+        "command_line_interface_requirements": {
+          "description": "CLI interface design and functionality",
+          "commands": {
+            "merge": {
+              "syntax": "uci-merge [options] <source> <target>",
+              "description": "Merge UCI configurations",
+              "options": [
+                "--dry-run: Preview merge without applying changes",
+                "--backup: Create backup before merge",
+                "--force: Force merge with conflict resolution",
+                "--package <name>: Merge specific package only",
+                "--strategy <type>: Merge strategy (preserve, overwrite, smart)",
+                "--verbose: Detailed operation logging"
+              ]
+            },
+            "backup": {
+              "syntax": "uci-merge backup [options] [packages...]",
+              "description": "Create configuration backups",
+              "options": [
+                "--output <file>: Specify backup file location",
+                "--compress: Compress backup using gzip",
+                "--metadata: Include metadata and timestamps"
+              ]
+            },
+            "restore": {
+              "syntax": "uci-merge restore [options] <backup-file>",
+              "description": "Restore from backup",
+              "options": [
+                "--package <name>: Restore specific package only",
+                "--preview: Show what would be restored",
+                "--force: Force restore without confirmation"
+              ]
+            },
+            "validate": {
+              "syntax": "uci-merge validate [packages...]",
+              "description": "Validate UCI configurations",
+              "options": [
+                "--report: Generate detailed validation report",
+                "--fix: Attempt to fix validation errors"
+              ]
+            },
+            "diff": {
+              "syntax": "uci-merge diff <config1> <config2>",
+              "description": "Compare UCI configurations",
+              "options": [
+                "--format <type>: Output format (unified, context, json)",
+                "--package <name>: Compare specific package only"
+              ]
+            }
+          },
+          "global_options": [
+            "--config-dir <path>: UCI configuration directory",
+            "--help: Show help information",
+            "--version: Show version information",
+            "--quiet: Suppress non-error output",
+            "--log-level <level>: Set logging level"
+          ]
+        },
+        "error_handling_safety_requirements": {
+          "description": "Comprehensive error handling and safety measures",
+          "requirements": [
+            "Validate all input parameters and file paths",
+            "Check UCI cursor operation return values",
+            "Implement proper exception handling with cleanup",
+            "Prevent data loss through atomic operations",
+            "Use UCI batch mode for transactional operations",
+            "Implement rollback on operation failure",
+            "Log all operations for audit trail",
+            "Provide clear error messages and recovery suggestions"
+          ],
+          "safety_mechanisms": [
+            "Configuration backup before any modification",
+            "Dry-run mode for preview without changes",
+            "Confirmation prompts for destructive operations",
+            "Automatic rollback on validation failure",
+            "File locking to prevent concurrent modifications",
+            "Integrity checks before and after operations",
+            "Emergency recovery procedures"
+          ],
+          "error_categories": [
+            "File system errors (permissions, disk space)",
+            "UCI syntax errors and validation failures",
+            "Configuration conflicts and inconsistencies",
+            "Network and system resource errors",
+            "User input validation errors",
+            "Backup and restore operation failures"
+          ]
+        },
+        "performance_reliability_requirements": {
+          "description": "Performance optimization and reliability standards",
+          "performance_targets": {
+            "small_configs": "< 100ms for configs under 1KB",
+            "medium_configs": "< 500ms for configs 1KB-10KB",
+            "large_configs": "< 2s for configs over 10KB",
+            "memory_usage": "< 10MB RAM for typical operations",
+            "concurrent_operations": "Support 5+ concurrent merges"
+          },
+          "reliability_requirements": [
+            "99.9% operation success rate",
+            "Zero data loss guarantee",
+            "Graceful degradation under resource constraints",
+            "Automatic recovery from partial failures",
+            "Consistent behavior across OpenWRT versions",
+            "Proper cleanup of temporary files and resources"
+          ],
+          "optimization_strategies": [
+            "Lazy loading of UCI packages",
+            "Efficient diff algorithms for large configurations",
+            "Memory-efficient processing of large files",
+            "Parallel processing where applicable",
+            "Caching of frequently accessed configurations"
+          ]
+        },
+        "integration_requirements": {
+          "description": "Integration with OpenWRT ecosystem",
+          "requirements": [
+            "Compatible with OpenWRT 23.05+ UCI format",
+            "Support for all standard UCI packages",
+            "Integration with uci-defaults system",
+            "Compatibility with sysupgrade process",
+            "Support for UCI extras and validation tools",
+            "Integration with configuration management systems"
+          ],
+          "file_structure": {
+            "config_directory": "/etc/config/",
+            "staging_directory": "/tmp/.uci/",
+            "backup_directory": "/tmp/uci-backups/",
+            "log_directory": "/var/log/uci-merge/"
+          }
+        },
+        "documentation_requirements": {
+          "description": "Comprehensive documentation and examples",
+          "deliverables": [
+            "API documentation for Lua modules",
+            "CLI usage guide with examples",
+            "Configuration merge scenarios and solutions",
+            "Troubleshooting guide for common issues",
+            "Best practices documentation",
+            "Integration examples for automation scripts"
+          ]
+        },
+        "quality_assurance": {
+          "code_standards": [
+            "Follow Lua coding conventions",
+            "Comprehensive error handling",
+            "Clear variable and function naming",
+            "Modular design with separation of concerns",
+            "Extensive inline documentation"
+          ],
+          "testing_coverage": {
+            "unit_tests": "95% code coverage minimum",
+            "integration_tests": "All major use cases covered",
+            "regression_tests": "All bug fixes have regression tests"
+          }
+        }
+      },
+      "type": "object",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-23T15:12:28.752Z",
+      "updatedAt": "2025-06-23T15:12:28.752Z",
+      "lastAccessedAt": "2025-06-23T15:27:35.338Z",
+      "version": 1,
+      "size": 9343,
+      "compressed": true,
+      "checksum": "6b4a6884bc2847ed023837507f4339cd363a22bdf2c93722595135772a7e93a2",
+      "references": [],
+      "dependencies": []
+    },
+    {
+      "id": "entry_mc98mrtw_ufdugkzw2",
+      "key": "uci_config_architecture",
+      "value": "{\"name\":\"UCI Config Tool Modular Architecture\",\"version\":\"1.0.0\",\"overview\":\"Modular Lua-based UCI configuration management tool for OpenWRT\",\"core_architecture\":{\"pattern\":\"Layered Modular Architecture with Dependency Injection\",\"principles\":[\"Single Responsibility Principle - Each module has one clear purpose\",\"Dependency Injection - Modules receive dependencies via constructors\",\"Interface Segregation - Small, focused interfaces\",\"Open/Closed - Extensible via plugins without core modification\",\"Testability First - All modules designed for unit testing\"],\"layers\":{\"cli\":\"Command-line interface layer\",\"application\":\"Business logic and orchestration\",\"domain\":\"Core domain logic and entities\",\"infrastructure\":\"UCI cursor API and filesystem access\"}},\"module_structure\":{\"core\":{\"uci_cursor\":{\"description\":\"UCI cursor wrapper with connection pooling\",\"interface\":{\"new\":\"function(config_path?: string) -> cursor_instance\",\"get\":\"function(config: string, section: string, option?: string) -> value\",\"set\":\"function(config: string, section: string, option: string, value: any) -> boolean\",\"add\":\"function(config: string, type: string) -> section_name\",\"delete\":\"function(config: string, section: string, option?: string) -> boolean\",\"commit\":\"function(config?: string) -> boolean\",\"revert\":\"function(config?: string) -> boolean\",\"foreach\":\"function(config: string, type?: string, callback: function) -> nil\"},\"implementation\":\"-- core/uci_cursor.lua\\nlocal uci = require(\\\"uci\\\")\\n\\nlocal UCICursor = {}\\nUCICursor.__index = UCICursor\\n\\nfunction UCICursor:new(config_path)\\n    local self = setmetatable({}, UCICursor)\\n    self.cursor = uci.cursor(config_path)\\n    self.transactions = {}\\n    return self\\nend\\n\\nfunction UCICursor:with_transaction(func)\\n    table.insert(self.transactions, {})\\n    local ok, err = pcall(func, self)\\n    if ok then\\n        table.remove(self.transactions)\\n        return true\\n    else\\n        self:revert()\\n        table.remove(self.transactions)\\n        return false, err\\n    end\\nend\"},\"error_handler\":{\"description\":\"Centralized error handling with error codes and logging\",\"interface\":{\"wrap\":\"function(func: function, context: string) -> function\",\"handle\":\"function(err: any, context: string) -> error_result\",\"log\":\"function(level: string, message: string, data?: table) -> nil\"},\"error_codes\":{\"UCI_CONNECTION_FAILED\":1001,\"UCI_CONFIG_NOT_FOUND\":1002,\"UCI_SECTION_NOT_FOUND\":1003,\"UCI_OPTION_NOT_FOUND\":1004,\"UCI_COMMIT_FAILED\":1005,\"VALIDATION_FAILED\":2001,\"MERGE_CONFLICT\":3001,\"BACKUP_FAILED\":4001,\"RESTORE_FAILED\":4002}},\"logger\":{\"description\":\"Structured logging with levels and formatters\",\"interface\":{\"debug\":\"function(message: string, data?: table) -> nil\",\"info\":\"function(message: string, data?: table) -> nil\",\"warn\":\"function(message: string, data?: table) -> nil\",\"error\":\"function(message: string, data?: table) -> nil\",\"set_level\":\"function(level: string) -> nil\"}}},\"domain\":{\"config_validator\":{\"description\":\"Configuration validation with schema support\",\"interface\":{\"validate\":\"function(config: table, schema: table) -> boolean, errors?\",\"validate_option\":\"function(value: any, type: string, constraints?: table) -> boolean, error?\",\"register_type\":\"function(name: string, validator: function) -> nil\"},\"schema_format\":{\"example\":{\"network\":{\"type\":\"object\",\"sections\":{\"interface\":{\"type\":\"list\",\"item_type\":\"object\",\"required\":[\"proto\",\"ifname\"],\"properties\":{\"proto\":{\"type\":\"string\",\"enum\":[\"static\",\"dhcp\",\"pppoe\"]},\"ifname\":{\"type\":\"string\",\"pattern\":\"^[a-zA-Z0-9_-]+$\"},\"ipaddr\":{\"type\":\"ipv4\",\"required_if\":{\"proto\":\"static\"}},\"netmask\":{\"type\":\"netmask\",\"required_if\":{\"proto\":\"static\"}}}}}}}}},\"config_merger\":{\"description\":\"Three-way merge for configuration files\",\"interface\":{\"merge\":\"function(base: table, local: table, remote: table, strategy?: string) -> merged, conflicts\",\"resolve_conflict\":\"function(conflict: table, resolution: string) -> resolved_value\",\"register_strategy\":\"function(name: string, handler: function) -> nil\"},\"strategies\":[\"ours\",\"theirs\",\"union\",\"interactive\",\"custom\"]},\"config_differ\":{\"description\":\"Configuration comparison and diff generation\",\"interface\":{\"diff\":\"function(old: table, new: table) -> diff_table\",\"patch\":\"function(base: table, diff: table) -> patched_table\",\"format\":\"function(diff: table, format: string) -> string\"}}},\"application\":{\"backup_service\":{\"description\":\"Configuration backup and restore with versioning\",\"interface\":{\"create\":\"function(configs?: table, metadata?: table) -> backup_id\",\"restore\":\"function(backup_id: string, options?: table) -> boolean, errors?\",\"list\":\"function(filter?: table) -> backup_list\",\"delete\":\"function(backup_id: string) -> boolean\"},\"storage\":\"/etc/uci-backup/\",\"format\":\"tar.gz with metadata.json\"},\"template_service\":{\"description\":\"Configuration templating with variable substitution\",\"interface\":{\"apply\":\"function(template: string, variables: table) -> config_table\",\"validate\":\"function(template: string) -> boolean, errors?\",\"register_function\":\"function(name: string, func: function) -> nil\"},\"syntax\":\"{{variable}}, {{#if condition}}, {{#each list}}\"},\"migration_service\":{\"description\":\"Configuration migration between versions\",\"interface\":{\"migrate\":\"function(config: table, from_version: string, to_version: string) -> migrated\",\"register\":\"function(from: string, to: string, handler: function) -> nil\",\"get_version\":\"function(config: table) -> version_string\"}},\"sync_service\":{\"description\":\"Multi-device configuration synchronization\",\"interface\":{\"push\":\"function(target: string, configs: table) -> boolean\",\"pull\":\"function(source: string, configs: table) -> boolean\",\"sync\":\"function(peer: string, strategy: string) -> sync_result\"}}},\"infrastructure\":{\"config_repository\":{\"description\":\"Abstract interface for configuration storage\",\"interface\":{\"load\":\"function(config_name: string) -> config_table\",\"save\":\"function(config_name: string, data: table) -> boolean\",\"exists\":\"function(config_name: string) -> boolean\",\"list\":\"function(pattern?: string) -> config_list\"}},\"file_system\":{\"description\":\"File system operations wrapper\",\"interface\":{\"read\":\"function(path: string) -> content, error?\",\"write\":\"function(path: string, content: string) -> boolean, error?\",\"exists\":\"function(path: string) -> boolean\",\"mkdir\":\"function(path: string, recursive?: boolean) -> boolean\"}}},\"cli\":{\"command_parser\":{\"description\":\"Command-line argument parsing and routing\",\"interface\":{\"parse\":\"function(args: table) -> command, options, errors?\",\"register\":\"function(command: string, handler: function, options: table) -> nil\",\"help\":\"function(command?: string) -> help_text\"}},\"output_formatter\":{\"description\":\"Flexible output formatting\",\"interface\":{\"format\":\"function(data: any, format: string) -> formatted_string\",\"register_format\":\"function(name: string, formatter: function) -> nil\"},\"formats\":[\"json\",\"yaml\",\"table\",\"diff\",\"tree\"]}}},\"file_organization\":{\"root\":\"/usr/lib/lua/uci-config/\",\"structure\":{\"bin/\":{\"uci-config\":\"Main executable script\"},\"lib/\":{\"uci-config/\":{\"init.lua\":\"Module loader and initialization\",\"core/\":{\"uci_cursor.lua\":\"UCI cursor wrapper\",\"error_handler.lua\":\"Error handling\",\"logger.lua\":\"Logging system\",\"utils.lua\":\"Utility functions\"},\"domain/\":{\"config_validator.lua\":\"Validation logic\",\"config_merger.lua\":\"Merge algorithms\",\"config_differ.lua\":\"Diff generation\",\"schemas/\":{\"network.lua\":\"Network config schema\",\"wireless.lua\":\"Wireless config schema\",\"system.lua\":\"System config schema\"}},\"application/\":{\"backup_service.lua\":\"Backup operations\",\"template_service.lua\":\"Templating\",\"migration_service.lua\":\"Migrations\",\"sync_service.lua\":\"Synchronization\"},\"infrastructure/\":{\"config_repository.lua\":\"Storage abstraction\",\"file_system.lua\":\"File operations\",\"uci_repository.lua\":\"UCI-specific storage\"},\"cli/\":{\"command_parser.lua\":\"CLI parsing\",\"output_formatter.lua\":\"Output formatting\",\"commands/\":{\"backup.lua\":\"Backup commands\",\"merge.lua\":\"Merge commands\",\"validate.lua\":\"Validation commands\",\"sync.lua\":\"Sync commands\"}}}},\"test/\":{\"unit/\":{\"core/\":\"Core module tests\",\"domain/\":\"Domain logic tests\",\"application/\":\"Service tests\"},\"integration/\":{\"uci_integration_test.lua\":\"UCI API tests\",\"cli_integration_test.lua\":\"CLI tests\"},\"fixtures/\":{\"configs/\":\"Test configuration files\"},\"test_helper.lua\":\"Test utilities and mocks\"},\"etc/\":{\"uci-config/\":{\"config.lua\":\"Tool configuration\",\"schemas/\":\"User-defined schemas\"}}}},\"data_flow\":{\"merge_operation\":{\"flow\":[\"CLI receives merge command with config names\",\"CommandParser validates arguments and options\",\"MergeCommand loads configurations via ConfigRepository\",\"ConfigValidator validates all inputs against schemas\",\"ConfigMerger performs three-way merge\",\"Conflicts are resolved based on strategy\",\"Result is validated again\",\"UCICursor commits changes atomically\",\"Backup is created automatically\",\"OutputFormatter presents results\"]},\"validation_operation\":{\"flow\":[\"CLI receives validate command\",\"ConfigRepository loads target configuration\",\"SchemaLoader loads appropriate schema\",\"ConfigValidator performs deep validation\",\"Validation errors are collected and formatted\",\"Results are output with detailed error locations\"]}},\"tdd_structure\":{\"test_framework\":\"busted\",\"mock_strategy\":\"Dependency injection with test doubles\",\"test_patterns\":{\"unit_test_template\":\"-- test/unit/domain/config_validator_test.lua\\ndescribe(\\\"ConfigValidator\\\", function()\\n    local validator\\n    local mock_logger\\n    \\n    before_each(function()\\n        mock_logger = mock(require(\\\"uci-config.core.logger\\\"))\\n        validator = require(\\\"uci-config.domain.config_validator\\\"):new(mock_logger)\\n    end)\\n    \\n    describe(\\\"#validate\\\", function()\\n        it(\\\"should validate correct network config\\\", function()\\n            local config = {network = {lan = {proto = \\\"static\\\"}}}\\n            local schema = require(\\\"schemas.network\\\")\\n            \\n            local valid, errors = validator:validate(config, schema)\\n            \\n            assert.is_true(valid)\\n            assert.is_nil(errors)\\n        end)\\n    end)\\nend)\",\"integration_test_template\":\"-- test/integration/uci_integration_test.lua\\ndescribe(\\\"UCI Integration\\\", function()\\n    local test_cursor\\n    local test_config = \\\"test_network\\\"\\n    \\n    before_each(function()\\n        test_cursor = require(\\\"uci-config.core.uci_cursor\\\"):new(\\\"/tmp/test_uci\\\")\\n        -- Setup test environment\\n    end)\\n    \\n    after_each(function()\\n        -- Cleanup test files\\n    end)\\nend)\"},\"coverage_target\":\"90%\",\"ci_integration\":\"GitHub Actions with OpenWRT SDK\"},\"error_handling\":{\"strategy\":\"Centralized error handling with error codes and context\",\"implementation\":{\"error_types\":{\"UCIError\":\"UCI API related errors\",\"ValidationError\":\"Schema validation failures\",\"MergeError\":\"Merge conflicts and failures\",\"IOError\":\"File system operations\"},\"error_format\":{\"code\":\"number\",\"message\":\"string\",\"context\":\"table\",\"stack\":\"string (debug mode only)\"}},\"example\":\"local function safe_commit(cursor, config)\\n    return error_handler:wrap(function()\\n        if not cursor:commit(config) then\\n            error({code = ERROR_CODES.UCI_COMMIT_FAILED, \\n                   message = \\\"Failed to commit changes\\\",\\n                   context = {config = config}})\\n        end\\n    end, \\\"uci_commit\\\")\\nend\"},\"configuration_management\":{\"tool_config_location\":\"/etc/uci-config/config.lua\",\"config_schema\":{\"logging\":{\"level\":\"info < /dev/null | debug|warn|error\",\"output\":\"syslog|file|console\",\"file_path\":\"/var/log/uci-config.log\"},\"backup\":{\"path\":\"/etc/uci-backup/\",\"retention_days\":30,\"compression\":\"gzip|bzip2|none\"},\"validation\":{\"strict_mode\":\"boolean\",\"schema_path\":\"/etc/uci-config/schemas/\"},\"sync\":{\"default_timeout\":30,\"retry_attempts\":3}},\"environment_variables\":{\"UCI_CONFIG_PATH\":\"Override config path\",\"UCI_CONFIG_LOG_LEVEL\":\"Override log level\",\"UCI_CONFIG_DEBUG\":\"Enable debug mode\"}},\"module_initialization\":\"-- lib/uci-config/init.lua\\nlocal M = {}\\n\\n-- Core module loading\\nM.core = {\\n    uci_cursor = require(\\\"uci-config.core.uci_cursor\\\"),\\n    error_handler = require(\\\"uci-config.core.error_handler\\\"),\\n    logger = require(\\\"uci-config.core.logger\\\")\\n}\\n\\n-- Domain module loading with dependency injection\\nM.domain = {\\n    validator = require(\\\"uci-config.domain.config_validator\\\"):new(M.core.logger),\\n    merger = require(\\\"uci-config.domain.config_merger\\\"):new(M.core.logger),\\n    differ = require(\\\"uci-config.domain.config_differ\\\"):new()\\n}\\n\\n-- Application services\\nM.services = {\\n    backup = require(\\\"uci-config.application.backup_service\\\"):new(\\n        M.core.uci_cursor,\\n        M.infrastructure.file_system,\\n        M.core.logger\\n    )\\n}\\n\\nreturn M\",\"best_practices\":[\"Use metatables for OOP-style modules\",\"Implement proper error propagation with pcall/xpcall\",\"Use coroutines for async operations where applicable\",\"Minimize global state - use module locals\",\"Follow OpenWRT package naming conventions\",\"Use LuaDoc for API documentation\",\"Implement proper resource cleanup with finalizers\",\"Use weak tables for caching where appropriate\",\"Follow semantic versioning for releases\",\"Include comprehensive logging at all levels\"]}",
+      "type": "object",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-23T15:14:53.156Z",
+      "updatedAt": "2025-06-23T15:14:53.156Z",
+      "lastAccessedAt": "2025-06-23T15:14:53.156Z",
+      "version": 1,
+      "size": 14369,
+      "compressed": true,
+      "checksum": "4344b281b66f5a77ed49ce423f4fe2ae9f1e4757ecf140a67285727fbab32f16",
+      "references": [],
+      "dependencies": []
+    },
+    {
+      "id": "entry_mc98rx6q_gibqi4qwy",
+      "key": "uci_config_api_design",
+      "value": "{\"uci_config_tool_api_design\":{\"version\":\"1.0.0\",\"cli_commands\":{\"primary_commands\":{\"merge\":{\"description\":\"Merge UCI configuration changes\",\"syntax\":\"uci-config merge [OPTIONS] SOURCE [TARGET]\",\"options\":{\"--dry-run\":\"Preview merge without applying changes\",\"--strategy\":\"Merge strategy: overwrite < /dev/null | preserve|interactive (default: interactive)\",\"--backup\":\"Create backup before merge (default: true)\",\"--format\":\"Input format: uci|json|xml (auto-detect)\",\"--output\":\"Output format: uci|json|xml|diff (default: uci)\",\"--validate\":\"Validate configuration after merge (default: true)\",\"--quiet\":\"Suppress non-error output\",\"--verbose\":\"Verbose output with detailed operations\",\"--include\":\"Include only specified sections (comma-separated)\",\"--exclude\":\"Exclude specified sections (comma-separated)\",\"--force\":\"Force merge even with validation errors\"},\"arguments\":{\"SOURCE\":\"Source configuration file or UCI dump\",\"TARGET\":\"Target configuration (default: system UCI)\"},\"examples\":[\"uci-config merge new-config.uci\",\"uci-config merge --dry-run --strategy=preserve backup.json\",\"uci-config merge --include=network,firewall external.xml\"]},\"backup\":{\"description\":\"Create configuration backups\",\"syntax\":\"uci-config backup [OPTIONS] [DESTINATION]\",\"options\":{\"--format\":\"Output format: uci|json|xml|tar (default: uci)\",\"--compress\":\"Compression: none|gzip|bzip2|xz (default: gzip)\",\"--include\":\"Include only specified sections\",\"--exclude\":\"Exclude specified sections\",\"--metadata\":\"Include metadata (timestamps, checksums)\",\"--name\":\"Backup name/identifier\",\"--description\":\"Backup description\",\"--auto-rotate\":\"Auto-rotate old backups (keep N most recent)\",\"--verify\":\"Verify backup integrity after creation\"},\"arguments\":{\"DESTINATION\":\"Backup destination path (default: /etc/config/backups/)\"},\"examples\":[\"uci-config backup\",\"uci-config backup --format=json --compress=xz /tmp/config-backup\",\"uci-config backup --name='pre-upgrade' --description='Before system upgrade'\"]},\"restore\":{\"description\":\"Restore configuration from backup\",\"syntax\":\"uci-config restore [OPTIONS] SOURCE\",\"options\":{\"--dry-run\":\"Preview restore without applying changes\",\"--strategy\":\"Restore strategy: replace|merge|selective (default: replace)\",\"--backup-current\":\"Backup current config before restore (default: true)\",\"--validate\":\"Validate configuration before restore (default: true)\",\"--include\":\"Restore only specified sections\",\"--exclude\":\"Skip specified sections during restore\",\"--force\":\"Force restore even with validation errors\",\"--restart-services\":\"Restart affected services after restore (default: true)\"},\"arguments\":{\"SOURCE\":\"Backup file or backup identifier\"},\"examples\":[\"uci-config restore config-backup.uci\",\"uci-config restore --strategy=merge --include=network backup-20231201\",\"uci-config restore --dry-run latest\"]},\"validate\":{\"description\":\"Validate UCI configuration\",\"syntax\":\"uci-config validate [OPTIONS] [CONFIG]\",\"options\":{\"--schema\":\"Validation schema file\",\"--strict\":\"Strict validation mode\",\"--format\":\"Output format: text|json|xml (default: text)\",\"--include\":\"Validate only specified sections\",\"--exclude\":\"Skip specified sections\",\"--fix\":\"Automatically fix common issues\",\"--report\":\"Generate detailed validation report\"},\"arguments\":{\"CONFIG\":\"Configuration file to validate (default: system UCI)\"},\"examples\":[\"uci-config validate\",\"uci-config validate --strict --format=json config.uci\",\"uci-config validate --fix --report=/tmp/validation-report.html\"]},\"diff\":{\"description\":\"Compare UCI configurations\",\"syntax\":\"uci-config diff [OPTIONS] CONFIG1 [CONFIG2]\",\"options\":{\"--format\":\"Output format: unified|context|side-by-side|json|xml (default: unified)\",\"--include\":\"Compare only specified sections\",\"--exclude\":\"Skip specified sections\",\"--ignore-order\":\"Ignore option ordering differences\",\"--ignore-comments\":\"Ignore comment differences\",\"--color\":\"Colorize output (auto|always|never)\",\"--context\":\"Number of context lines (default: 3)\",\"--minimal\":\"Minimize output (show only differences)\"},\"arguments\":{\"CONFIG1\":\"First configuration file\",\"CONFIG2\":\"Second configuration file (default: system UCI)\"},\"examples\":[\"uci-config diff backup.uci\",\"uci-config diff --format=json --include=network old.uci new.uci\",\"uci-config diff --side-by-side --color=always config1.uci config2.uci\"]},\"export\":{\"description\":\"Export UCI configuration to various formats\",\"syntax\":\"uci-config export [OPTIONS] [DESTINATION]\",\"options\":{\"--format\":\"Output format: uci|json|xml|yaml|ini (default: json)\",\"--pretty\":\"Pretty-print output (default: true)\",\"--include\":\"Export only specified sections\",\"--exclude\":\"Skip specified sections\",\"--template\":\"Use export template\",\"--schema\":\"Include validation schema\",\"--metadata\":\"Include metadata (timestamps, versions)\"},\"arguments\":{\"DESTINATION\":\"Output file path (default: stdout)\"},\"examples\":[\"uci-config export --format=yaml network.yaml\",\"uci-config export --include=network,firewall --pretty config.json\",\"uci-config export --template=openwrt-defaults\"]},\"import\":{\"description\":\"Import configuration from various formats\",\"syntax\":\"uci-config import [OPTIONS] SOURCE\",\"options\":{\"--format\":\"Input format: uci|json|xml|yaml|ini (auto-detect)\",\"--strategy\":\"Import strategy: replace|merge|selective (default: merge)\",\"--dry-run\":\"Preview import without applying changes\",\"--backup\":\"Create backup before import (default: true)\",\"--validate\":\"Validate configuration after import (default: true)\",\"--include\":\"Import only specified sections\",\"--exclude\":\"Skip specified sections\",\"--transform\":\"Apply transformation rules during import\"},\"arguments\":{\"SOURCE\":\"Source configuration file\"},\"examples\":[\"uci-config import config.json\",\"uci-config import --strategy=replace --include=network network.yaml\",\"uci-config import --dry-run --transform=v1-to-v2 legacy-config.xml\"]},\"list\":{\"description\":\"List configuration sections and options\",\"syntax\":\"uci-config list [OPTIONS] [SECTION]\",\"options\":{\"--format\":\"Output format: text|json|xml|tree (default: text)\",\"--recursive\":\"Show all options recursively\",\"--type\":\"Filter by section type\",\"--values\":\"Show option values (default: false)\",\"--sort\":\"Sort output by name|type|value\",\"--filter\":\"Filter by pattern (glob or regex)\",\"--count\":\"Show count of matching items\"},\"arguments\":{\"SECTION\":\"Specific section to list (default: all)\"},\"examples\":[\"uci-config list\",\"uci-config list --format=json --values network\",\"uci-config list --type=interface --recursive\"]},\"set\":{\"description\":\"Set configuration values\",\"syntax\":\"uci-config set [OPTIONS] PATH=VALUE\",\"options\":{\"--batch\":\"Enable batch mode for multiple operations\",\"--create\":\"Create sections if they don't exist\",\"--type\":\"Section type for new sections\",\"--validate\":\"Validate after setting (default: true)\",\"--commit\":\"Auto-commit changes (default: true)\",\"--backup\":\"Create backup before changes (default: false)\"},\"arguments\":{\"PATH\":\"Configuration path (section.option or section[index].option)\",\"VALUE\":\"Value to set\"},\"examples\":[\"uci-config set network.lan.ipaddr=192.168.1.1\",\"uci-config set --create --type=interface network.guest.proto=static\",\"uci-config set --batch network.lan.netmask=255.255.255.0 network.lan.gateway=192.168.1.254\"]},\"get\":{\"description\":\"Get configuration values\",\"syntax\":\"uci-config get [OPTIONS] PATH\",\"options\":{\"--format\":\"Output format: value|json|xml (default: value)\",\"--default\":\"Default value if path doesn't exist\",\"--type\":\"Return value type information\",\"--exists\":\"Only check if path exists (exit code only)\"},\"arguments\":{\"PATH\":\"Configuration path to retrieve\"},\"examples\":[\"uci-config get network.lan.ipaddr\",\"uci-config get --format=json --type network.lan\",\"uci-config get --default='192.168.1.1' network.lan.ipaddr\"]},\"delete\":{\"description\":\"Delete configuration sections or options\",\"syntax\":\"uci-config delete [OPTIONS] PATH\",\"options\":{\"--recursive\":\"Delete recursively\",\"--force\":\"Force deletion without confirmation\",\"--backup\":\"Create backup before deletion (default: true)\",\"--validate\":\"Validate after deletion (default: true)\",\"--commit\":\"Auto-commit changes (default: true)\"},\"arguments\":{\"PATH\":\"Configuration path to delete\"},\"examples\":[\"uci-config delete network.guest\",\"uci-config delete --recursive --force firewall.rule\",\"uci-config delete network.lan.gateway\"]}},\"utility_commands\":{\"status\":{\"description\":\"Show UCI configuration status\",\"syntax\":\"uci-config status [OPTIONS]\",\"options\":{\"--format\":\"Output format: text|json|xml (default: text)\",\"--section\":\"Show status for specific section only\",\"--changes\":\"Show pending changes\",\"--services\":\"Show affected services status\"}},\"commit\":{\"description\":\"Commit pending UCI changes\",\"syntax\":\"uci-config commit [OPTIONS] [SECTION]\",\"options\":{\"--restart-services\":\"Restart affected services (default: true)\",\"--validate\":\"Validate before commit (default: true)\",\"--backup\":\"Create backup before commit (default: true)\"}},\"revert\":{\"description\":\"Revert uncommitted changes\",\"syntax\":\"uci-config revert [OPTIONS] [SECTION]\",\"options\":{\"--all\":\"Revert all uncommitted changes\",\"--force\":\"Force revert without confirmation\"}},\"schema\":{\"description\":\"Manage configuration schemas\",\"syntax\":\"uci-config schema [OPTIONS] COMMAND\",\"subcommands\":{\"list\":\"List available schemas\",\"show\":\"Show schema details\",\"validate\":\"Validate schema file\",\"install\":\"Install new schema\",\"remove\":\"Remove schema\"}},\"plugin\":{\"description\":\"Manage plugins\",\"syntax\":\"uci-config plugin [OPTIONS] COMMAND\",\"subcommands\":{\"list\":\"List installed plugins\",\"enable\":\"Enable plugin\",\"disable\":\"Disable plugin\",\"install\":\"Install new plugin\",\"remove\":\"Remove plugin\",\"info\":\"Show plugin information\"}},\"interactive\":{\"description\":\"Start interactive configuration mode\",\"syntax\":\"uci-config interactive [OPTIONS]\",\"options\":{\"--section\":\"Start with specific section\",\"--wizard\":\"Run configuration wizard\",\"--readonly\":\"Read-only mode (browse only)\"}}}},\"return_codes\":{\"0\":\"Success\",\"1\":\"General error\",\"2\":\"Misuse of shell command\",\"3\":\"Configuration validation error\",\"4\":\"File not found or permission denied\",\"5\":\"Configuration syntax error\",\"6\":\"Backup/restore operation failed\",\"7\":\"Network/service restart failed\",\"8\":\"Plugin operation failed\",\"9\":\"Schema validation error\",\"10\":\"User cancelled operation\",\"64\":\"Command line usage error\",\"65\":\"Data format error\",\"66\":\"Cannot open input\",\"67\":\"Addressee unknown\",\"68\":\"Host name unknown\",\"69\":\"Service unavailable\",\"70\":\"Internal software error\",\"71\":\"System error (OS)\",\"72\":\"Critical OS file missing\",\"73\":\"Cannot create output file\",\"74\":\"Input/output error\",\"75\":\"Temporary failure; user is invited to retry\",\"76\":\"Remote error in protocol\",\"77\":\"Permission denied\",\"78\":\"Configuration error\"},\"output_formats\":{\"json\":{\"structure\":{\"meta\":{\"version\":\"string\",\"timestamp\":\"ISO8601\",\"command\":\"string\",\"exit_code\":\"integer\",\"warnings\":[\"array of strings\"],\"errors\":[\"array of strings\"]},\"data\":{\"config\":\"configuration object\",\"changes\":\"array of change objects\",\"validation\":\"validation result object\",\"statistics\":\"operation statistics object\"}},\"examples\":{\"config_export\":{\"meta\":{\"version\":\"1.0.0\",\"timestamp\":\"2023-12-01T10:30:00Z\",\"command\":\"export --format=json\",\"exit_code\":0,\"warnings\":[],\"errors\":[]},\"data\":{\"config\":{\"network\":{\"lan\":{\"type\":\"interface\",\"proto\":\"static\",\"ipaddr\":\"192.168.1.1\",\"netmask\":\"255.255.255.0\"}}}}},\"validation_result\":{\"meta\":{\"version\":\"1.0.0\",\"timestamp\":\"2023-12-01T10:35:00Z\",\"command\":\"validate --format=json\",\"exit_code\":3,\"warnings\":[\"Deprecated option 'old_option' in section 'network.wan'\"],\"errors\":[\"Invalid IP address format in 'network.lan.ipaddr'\"]},\"data\":{\"validation\":{\"valid\":false,\"sections_checked\":5,\"errors\":[{\"section\":\"network.lan\",\"option\":\"ipaddr\",\"error\":\"Invalid IP address format\",\"value\":\"192.168.1.256\",\"expected\":\"Valid IPv4 address\"}],\"warnings\":[{\"section\":\"network.wan\",\"option\":\"old_option\",\"warning\":\"Deprecated option\",\"suggestion\":\"Use 'new_option' instead\"}]}}}}},\"xml\":{\"structure\":\"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<uci-config>\\n  <meta>\\n    <version>1.0.0</version>\\n    <timestamp>2023-12-01T10:30:00Z</timestamp>\\n    <command>export --format=xml</command>\\n    <exit_code>0</exit_code>\\n  </meta>\\n  <data>\\n    <config>\\n      <section name=\\\"network\\\">\\n        <subsection name=\\\"lan\\\" type=\\\"interface\\\">\\n          <option name=\\\"proto\\\">static</option>\\n          <option name=\\\"ipaddr\\\">192.168.1.1</option>\\n          <option name=\\\"netmask\\\">255.255.255.0</option>\\n        </subsection>\\n      </section>\\n    </config>\\n  </data>\\n</uci-config>\",\"schema_url\":\"https://openwrt.org/schemas/uci-config-v1.xsd\"}},\"interactive_mode\":{\"features\":{\"guided_configuration\":{\"description\":\"Step-by-step configuration wizard\",\"modes\":[\"basic\",\"advanced\",\"expert\"],\"sections\":[\"network\",\"firewall\",\"wireless\",\"system\",\"dhcp\",\"custom\"]},\"menu_navigation\":{\"description\":\"Hierarchical menu system\",\"controls\":{\"navigate\":\"Arrow keys, vim keys (hjkl)\",\"select\":\"Enter, Space\",\"back\":\"Backspace, Escape\",\"search\":\"/\",\"help\":\"?\",\"quit\":\"q, Ctrl+C\"}},\"real_time_validation\":{\"description\":\"Validate input as user types\",\"features\":[\"syntax_highlighting\",\"auto_completion\",\"error_indicators\"]},\"context_help\":{\"description\":\"Context-sensitive help system\",\"features\":[\"option_descriptions\",\"examples\",\"links_to_documentation\"]}},\"wizard_templates\":{\"basic_router\":\"Configure basic router functionality\",\"access_point\":\"Configure wireless access point\",\"bridge\":\"Configure network bridge\",\"firewall\":\"Configure firewall rules\",\"vpn_server\":\"Configure VPN server\",\"custom\":\"Custom configuration wizard\"}},\"lua_api\":{\"core_module\":{\"name\":\"uci_config\",\"functions\":{\"init\":{\"description\":\"Initialize UCI configuration interface\",\"signature\":\"uci_config.init(options)\",\"parameters\":{\"options\":{\"config_path\":\"Path to UCI configuration directory\",\"backup_path\":\"Path for backups\",\"validate\":\"Enable validation (default: true)\",\"auto_commit\":\"Auto-commit changes (default: false)\"}},\"returns\":\"Configuration handle or nil on error\",\"example\":\"local config = uci_config.init({validate = true, auto_commit = false})\"},\"merge\":{\"description\":\"Merge configuration changes\",\"signature\":\"uci_config.merge(source, options)\",\"parameters\":{\"source\":\"Source configuration (file path or table)\",\"options\":{\"strategy\":\"Merge strategy (overwrite|preserve|interactive)\",\"dry_run\":\"Preview only (boolean)\",\"include\":\"Sections to include (table)\",\"exclude\":\"Sections to exclude (table)\"}},\"returns\":\"Result table with success status and changes\",\"example\":\"local result = uci_config.merge('backup.uci', {strategy = 'preserve', dry_run = true})\"},\"backup\":{\"description\":\"Create configuration backup\",\"signature\":\"uci_config.backup(destination, options)\",\"parameters\":{\"destination\":\"Backup destination path\",\"options\":{\"format\":\"Output format (uci|json|xml)\",\"compress\":\"Compression type\",\"include\":\"Sections to include\",\"metadata\":\"Include metadata (boolean)\"}},\"returns\":\"Backup information table\",\"example\":\"local backup = uci_config.backup('/tmp/backup.uci', {format = 'json', metadata = true})\"},\"restore\":{\"description\":\"Restore configuration from backup\",\"signature\":\"uci_config.restore(source, options)\",\"parameters\":{\"source\":\"Backup source path or identifier\",\"options\":{\"strategy\":\"Restore strategy\",\"validate\":\"Validate before restore (boolean)\",\"backup_current\":\"Backup current config (boolean)\"}},\"returns\":\"Restore result table\",\"example\":\"local result = uci_config.restore('backup-20231201', {strategy = 'merge'})\"},\"validate\":{\"description\":\"Validate configuration\",\"signature\":\"uci_config.validate(config, schema)\",\"parameters\":{\"config\":\"Configuration to validate (optional, defaults to current)\",\"schema\":\"Validation schema (optional)\"},\"returns\":\"Validation result table with errors and warnings\",\"example\":\"local validation = uci_config.validate(nil, 'strict')\"},\"get\":{\"description\":\"Get configuration value\",\"signature\":\"uci_config.get(path, default)\",\"parameters\":{\"path\":\"Configuration path (string)\",\"default\":\"Default value if path doesn't exist\"},\"returns\":\"Configuration value or default\",\"example\":\"local ip = uci_config.get('network.lan.ipaddr', '192.168.1.1')\"},\"set\":{\"description\":\"Set configuration value\",\"signature\":\"uci_config.set(path, value, options)\",\"parameters\":{\"path\":\"Configuration path (string)\",\"value\":\"Value to set\",\"options\":{\"create\":\"Create section if needed (boolean)\",\"type\":\"Section type for new sections\",\"validate\":\"Validate after setting (boolean)\"}},\"returns\":\"Success status\",\"example\":\"local success = uci_config.set('network.lan.ipaddr', '192.168.1.100', {validate = true})\"},\"delete\":{\"description\":\"Delete configuration path\",\"signature\":\"uci_config.delete(path, options)\",\"parameters\":{\"path\":\"Configuration path to delete\",\"options\":{\"recursive\":\"Delete recursively (boolean)\",\"validate\":\"Validate after deletion (boolean)\"}},\"returns\":\"Success status\",\"example\":\"local success = uci_config.delete('network.guest', {recursive = true})\"},\"commit\":{\"description\":\"Commit pending changes\",\"signature\":\"uci_config.commit(section, options)\",\"parameters\":{\"section\":\"Section to commit (optional, defaults to all)\",\"options\":{\"restart_services\":\"Restart affected services (boolean)\",\"validate\":\"Validate before commit (boolean)\"}},\"returns\":\"Result table with committed changes\",\"example\":\"local result = uci_config.commit('network', {restart_services = true})\"},\"revert\":{\"description\":\"Revert uncommitted changes\",\"signature\":\"uci_config.revert(section)\",\"parameters\":{\"section\":\"Section to revert (optional, defaults to all)\"},\"returns\":\"Result table with reverted changes\",\"example\":\"local result = uci_config.revert('firewall')\"}}},\"utility_modules\":{\"uci_config.diff\":{\"description\":\"Configuration comparison utilities\",\"functions\":{\"compare\":\"Compare two configurations\",\"changes\":\"Get pending changes\",\"format\":\"Format diff output\"}},\"uci_config.schema\":{\"description\":\"Schema management utilities\",\"functions\":{\"load\":\"Load validation schema\",\"validate\":\"Validate against schema\",\"list\":\"List available schemas\"}},\"uci_config.plugin\":{\"description\":\"Plugin management utilities\",\"functions\":{\"load\":\"Load plugin\",\"list\":\"List plugins\",\"call\":\"Call plugin function\"}}},\"error_handling\":{\"error_types\":{\"ValidationError\":\"Configuration validation failed\",\"FileError\":\"File operation failed\",\"PermissionError\":\"Insufficient permissions\",\"SyntaxError\":\"Configuration syntax error\",\"PluginError\":\"Plugin operation failed\"},\"error_format\":{\"type\":\"Error type string\",\"message\":\"Human-readable error message\",\"code\":\"Numeric error code\",\"path\":\"Configuration path (if applicable)\",\"details\":\"Additional error details table\"}}},\"configuration_file\":{\"path\":\"/etc/config/uci-config\",\"format\":\"UCI format\",\"sections\":{\"global\":{\"description\":\"Global tool settings\",\"options\":{\"backup_path\":\"Default backup directory path\",\"backup_count\":\"Number of automatic backups to keep\",\"auto_commit\":\"Auto-commit changes (boolean)\",\"validate_on_change\":\"Validate configuration on changes\",\"colored_output\":\"Enable colored terminal output\",\"log_level\":\"Logging level (debug|info|warn|error)\",\"log_file\":\"Log file path\"}},\"formats\":{\"description\":\"Default format settings\",\"options\":{\"export_format\":\"Default export format\",\"backup_format\":\"Default backup format\",\"diff_format\":\"Default diff format\",\"pretty_print\":\"Pretty-print JSON/XML output\"}},\"validation\":{\"description\":\"Validation settings\",\"options\":{\"schema_path\":\"Path to validation schemas\",\"strict_mode\":\"Enable strict validation\",\"auto_fix\":\"Automatically fix common issues\",\"custom_validators\":\"List of custom validator plugins\"}},\"plugins\":{\"description\":\"Plugin configuration\",\"options\":{\"enabled\":\"List of enabled plugins\",\"plugin_path\":\"Path to plugin directory\",\"auto_load\":\"Auto-load plugins on startup\"}},\"interactive\":{\"description\":\"Interactive mode settings\",\"options\":{\"default_wizard\":\"Default wizard template\",\"show_help\":\"Show context help by default\",\"vim_keys\":\"Enable vim-style key bindings\",\"auto_save\":\"Auto-save changes in interactive mode\"}}},\"example\":\"config global\\n\\toption backup_path '/etc/config/backups'\\n\\toption backup_count '10'\\n\\toption auto_commit '0'\\n\\toption validate_on_change '1'\\n\\toption colored_output '1'\\n\\toption log_level 'info'\\n\\nconfig formats\\n\\toption export_format 'json'\\n\\toption backup_format 'uci'\\n\\toption diff_format 'unified'\\n\\toption pretty_print '1'\\n\\nconfig validation\\n\\toption schema_path '/usr/share/uci-config/schemas'\\n\\toption strict_mode '0'\\n\\toption auto_fix '1'\\n\\nconfig plugins\\n\\toption enabled 'backup-rotation custom-validators'\\n\\toption plugin_path '/usr/lib/uci-config/plugins'\\n\\toption auto_load '1'\"},\"plugin_system\":{\"architecture\":{\"plugin_interface\":{\"description\":\"Standard plugin interface\",\"required_functions\":[\"init(config)\",\"get_info()\",\"cleanup()\"],\"optional_functions\":[\"pre_merge(source, target, options)\",\"post_merge(result, options)\",\"pre_backup(config, options)\",\"post_backup(backup_info, options)\",\"pre_restore(backup, options)\",\"post_restore(result, options)\",\"validate(config, schema, options)\",\"transform(config, transformation_rules)\"]},\"plugin_types\":{\"validator\":\"Custom validation plugins\",\"transformer\":\"Configuration transformation plugins\",\"formatter\":\"Custom output format plugins\",\"integrator\":\"Integration with external tools\",\"workflow\":\"Custom workflow plugins\"}},\"built_in_plugins\":{\"backup_rotation\":{\"description\":\"Automatic backup rotation and cleanup\",\"options\":{\"max_backups\":\"Maximum number of backups to keep\",\"rotation_policy\":\"Rotation policy (time|count|size)\",\"compression\":\"Enable backup compression\"}},\"service_integration\":{\"description\":\"Integration with OpenWRT service management\",\"features\":[\"Auto-restart affected services\",\"Service dependency tracking\",\"Graceful service reloading\"]},\"remote_sync\":{\"description\":\"Synchronize configurations across multiple devices\",\"protocols\":[\"ssh\",\"rsync\",\"http\",\"ftp\"],\"features\":[\"Bi-directional sync\",\"Conflict resolution\",\"Encrypted transport\"]},\"git_integration\":{\"description\":\"Version control integration using Git\",\"features\":[\"Automatic commits on changes\",\"Branch-based configuration variants\",\"Rollback to previous versions\"]},\"notification\":{\"description\":\"Notification system for configuration changes\",\"channels\":[\"email\",\"webhook\",\"syslog\",\"mqtt\"],\"events\":[\"merge\",\"backup\",\"restore\",\"validation_error\"]}},\"plugin_development\":{\"template\":\"-- UCI Config Plugin Template\\nlocal plugin = {}\\n\\n-- Plugin metadata\\nplugin.info = {\\n    name = 'example-plugin',\\n    version = '1.0.0',\\n    description = 'Example plugin for UCI Config',\\n    author = 'Plugin Author',\\n    license = 'MIT'\\n}\\n\\n-- Initialize plugin\\nfunction plugin.init(config)\\n    -- Plugin initialization code\\n    return true\\nend\\n\\n-- Get plugin information\\nfunction plugin.get_info()\\n    return plugin.info\\nend\\n\\n-- Cleanup plugin resources\\nfunction plugin.cleanup()\\n    -- Cleanup code\\nend\\n\\n-- Optional: Pre-merge hook\\nfunction plugin.pre_merge(source, target, options)\\n    -- Code to run before merge\\n    return true\\nend\\n\\n-- Optional: Post-merge hook\\nfunction plugin.post_merge(result, options)\\n    -- Code to run after merge\\nend\\n\\nreturn plugin\",\"api_reference\":\"/usr/share/doc/uci-config/plugin-api.html\",\"examples\":\"/usr/share/uci-config/plugin-examples/\"}},\"integration_patterns\":{\"openwrt_integration\":{\"uci_compatibility\":{\"description\":\"Full compatibility with standard UCI commands\",\"commands\":{\"uci show\":\"uci-config list --values\",\"uci get\":\"uci-config get\",\"uci set\":\"uci-config set\",\"uci delete\":\"uci-config delete\",\"uci commit\":\"uci-config commit\",\"uci revert\":\"uci-config revert\"}},\"service_integration\":{\"description\":\"Integration with OpenWRT service management\",\"features\":[\"Automatic service dependency detection\",\"Smart service restart ordering\",\"Configuration reload without restart where possible\"],\"hooks\":{\"pre_commit\":\"Run before committing changes\",\"post_commit\":\"Run after committing changes\",\"pre_restart\":\"Run before restarting services\",\"post_restart\":\"Run after restarting services\"}},\"procd_integration\":{\"description\":\"Integration with procd process manager\",\"features\":[\"Service status monitoring\",\"Configuration change triggers\",\"Resource monitoring\"]}},\"build_system_integration\":{\"openwrt_buildroot\":{\"description\":\"Integration with OpenWRT build system\",\"features\":[\"Build-time configuration validation\",\"Custom configuration packages\",\"Default configuration templates\"]},\"image_builder\":{\"description\":\"Integration with OpenWRT Image Builder\",\"features\":[\"Pre-built configuration inclusion\",\"Configuration template system\",\"Automated image customization\"]}},\"external_tool_integration\":{\"ansible\":{\"description\":\"Ansible module for UCI Config management\",\"module_name\":\"uci_config\",\"parameters\":[\"action (merge|backup|restore|validate)\",\"config (configuration data)\",\"options (tool options)\"]},\"puppet\":{\"description\":\"Puppet provider for UCI Config\",\"type\":\"uci_config\",\"providers\":[\"uci_config\"]},\"terraform\":{\"description\":\"Terraform provider for OpenWRT UCI\",\"resources\":[\"uci_config_section\",\"uci_config_option\",\"uci_config_backup\"]}},\"monitoring_integration\":{\"prometheus\":{\"description\":\"Prometheus metrics exporter\",\"metrics\":[\"uci_config_changes_total\",\"uci_config_validation_errors_total\",\"uci_config_backup_age_seconds\",\"uci_config_operation_duration_seconds\"]},\"collectd\":{\"description\":\"Collectd plugin for configuration monitoring\",\"metrics\":[\"Configuration change rate\",\"Validation error count\",\"Backup success rate\"]}}},\"testing_framework\":{\"unit_tests\":{\"test_framework\":\"Lua unit testing framework\",\"test_categories\":[\"Configuration parsing\",\"Merge operations\",\"Validation logic\",\"Backup/restore functionality\",\"API interface testing\"],\"mock_objects\":[\"Mock UCI context\",\"Mock file system\",\"Mock service manager\"]},\"integration_tests\":{\"test_environments\":[\"OpenWRT QEMU instances\",\"Docker containers\",\"Physical hardware\"],\"test_scenarios\":[\"Multi-device configuration sync\",\"Service restart verification\",\"Rollback scenarios\",\"Plugin interaction\"]},\"performance_tests\":{\"benchmarks\":[\"Large configuration merge performance\",\"Backup/restore speed\",\"Memory usage under load\",\"Concurrent operation handling\"]}},\"documentation_structure\":{\"user_documentation\":{\"quick_start_guide\":\"Getting started with uci-config\",\"command_reference\":\"Complete command documentation\",\"configuration_guide\":\"Configuration file documentation\",\"examples\":\"Common usage examples\",\"troubleshooting\":\"Common issues and solutions\"},\"developer_documentation\":{\"api_reference\":\"Lua API documentation\",\"plugin_development\":\"Plugin development guide\",\"architecture\":\"System architecture documentation\",\"contributing\":\"Contribution guidelines\"},\"integration_guides\":{\"ansible_integration\":\"Using with Ansible\",\"terraform_integration\":\"Using with Terraform\",\"ci_cd_integration\":\"CI/CD pipeline integration\",\"monitoring_setup\":\"Setting up monitoring\"}}}}",
+      "type": "object",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-23T15:18:53.378Z",
+      "updatedAt": "2025-06-23T15:18:53.378Z",
+      "lastAccessedAt": "2025-06-23T15:18:53.378Z",
+      "version": 1,
+      "size": 29426,
+      "compressed": true,
+      "checksum": "a80b0754a4f9597393bbb088ba9b1d12089e707d2effde882444d138434713be",
+      "references": [],
+      "dependencies": []
+    },
+    {
+      "id": "entry_mc995fnu_9tug9zwtj",
+      "key": "uci_config_requirements",
+      "value": "{\"project_name\":\"UCI Configuration Merge Tool\",\"version\":\"2.0.0\",\"target_platform\":\"OpenWRT 23.05+ with uspot\",\"language\":\"Lua\",\"development_approach\":\"TDD with Docker Testing\",\"format_support\":{\"description\":\"UCI-only format handling\",\"requirements\":[\"Support exclusively UCI configuration format\",\"No JSON or XML format support or conversion\",\"Native UCI parsing and generation only\",\"Direct UCI cursor API operations throughout\",\"Maintain UCI format integrity and conventions\",\"Support all UCI data types (string, boolean, list)\",\"Handle UCI format edge cases and special characters\"]},\"core_functionality_requirements\":{\"merge_operations\":{\"description\":\"Primary merge functionality for UCI configurations\",\"requirements\":[\"Merge UCI configuration files while preserving custom settings\",\"Support three-way merge (base, current, incoming)\",\"Handle named and unnamed sections (@type[index])\",\"Merge packages, sections, and options/lists hierarchically\",\"Advanced duplicate list entry handling and deduplication\",\"Preserve list order while merging duplicate entries intelligently\",\"Handle UCI edge cases: empty sections, malformed entries, circular references\",\"Support incremental merging with staging\",\"Detect and resolve conflicts automatically where possible\",\"Maintain configuration integrity during merge operations\",\"Handle option type conflicts (string vs list vs boolean)\",\"Merge anonymous sections with proper indexing\"]},\"duplicate_list_handling\":{\"description\":\"Advanced handling of UCI list duplicates and edge cases\",\"requirements\":[\"Detect duplicate entries within UCI lists\",\"Configurable duplicate resolution strategies (keep-first, keep-last, merge-unique)\",\"Handle partial duplicates in complex list entries\",\"Preserve meaningful duplicates (e.g., multiple firewall rules)\",\"Remove meaningless duplicates (e.g., repeated DNS servers)\",\"Support custom duplicate detection rules per UCI package\",\"Handle malformed list entries during merge\",\"Validate list entry syntax and format\",\"Maintain list order semantics during deduplication\"]},\"uci_edge_case_handling\":{\"description\":\"Comprehensive UCI format edge case management\",\"requirements\":[\"Handle sections with missing names or types\",\"Process malformed UCI entries gracefully\",\"Manage circular section references\",\"Handle extremely long option values\",\"Process UCI files with encoding issues\",\"Manage sections with duplicate names across packages\",\"Handle nested list structures in complex packages\",\"Process UCI files with mixed line endings\"]},\"backup_operations\":{\"description\":\"Comprehensive backup and restore functionality\",\"requirements\":[\"Create timestamped backups before merge operations\",\"Support selective backup of specific packages/sections\",\"Compress backups using tar.gz format\",\"Maintain backup metadata and change logs\",\"Implement automated backup rotation\",\"Support backup verification and integrity checks\",\"Provide backup comparison and diff capabilities\",\"Store network connectivity state in backups\"]},\"validation_operations\":{\"description\":\"Configuration validation and verification\",\"requirements\":[\"Validate UCI syntax before and after merge\",\"Check configuration integrity using uci validate\",\"Verify section references and dependencies\",\"Validate option values against type constraints\",\"Check for required options and missing values\",\"Detect configuration conflicts and inconsistencies\",\"Provide detailed validation reports\",\"Validate network connectivity requirements\"]},\"rollback_operations\":{\"description\":\"Safe rollback and recovery functionality\",\"requirements\":[\"Implement one-click rollback to previous state\",\"Support selective rollback of specific packages\",\"Maintain rollback history with change tracking\",\"Provide rollback preview and impact analysis\",\"Support emergency recovery procedures\",\"Implement failsafe rollback mechanisms\",\"Restore from backup with configuration verification\",\"Preserve network connectivity during rollback\"]}},\"uspot_captive_portal_support\":{\"description\":\"Specialized support for uspot captive portal configurations\",\"requirements\":[\"Handle uspot-specific UCI packages and sections\",\"Merge captive portal authentication configurations\",\"Process uspot firewall rules and exceptions\",\"Handle captive portal redirect configurations\",\"Merge WiFi access point settings for captive portal\",\"Process uspot user management configurations\",\"Handle captive portal branding and customization settings\",\"Merge uspot monitoring and analytics configurations\"],\"firewall_rules_handling\":{\"description\":\"Advanced firewall rules management for uspot\",\"requirements\":[\"Parse and merge complex firewall rule chains\",\"Handle captive portal bypass rules\",\"Merge port forwarding and NAT rules\",\"Process firewall zones and interface mappings\",\"Handle traffic shaping and QoS rules\",\"Merge firewall logging and monitoring rules\",\"Validate firewall rule syntax and dependencies\",\"Preserve rule ordering and priority\"]},\"captive_portal_configs\":{\"description\":\"Captive portal specific configuration handling\",\"requirements\":[\"Merge authentication backend configurations\",\"Handle captive portal web interface settings\",\"Process user session management configurations\",\"Merge captive portal branding and theming\",\"Handle splash page and terms of service settings\",\"Process payment gateway integrations\",\"Merge captive portal logging and analytics\",\"Handle multi-language support configurations\"]},\"network_interface_management\":{\"description\":\"Network interface configuration for uspot deployment\",\"requirements\":[\"Merge bridge and VLAN configurations\",\"Handle WiFi interface and radio settings\",\"Process ethernet interface configurations\",\"Merge network routing and gateway settings\",\"Handle DHCP server and client configurations\",\"Process DNS and hostname resolution settings\",\"Merge network monitoring and diagnostic tools\"]}},\"network_safety_requirements\":{\"description\":\"Network connectivity preservation during merge operations\",\"requirements\":[\"Preserve critical network interface configurations\",\"Maintain SSH access during merge operations\",\"Backup and validate network routing tables\",\"Preserve DNS resolution capabilities\",\"Maintain firewall rules for management access\",\"Validate network connectivity before applying changes\",\"Implement emergency network recovery procedures\",\"Preserve wireless interface and radio configurations\",\"Maintain DHCP server functionality\",\"Preserve bridge and VLAN configurations\"],\"connectivity_validation\":{\"description\":\"Network connectivity testing and validation\",\"requirements\":[\"Test SSH connectivity before and after merge\",\"Validate DNS resolution functionality\",\"Check internet gateway reachability\",\"Test wireless interface functionality\",\"Validate DHCP server operation\",\"Check firewall rule effectiveness\",\"Test captive portal connectivity\"]},\"recovery_mechanisms\":{\"description\":\"Network recovery and failsafe procedures\",\"requirements\":[\"Automatic rollback on network connectivity loss\",\"Emergency configuration restoration\",\"Failsafe mode activation procedures\",\"Alternative access method preservation\",\"Network diagnostic and troubleshooting tools\",\"Emergency contact and notification systems\"]}},\"lua_uci_cursor_api_requirements\":{\"description\":\"Integration with Lua UCI cursor API\",\"requirements\":[\"Use libuci-lua for all UCI operations\",\"Implement cursor object management and cleanup\",\"Support cursor:get(), cursor:set(), cursor:delete() operations\",\"Implement cursor:add() for section creation\",\"Use cursor:commit() for atomic operations\",\"Support cursor:revert() for staging area management\",\"Implement cursor:foreach() for iteration\",\"Use cursor:load() and cursor:unload() for package management\",\"Support cursor:changes() for tracking modifications\",\"Implement proper error handling for cursor operations\"],\"api_patterns\":{\"initialization\":\"local uci = require(\\\"uci\\\"); local cursor = uci.cursor()\",\"batch_operations\":\"Use cursor:batch() for multiple operations\",\"error_handling\":\"Check cursor:error() after operations\",\"memory_management\":\"Proper cursor cleanup and garbage collection\"}},\"docker_testing_environment\":{\"description\":\"Docker-based testing with OpenWRT containers\",\"requirements\":[\"Create OpenWRT-based Docker containers for testing\",\"Support multiple OpenWRT versions in containers\",\"Mount UCI configuration directories as volumes\",\"Implement container networking for connectivity tests\",\"Support automated container provisioning\",\"Enable container orchestration for complex scenarios\",\"Implement container cleanup and resource management\",\"Support parallel test execution across containers\"],\"container_specifications\":{\"base_image\":\"OpenWRT 23.05+ with UCI and Lua support\",\"test_volumes\":[\"/etc/config - UCI configuration directory\",\"/tmp/.uci - UCI staging directory\",\"/var/log - Logging directory\"],\"network_config\":\"Bridge network for connectivity testing\",\"resource_limits\":\"Memory and CPU constraints for realistic testing\"}},\"tdd_development_requirements\":{\"description\":\"Test-driven development with Docker and luaunit\",\"requirements\":[\"Write unit tests before implementation\",\"Test all merge scenarios and edge cases\",\"Mock UCI filesystem operations for testing\",\"Create test fixtures for various UCI configurations\",\"Implement integration tests with real UCI files in containers\",\"Test error conditions and recovery procedures\",\"Performance testing for large configurations\",\"Regression testing suite for CI/CD\",\"Network connectivity preservation testing\",\"uspot-specific configuration testing\"],\"testing_framework\":{\"unit_testing\":\"luaunit framework for Docker OpenWRT environment\",\"mocking\":\"Mock UCI cursor operations for isolated testing\",\"fixtures\":\"Sample UCI configurations including uspot configs\",\"coverage\":\"Code coverage reporting and analysis\",\"docker_integration\":\"Container-based integration testing\"},\"test_categories\":[\"Unit tests for core merge logic\",\"Integration tests with UCI API in containers\",\"Configuration validation tests\",\"Backup and restore tests\",\"Rollback functionality tests\",\"Error handling and recovery tests\",\"Performance and stress tests\",\"CLI interface tests\",\"Network connectivity preservation tests\",\"uspot captive portal configuration tests\",\"Duplicate list handling tests\",\"UCI edge case handling tests\"],\"docker_test_scenarios\":[\"Fresh OpenWRT container with default configs\",\"Container with existing uspot configuration\",\"Multiple containers for distributed testing\",\"Network isolation testing scenarios\",\"Container restart and persistence testing\",\"Resource constraint testing scenarios\"]},\"command_line_interface_requirements\":{\"description\":\"CLI interface design and functionality\",\"commands\":{\"merge\":{\"syntax\":\"uci-merge [options] <source> <target>\",\"description\":\"Merge UCI configurations\",\"options\":[\"--dry-run: Preview merge without applying changes\",\"--backup: Create backup before merge\",\"--force: Force merge with conflict resolution\",\"--package <name>: Merge specific package only\",\"--strategy <type>: Merge strategy (preserve, overwrite, smart)\",\"--dedupe-lists: Enable duplicate list entry removal\",\"--preserve-network: Extra network safety checks\",\"--uspot-mode: Enable uspot-specific handling\",\"--verbose: Detailed operation logging\"]},\"backup\":{\"syntax\":\"uci-merge backup [options] [packages...]\",\"description\":\"Create configuration backups\",\"options\":[\"--output <file>: Specify backup file location\",\"--compress: Compress backup using gzip\",\"--metadata: Include metadata and timestamps\",\"--include-network: Include network state information\"]},\"restore\":{\"syntax\":\"uci-merge restore [options] <backup-file>\",\"description\":\"Restore from backup\",\"options\":[\"--package <name>: Restore specific package only\",\"--preview: Show what would be restored\",\"--force: Force restore without confirmation\",\"--preserve-network: Maintain network connectivity\"]},\"validate\":{\"syntax\":\"uci-merge validate [packages...]\",\"description\":\"Validate UCI configurations\",\"options\":[\"--report: Generate detailed validation report\",\"--fix: Attempt to fix validation errors\",\"--check-network: Validate network connectivity\",\"--uspot-check: Validate uspot-specific configurations\"]},\"diff\":{\"syntax\":\"uci-merge diff <config1> <config2>\",\"description\":\"Compare UCI configurations\",\"options\":[\"--format <type>: Output format (unified, context)\",\"--package <name>: Compare specific package only\",\"--show-duplicates: Highlight duplicate list entries\"]}},\"global_options\":[\"--config-dir <path>: UCI configuration directory\",\"--help: Show help information\",\"--version: Show version information\",\"--quiet: Suppress non-error output\",\"--log-level <level>: Set logging level\",\"--docker-mode: Enable Docker container testing mode\"]},\"error_handling_safety_requirements\":{\"description\":\"Comprehensive error handling and safety measures\",\"requirements\":[\"Validate all input parameters and file paths\",\"Check UCI cursor operation return values\",\"Implement proper exception handling with cleanup\",\"Prevent data loss through atomic operations\",\"Use UCI batch mode for transactional operations\",\"Implement rollback on operation failure\",\"Log all operations for audit trail\",\"Provide clear error messages and recovery suggestions\",\"Preserve network connectivity during error conditions\",\"Handle Docker container failures gracefully\"],\"safety_mechanisms\":[\"Configuration backup before any modification\",\"Dry-run mode for preview without changes\",\"Confirmation prompts for destructive operations\",\"Automatic rollback on validation failure\",\"File locking to prevent concurrent modifications\",\"Integrity checks before and after operations\",\"Emergency recovery procedures\",\"Network connectivity monitoring\",\"Container health checks and recovery\"],\"error_categories\":[\"File system errors (permissions, disk space)\",\"UCI syntax errors and validation failures\",\"Configuration conflicts and inconsistencies\",\"Network and system resource errors\",\"User input validation errors\",\"Backup and restore operation failures\",\"Network connectivity loss errors\",\"Docker container operation failures\",\"uspot-specific configuration errors\"]},\"performance_reliability_requirements\":{\"description\":\"Performance optimization and reliability standards\",\"performance_targets\":{\"small_configs\":\"< 100ms for configs under 1KB\",\"medium_configs\":\"< 500ms for configs 1KB-10KB\",\"large_configs\":\"< 2s for configs over 10KB\",\"memory_usage\":\"< 10MB RAM for typical operations\",\"concurrent_operations\":\"Support 5+ concurrent merges\",\"docker_overhead\":\"< 20% performance impact in containers\"},\"reliability_requirements\":[\"99.9% operation success rate\",\"Zero data loss guarantee\",\"Graceful degradation under resource constraints\",\"Automatic recovery from partial failures\",\"Consistent behavior across OpenWRT versions\",\"Proper cleanup of temporary files and resources\",\"Network connectivity preservation guarantee\",\"Container fault tolerance and recovery\"],\"optimization_strategies\":[\"Lazy loading of UCI packages\",\"Efficient diff algorithms for large configurations\",\"Memory-efficient processing of large files\",\"Parallel processing where applicable\",\"Caching of frequently accessed configurations\",\"Container resource optimization\",\"Network-aware merge strategies\"]},\"integration_requirements\":{\"description\":\"Integration with OpenWRT ecosystem and uspot\",\"requirements\":[\"Compatible with OpenWRT 23.05+ UCI format\",\"Support for all standard UCI packages\",\"Integration with uci-defaults system\",\"Compatibility with sysupgrade process\",\"Support for UCI extras and validation tools\",\"Integration with configuration management systems\",\"uspot package and service integration\",\"Docker container deployment support\"],\"file_structure\":{\"config_directory\":\"/etc/config/\",\"staging_directory\":\"/tmp/.uci/\",\"backup_directory\":\"/tmp/uci-backups/\",\"log_directory\":\"/var/log/uci-merge/\",\"docker_mount_points\":\"/opt/uci-merge/mounts/\"}},\"documentation_requirements\":{\"description\":\"Comprehensive documentation and examples\",\"deliverables\":[\"API documentation for Lua modules\",\"CLI usage guide with examples\",\"Configuration merge scenarios and solutions\",\"Troubleshooting guide for common issues\",\"Best practices documentation\",\"Integration examples for automation scripts\",\"uspot-specific configuration examples\",\"Docker deployment and testing guide\",\"Network safety procedures documentation\"]},\"quality_assurance\":{\"code_standards\":[\"Follow Lua coding conventions\",\"Comprehensive error handling\",\"Clear variable and function naming\",\"Modular design with separation of concerns\",\"Extensive inline documentation\",\"Docker-friendly code structure\"],\"testing_coverage\":{\"unit_tests\":\"95% code coverage minimum with luaunit\",\"integration_tests\":\"All major use cases covered in Docker containers\",\"regression_tests\":\"All bug fixes have regression tests\",\"network_tests\":\"Network connectivity preservation testing\",\"uspot_tests\":\"Complete uspot configuration testing coverage\"}}}",
+      "type": "object",
+      "namespace": "default",
+      "tags": [],
+      "metadata": {},
+      "owner": "system",
+      "accessLevel": "shared",
+      "createdAt": "2025-06-23T15:29:23.850Z",
+      "updatedAt": "2025-06-23T15:29:23.850Z",
+      "lastAccessedAt": "2025-06-23T15:29:23.850Z",
+      "version": 1,
+      "size": 17796,
+      "compressed": true,
+      "checksum": "a1c817122e65edce6b8142eafaef741badaae822e3907bd53978a1ec98970ec7",
+      "references": [],
+      "dependencies": []
+    }
+  ],
+  "statistics": {
+    "overview": {
+      "totalEntries": 5,
+      "totalSize": 71445,
+      "compressedEntries": 4,
+      "compressionRatio": -137.81409001956948,
+      "indexSize": 250,
+      "memoryUsage": 11694024,
+      "diskUsage": 0
+    },
+    "distribution": {
+      "byNamespace": {
+        "default": {
+          "count": 5,
+          "size": 71445
+        }
+      },
+      "byType": {
+        "string": {
+          "count": 1,
+          "size": 511
+        },
+        "object": {
+          "count": 4,
+          "size": 70934
+        }
+      },
+      "byOwner": {
+        "system": {
+          "count": 5,
+          "size": 71445
+        }
+      },
+      "byAccessLevel": {
+        "shared": {
+          "count": 5,
+          "size": 71445
+        }
+      }
+    },
+    "temporal": {
+      "entriesCreatedLast24h": 5,
+      "entriesUpdatedLast24h": 5,
+      "entriesAccessedLast24h": 5,
+      "oldestEntry": "2025-06-23T14:53:01.672Z",
+      "newestEntry": "2025-06-23T15:29:23.850Z"
+    },
+    "performance": {
+      "averageQueryTime": 0,
+      "averageWriteTime": 2,
+      "cacheHitRatio": 0,
+      "indexEfficiency": 0.95
+    },
+    "health": {
+      "expiredEntries": 0,
+      "orphanedReferences": 0,
+      "duplicateKeys": 1,
+      "corruptedEntries": 0,
+      "recommendedCleanup": false
+    },
+    "optimization": {
+      "suggestions": [
+        "1 duplicate keys found"
+      ],
+      "potentialSavings": {
+        "compression": 0,
+        "cleanup": 0,
+        "deduplication": 17796
+      },
+      "indexOptimization": [
+        "Consider periodic index rebuilding for optimal performance"
+      ]
+    }
+  }
+}
