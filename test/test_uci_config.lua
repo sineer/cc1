@@ -77,6 +77,24 @@ function TestUCIConfig:test_config_command_missing_target()
     lu.assertStrContains(result, "Usage: uci-config config --target")
 end
 
+function TestUCIConfig:test_remove_command_dry_run()
+    local result, success = execute_command(UCI_CONFIG_TOOL .. " remove --target default --dry-run")
+    lu.assertStrContains(result, "Remove command using target: default")
+    lu.assertStrContains(result, "DRY RUN MODE")
+    lu.assertStrContains(result, "Would remove")
+end
+
+function TestUCIConfig:test_remove_command_missing_target()
+    local result, success = execute_command(UCI_CONFIG_TOOL .. " remove")
+    lu.assertStrContains(result, "No target specified")
+    lu.assertStrContains(result, "Usage: uci-config remove --target")
+end
+
+function TestUCIConfig:test_remove_nonexistent_target()
+    local result, success = execute_command(UCI_CONFIG_TOOL .. " remove --target nonexistent --dry-run")
+    lu.assertStrContains(result, "Target directory does not exist")
+end
+
 function TestUCIConfig:test_invalid_command()
     local result, success = execute_command(UCI_CONFIG_TOOL .. " invalid-command")
     lu.assertStrContains(result, "Unknown command")

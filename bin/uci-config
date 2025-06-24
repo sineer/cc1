@@ -27,6 +27,7 @@ Commands:
   merge     Merge UCI configurations from directory
   backup    Create timestamped configuration backup
   validate  Validate UCI configuration syntax
+  remove    Remove configurations matching those in target
   help      Show this help information
   
   Not yet implemented:
@@ -41,6 +42,7 @@ Options:
   --verbose           Show detailed operation information
   --name=<name>       Specify backup name (for backup command)
   --force             Force operation without confirmation
+  --target=<name>     Target configuration name (for config/undo commands)
 
 Examples:
   # Preview merging uspot configs
@@ -51,6 +53,9 @@ Examples:
   
   # Merge configs with all safety features
   uci-config merge --preserve-network --dedupe-lists /path/to/configs
+  
+  # Remove configurations matching target
+  uci-config remove --target default --dry-run
   
   # Validate current system configuration
   uci-config validate
@@ -70,6 +75,7 @@ local cursor = uci.cursor()
 local VERSION = "1.0.0"
 local BACKUP_DIR = "/tmp/uci-config-backups"
 local CONFIG_DIR = "/etc/config"
+local METADATA_DIR = "/tmp/uci-config-metadata"
 
 -- Command line argument parsing
 local args = {...}
@@ -84,7 +90,8 @@ local boolean_flags = {
     ["quiet"] = true,
     ["verbose"] = true,
     ["force"] = true,
-    ["check-network"] = true
+    ["check-network"] = true,
+    ["preserve-existing"] = true
 }
 
 -- Parse command line options
@@ -165,6 +172,7 @@ CORE COMMANDS (Ready for Production Use):
 
   merge     Merge UCI configurations with existing system config
   config    Merge configs with default safety options (--target shorthand)
+  remove    Remove configurations matching those in target directory
   backup    Create timestamped backup of current UCI configuration  
   validate  Validate UCI configuration syntax
   help      Show this help information
@@ -187,6 +195,11 @@ CONFIG OPTIONS:
                       (automatically enables --preserve-network, --dedupe-lists, --preserve-existing)
   --dry-run           Preview changes without applying them
   --verbose           Show detailed operation information
+
+REMOVE OPTIONS:
+  --target=<name>     Remove sections matching those in ./etc/config/<name>
+  --dry-run           Preview what would be removed without applying changes
+  --verbose           Show detailed removal information
 
 BACKUP OPTIONS:
   --name=<name>       Specify custom backup name
@@ -212,6 +225,10 @@ EXAMPLES:
   
   # Production deployment with all safety features
   uci-config merge --preserve-network --dedupe-lists ./etc/config/default
+  
+  # Remove configurations matching default target
+  uci-config remove --target default --dry-run  # Preview removal
+  uci-config remove --target default            # Actually remove
 
 For detailed usage examples, see docs/USAGE_EXAMPLES.md
 For technical details, see docs/HOW_IT_WORKS.md
@@ -497,6 +514,102 @@ function commands.validate()
     end
 end
 
+-- Command: remove
+-- Purpose: Remove configurations matching those in target directory
+-- Process:
+--   1. Load configurations from target directory
+--   2. For each config, remove matching sections from system
+--   3. Report what was removed
+-- Options used:
+--   --target: Target config directory name (required)
+--   --dry-run: Preview what would be removed
+--   --verbose: Show detailed output
+function commands.remove()
+    local target = options.target
+    if not target then
+        log("error", "No target specified for remove command")
+        log("error", "Usage: uci-config remove --target <config-name>")
+        log("info", "Example: uci-config remove --target default")
+        return 1
+    end
+    
+    -- Construct source directory path
+    local source_dir = "./etc/config/" .. target
+    log("info", "Remove command using target: " .. target)
+    log("info", "Source directory: " .. source_dir)
+    
+    if options["dry-run"] then
+        log("info", "DRY RUN MODE - No changes will be applied")
+    end
+    
+    -- Check if source directory exists
+    local attr = lfs.attributes(source_dir)
+    if not attr or attr.mode ~= "directory" then
+        log("error", "Target directory does not exist: " .. source_dir)
+        return 1
+    end
+    
+    local total_removed = 0
+    local total_configs = 0
+    
+    -- Process each config file in target directory
+    for file in lfs.dir(source_dir) do
+        if file ~= "." and file ~= ".." then
+            local source_path = source_dir .. "/" .. file
+            local file_attr = lfs.attributes(source_path)
+            if file_attr and file_attr.mode == "file" then
+                total_configs = total_configs + 1
+                log("verbose", "Processing config: " .. file)
+                
+                -- Load the target configuration
+                local target_config = {}
+                local success, err = pcall(function()
+                    -- Create temporary cursor for source file
+                    local temp_cursor = uci.cursor(source_dir)
+                    target_config = temp_cursor:get_all(file) or {}
+                end)
+                
+                if not success then
+                    log("error", "Failed to load target config " .. file .. ": " .. tostring(err))
+                else
+                    -- Remove matching sections from system config
+                    local removed_sections = 0
+                    for section_name, section_data in pairs(target_config) do
+                        -- Check if section exists in system config
+                        local exists = cursor:get(file, section_name)
+                        if exists then
+                            if not options["dry-run"] then
+                                cursor:delete(file, section_name)
+                            end
+                            removed_sections = removed_sections + 1
+                            log("verbose", "  Removed section: " .. section_name)
+                        end
+                    end
+                    
+                    if removed_sections > 0 then
+                        total_removed = total_removed + removed_sections
+                        if not options["dry-run"] then
+                            cursor:commit(file)
+                        end
+                        log("info", "  " .. file .. ": removed " .. removed_sections .. " sections")
+                    else
+                        log("verbose", "  " .. file .. ": no matching sections found")
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Summary
+    if options["dry-run"] then
+        log("info", "Would remove " .. total_removed .. " sections from " .. total_configs .. " configurations")
+    else
+        log("info", "Removed " .. total_removed .. " sections from " .. total_configs .. " configurations")
+    end
+    
+    return 0
+end
+
 -- Command: diff (NOT YET IMPLEMENTED)
 -- Purpose: Compare two UCI configuration files
 -- Planned functionality:
@@ -544,7 +657,8 @@ local function main()
         merge = true,
         config = true,
         backup = true,
-        validate = true
+        validate = true,
+        remove = true
     }
     
     -- Planned commands (not yet implemented)
