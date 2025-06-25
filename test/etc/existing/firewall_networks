@@ -1,0 +1,7 @@
+config zone
+option name 'lan'
+option input 'ACCEPT'
+option output 'ACCEPT'
+option forward 'ACCEPT'
+list network 'lan'
+list network 'guest'

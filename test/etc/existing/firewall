@@ -1,0 +1,27 @@
+# Existing firewall configuration
+config defaults
+option syn_flood '1'
+option input 'ACCEPT'
+option output 'ACCEPT'
+option forward 'REJECT'
+
+config zone
+option name 'lan'
+option input 'ACCEPT'
+option output 'ACCEPT'
+option forward 'ACCEPT'
+list network 'lan'
+
+config rule
+option name 'Allow-SSH'
+option src 'wan'
+option dest_port '22'
+option proto 'tcp'
+option target 'ACCEPT'
+
+config rule
+option name 'Allow-DHCP-Renew'
+option src 'wan'
+option proto 'udp'
+option dest_port '68'
+option target 'ACCEPT'

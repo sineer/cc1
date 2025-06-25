@@ -1,0 +1,23 @@
+# New firewall config with additional ipset entries (more duplicates)
+config ipset
+option name 'uspot'
+list entry '11:22:33:44:55:66'
+list entry 'ff:ee:dd:cc:bb:aa'
+
+config ipset
+option name 'wlist'
+list entry '1.1.1.1'
+list entry '208.67.222.222'
+list entry '8.8.8.8'
+
+config ipset
+option name 'blist'
+list match 'dest_ip'
+list entry '10.0.0.1'
+list entry '192.168.1.100'
+list entry '10.0.0.1'
+
+config zone
+option name 'guest'
+option input 'REJECT'
+list network 'guest'

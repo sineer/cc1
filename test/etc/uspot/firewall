@@ -1,0 +1,42 @@
+# uspot captive portal firewall configuration
+config zone
+option name 'captive'
+option input 'REJECT'
+option output 'ACCEPT'
+option forward 'REJECT'
+list network 'captive'
+
+config redirect
+option name 'Redirect-unauth-captive-HTTP'
+option src 'captive'
+option src_dport '80'
+option proto 'tcp'
+option target 'DNAT'
+option dest_ip '192.168.2.1'
+option dest_port '8080'
+option reflection '0'
+option ipset '!uspot'
+
+config redirect
+option name 'Redirect-unauth-captive-HTTPS'
+option src 'captive'
+option src_dport '443'
+option proto 'tcp'
+option target 'DNAT'
+option dest_ip '192.168.2.1'
+option dest_port '8080'
+option reflection '0'
+option ipset '!uspot'
+
+config ipset
+option name 'uspot'
+option storage 'hash'
+option match 'src_mac'
+option timeout '0'
+
+config rule
+option name 'Allow-captive-DNS'
+option src 'captive'
+option dest_port '53'
+option proto 'tcp udp'
+option target 'ACCEPT'

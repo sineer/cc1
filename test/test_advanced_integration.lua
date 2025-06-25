@@ -4,6 +4,9 @@
 local script_dir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
 package.path = script_dir .. "../lib/?.lua;" .. script_dir .. "?.lua;" .. package.path
 
+-- Add Docker paths for test_utils
+package.path = "/app/lib/?.lua;" .. "./lib/?.lua;" .. package.path
+
 --[[
 Advanced Integration Test Suite for UCI Config Merging
 Tests real-world scenarios of merging uspot configs with existing OpenWrt configs
@@ -13,6 +16,7 @@ in Docker environment with comprehensive validation and rollback testing
 local lu = require('luaunit_fixed')
 local UCIMergeEngine = require('uci_merge_engine')
 local lfs = require('lfs')
+local test_utils = require('test_utils')
 
 -- Test environment configuration
 local TEST_ENV = {
@@ -561,44 +565,11 @@ end
 
 function TestDockerOpenWrtIntegration:create_conflicting_firewall_config(filepath)
     -- Create a config that will conflict with existing lan zone settings
-    local content = [[
-config zone 'lan'
-    option name 'lan'
-    option input 'DROP'
-    option output 'DROP'
-    option forward 'DROP'
-    list network 'lan'
-
-config zone 'conflicting_zone'
-    option name 'guest'
-    option input 'ACCEPT'
-    option output 'ACCEPT'
-    option forward 'ACCEPT'
-    list network 'guest'
-]]
-    
-    local f = io.open(filepath, "w")
-    if f then
-        f:write(content)
-        f:close()
-        return true
-    end
-    return false
+    return test_utils.copy_test_config("conflicting", "firewall", filepath)
 end
 
 function TestDockerOpenWrtIntegration:create_invalid_uci_config(filepath)
-    local content = [[
-invalid config syntax
-this is not valid UCI format
-]]
-    
-    local f = io.open(filepath, "w")
-    if f then
-        f:write(content)
-        f:close()
-        return true
-    end
-    return false
+    return test_utils.copy_test_config("invalid", "syntax", filepath)
 end
 
 function TestDockerOpenWrtIntegration:create_large_test_config(section_count)
@@ -624,26 +595,8 @@ function TestDockerOpenWrtIntegration:create_large_test_config(section_count)
 end
 
 function TestDockerOpenWrtIntegration:create_minimal_network_config()
-    local network_config = [[
-config interface 'loopback'
-    option ifname 'lo'
-    option proto 'static'
-    option ipaddr '127.0.0.1'
-    option netmask '255.0.0.0'
-
-config interface 'lan'
-    option type 'bridge'
-    option ifname 'eth0'
-    option proto 'static'
-    option ipaddr '192.168.1.1'
-    option netmask '255.255.255.0'
-    option ip6assign '60'
-]]
-    
-    local f = io.open(TEST_ENV.UCI_CONFIG_DIR .. "/network", "w")
-    if f then
-        f:write(network_config)
-        f:close()
+    local success = test_utils.copy_test_config("minimal", "network", TEST_ENV.UCI_CONFIG_DIR .. "/network")
+    if success then
         -- Reload UCI to recognize the new config
         os.execute("uci revert network 2>/dev/null")
         os.execute("uci commit network 2>/dev/null")
@@ -715,9 +668,7 @@ end
 function TestMalformedConfigs:test_empty_config_file()
     -- Test merging with empty config file
     local empty_config = TEST_ENV.TEST_TEMP_DIR .. "/empty_config"
-    local f = io.open(empty_config, "w")
-    f:write("")
-    f:close()
+    test_utils.copy_test_config("invalid", "empty", empty_config)
     
     local success, result = self.engine:merge_config("test", empty_config, TEST_ENV.UCI_CONFIG_DIR .. "/firewall")
     lu.assertFalse(success, "Empty config should fail to merge")
@@ -727,9 +678,7 @@ end
 function TestMalformedConfigs:test_invalid_uci_syntax()
     -- Test with completely invalid UCI syntax
     local invalid_config = TEST_ENV.TEST_TEMP_DIR .. "/invalid_syntax"
-    local f = io.open(invalid_config, "w")
-    f:write("this is not UCI syntax at all\nrandom text\n123")
-    f:close()
+    test_utils.copy_test_config("invalid", "syntax", invalid_config)
     
     local success, result = self.engine:merge_config("test", invalid_config, TEST_ENV.UCI_CONFIG_DIR .. "/firewall")
     lu.assertFalse(success, "Invalid syntax should fail to merge")

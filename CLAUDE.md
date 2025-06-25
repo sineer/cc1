@@ -48,6 +48,29 @@ mcp/
 
 **Both test runners work perfectly!** Use `./run-tests.sh` for MCP architecture or `./run-tests-direct.sh` for direct execution.
 
+## 🚨 CRITICAL TESTING RULE 🚨
+**NEVER EVER TEST ON THE HOST SYSTEM!**
+```
+🐳 Docker = ✅ Safe, isolated, authentic OpenWRT environment
+🖥️  Host   = ❌ Dangerous, pollutes system, breaks things
+
+ALWAYS use: ./run-tests.sh or ./run-tests-direct.sh
+NEVER use: lua, cd test && lua, manual execution on host
+```
+**Remember: "When in doubt, Docker it out!" 🐳**
+
+This project tests OpenWRT UCI config merging - running these tests on the host system could:
+- Pollute your system configuration files
+- Create conflicts with existing UCI configurations  
+- Break your networking setup
+- Cause unpredictable side effects
+
+The Docker environment provides an authentic OpenWRT 23.05 sandbox that's:
+- ✅ Isolated from your host system
+- ✅ Pre-configured with proper UCI tools
+- ✅ Designed for safe UCI config testing
+- ✅ Easily reset between test runs
+
 ## GitHub Configuration
 
 ### Git Push vs MCP Tools - Best Practices

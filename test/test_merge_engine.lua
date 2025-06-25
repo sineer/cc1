@@ -4,6 +4,9 @@
 local script_dir = debug.getinfo(1, "S").source:match("@?(.*/)") or "./"
 package.path = script_dir .. "../lib/?.lua;" .. script_dir .. "?.lua;" .. package.path
 
+-- Add Docker paths for test_utils
+package.path = "/app/lib/?.lua;" .. "./lib/?.lua;" .. package.path
+
 --[[
 Test suite for UCI Merge Engine
 Comprehensive TDD tests for UCI configuration merging
@@ -12,6 +15,7 @@ Comprehensive TDD tests for UCI configuration merging
 local lu = require('luaunit_fixed')
 local UCIMergeEngine = require('uci_merge_engine')
 local lfs = require('lfs')
+local test_utils = require('test_utils')
 
 -- Test configuration
 local TEST_DIR = "/tmp/test-merge"
@@ -161,35 +165,19 @@ end
 function TestConfigMerging:test_merge_new_section()
     -- Create existing network config file
     local existing_file = TEST_DIR .. "/existing_network"
-    local f1 = io.open(existing_file, "w")
-    if not f1 then
-        lu.fail("Could not create existing network config")
+    local success1 = test_utils.copy_test_config("existing", "network", existing_file)
+    if not success1 then
+        lu.fail("Could not copy existing network config")
         return
     end
-    f1:write([[
-config interface 'lan'
-option ifname 'eth0'
-option proto 'static'
-option ipaddr '192.168.1.1'
-option netmask '255.255.255.0'
-]])
-    f1:close()
     
     -- Create new config with additional interface section
     local new_file = TEST_DIR .. "/new_network"
-    local f2 = io.open(new_file, "w")
-    if not f2 then
-        lu.fail("Could not create new network config")
+    local success2 = test_utils.copy_test_config("new", "network", new_file)
+    if not success2 then
+        lu.fail("Could not copy new network config")
         return
     end
-    f2:write([[
-config interface 'guest'
-option ifname 'eth0.100'
-option proto 'static'
-option ipaddr '192.168.100.1'
-option netmask '255.255.255.0'
-]])
-    f2:close()
     
     -- Perform real UCI merge
     local success, merged_config = self.engine:merge_config("network", new_file, existing_file)
@@ -220,36 +208,19 @@ end
 function TestConfigMerging:test_merge_existing_section()
     -- Create existing interface config with DNS servers
     local existing_file = TEST_DIR .. "/existing_interface"
-    local f1 = io.open(existing_file, "w")
-    if not f1 then
-        lu.fail("Could not create existing interface config")
+    local success1 = test_utils.copy_test_config("existing", "network_with_dns", existing_file)
+    if not success1 then
+        lu.fail("Could not copy existing interface config")
         return
     end
-    f1:write([[
-config interface 'lan'
-option ifname 'eth0'
-option proto 'static'
-option ipaddr '192.168.1.1'
-list dns '8.8.8.8'
-list dns '1.1.1.1'
-]])
-    f1:close()
     
     -- Create new config that adds to same interface section
     local new_file = TEST_DIR .. "/new_interface"
-    local f2 = io.open(new_file, "w")
-    if not f2 then
-        lu.fail("Could not create new interface config")
+    local success2 = test_utils.copy_test_config("new", "network_with_dns", new_file)
+    if not success2 then
+        lu.fail("Could not copy new interface config")
         return
     end
-    f2:write([[
-config interface 'lan'
-option netmask '255.255.255.0'
-option gateway '192.168.1.254'
-list dns '1.1.1.1'
-list dns '9.9.9.9'
-]])
-    f2:close()
     
     -- Perform real UCI merge
     local success, merged_config = self.engine:merge_config("network", new_file, existing_file)
@@ -305,33 +276,19 @@ end
 function TestConfigMerging:test_conflict_detection()
     -- Create existing config with specific hostname
     local existing_file = TEST_DIR .. "/existing_system"
-    local f1 = io.open(existing_file, "w")
-    if not f1 then
-        lu.fail("Could not create existing system config")
+    local success1 = test_utils.copy_test_config("existing", "system", existing_file)
+    if not success1 then
+        lu.fail("Could not copy existing system config")
         return
     end
-    f1:write([[
-config system
-option hostname 'existing-router'
-option timezone 'America/New_York'
-option log_size '32'
-]])
-    f1:close()
     
     -- Create new config that conflicts with hostname and timezone
     local new_file = TEST_DIR .. "/new_system"
-    local f2 = io.open(new_file, "w")
-    if not f2 then
-        lu.fail("Could not create new system config")
+    local success2 = test_utils.copy_test_config("new", "system", new_file)
+    if not success2 then
+        lu.fail("Could not copy new system config")
         return
     end
-    f2:write([[
-config system
-option hostname 'new-uspot-router'
-option timezone 'UTC'
-option log_level '7'
-]])
-    f2:close()
     
     -- Clear any existing conflicts
     self.engine.conflicts = {}
@@ -390,92 +347,17 @@ function TestFirewallMerging:create_test_firewall_configs()
     
     -- Create existing firewall config file
     self.existing_firewall_file = TEST_DIR .. "/existing_firewall"
-    local f1 = io.open(self.existing_firewall_file, "w")
-    if not f1 then
-        error("Could not create existing firewall config file")
+    local success1 = test_utils.copy_test_config("existing", "firewall", self.existing_firewall_file)
+    if not success1 then
+        error("Could not copy existing firewall config file")
     end
-    f1:write([[
-# Existing firewall configuration
-config defaults
-option syn_flood '1'
-option input 'ACCEPT'
-option output 'ACCEPT'
-option forward 'REJECT'
-
-config zone
-option name 'lan'
-option input 'ACCEPT'
-option output 'ACCEPT'
-option forward 'ACCEPT'
-list network 'lan'
-
-config rule
-option name 'Allow-SSH'
-option src 'wan'
-option dest_port '22'
-option proto 'tcp'
-option target 'ACCEPT'
-
-config rule
-option name 'Allow-DHCP-Renew'
-option src 'wan'
-option proto 'udp'
-option dest_port '68'
-option target 'ACCEPT'
-]])
-    f1:close()
     
     -- Create uspot firewall config file (realistic uspot configuration)
     self.uspot_firewall_file = TEST_DIR .. "/uspot_firewall"
-    local f2 = io.open(self.uspot_firewall_file, "w")
-    if not f2 then
-        error("Could not create uspot firewall config file")
+    local success2 = test_utils.copy_test_config("uspot", "firewall", self.uspot_firewall_file)
+    if not success2 then
+        error("Could not copy uspot firewall config file")
     end
-    f2:write([[
-# uspot captive portal firewall configuration
-config zone
-option name 'captive'
-option input 'REJECT'
-option output 'ACCEPT'
-option forward 'REJECT'
-list network 'captive'
-
-config redirect
-option name 'Redirect-unauth-captive-HTTP'
-option src 'captive'
-option src_dport '80'
-option proto 'tcp'
-option target 'DNAT'
-option dest_ip '192.168.2.1'
-option dest_port '8080'
-option reflection '0'
-option ipset '!uspot'
-
-config redirect
-option name 'Redirect-unauth-captive-HTTPS'
-option src 'captive'
-option src_dport '443'
-option proto 'tcp'
-option target 'DNAT'
-option dest_ip '192.168.2.1'
-option dest_port '8080'
-option reflection '0'
-option ipset '!uspot'
-
-config ipset
-option name 'uspot'
-option storage 'hash'
-option match 'src_mac'
-option timeout '0'
-
-config rule
-option name 'Allow-captive-DNS'
-option src 'captive'
-option dest_port '53'
-option proto 'tcp udp'
-option target 'ACCEPT'
-]])
-    f2:close()
     
     -- Load the configs using the merge engine for realistic testing
     self.existing_firewall = self.engine:load_config("firewall", self.existing_firewall_file)
@@ -586,36 +468,19 @@ end
 function TestFirewallMerging:test_network_list_merging()
     -- Create existing config with multiple networks in LAN zone
     local existing_networks_file = TEST_DIR .. "/existing_networks_firewall"
-    local f1 = io.open(existing_networks_file, "w")
-    if not f1 then
-        lu.fail("Could not create existing networks firewall config")
+    local success1 = test_utils.copy_test_config("existing", "firewall_networks", existing_networks_file)
+    if not success1 then
+        lu.fail("Could not copy existing networks firewall config")
         return
     end
-    f1:write([[
-config zone
-option name 'lan'
-option input 'ACCEPT'
-option output 'ACCEPT'
-option forward 'ACCEPT'
-list network 'lan'
-list network 'guest'
-]])
-    f1:close()
     
     -- Create uspot config that adds captive network to same zone
     local uspot_networks_file = TEST_DIR .. "/uspot_networks_firewall"
-    local f2 = io.open(uspot_networks_file, "w")
-    if not f2 then
-        lu.fail("Could not create uspot networks firewall config")
+    local success2 = test_utils.copy_test_config("uspot", "firewall_networks", uspot_networks_file)
+    if not success2 then
+        lu.fail("Could not copy uspot networks firewall config")
         return
     end
-    f2:write([[
-config zone
-option name 'lan'
-list network 'captive'
-list network 'iot'
-]])
-    f2:close()
     
     -- Perform real UCI config merge
     local success, merged_config = self.engine:merge_config("firewall", uspot_networks_file, existing_networks_file)
@@ -761,52 +626,19 @@ end
 function TestDuplicatePrevention:test_no_duplicates_in_merged_network_config()
     -- Create existing network config with duplicate DNS servers and network interfaces
     local existing_file = TEST_DIR .. "/existing_network_dup"
-    local f1 = io.open(existing_file, "w")
-    if not f1 then
-        lu.fail("Could not create existing network config")
+    local success1 = test_utils.copy_test_config("existing", "network_duplicates", existing_file)
+    if not success1 then
+        lu.fail("Could not copy existing network config")
         return
     end
-    f1:write([[
-# Existing network config with duplicate DNS entries
-config interface 'lan'
-option ifname 'br-lan'
-option proto 'static'
-option ipaddr '192.168.1.1'
-option netmask '255.255.255.0'
-list dns '8.8.8.8'
-list dns '1.1.1.1'
-list dns '8.8.8.8'
-
-config interface 'wan'
-option ifname 'eth0'
-option proto 'dhcp'
-list dns '8.8.8.8'
-]])
-    f1:close()
     
     -- Create new config with more duplicates and overlapping values
     local new_file = TEST_DIR .. "/new_network_dup"
-    local f2 = io.open(new_file, "w")
-    if not f2 then
-        lu.fail("Could not create new network config")
+    local success2 = test_utils.copy_test_config("new", "network_duplicates", new_file)
+    if not success2 then
+        lu.fail("Could not copy new network config")
         return
     end
-    f2:write([[
-# New network config with more duplicates
-config interface 'lan'
-list dns '1.1.1.1'
-list dns '9.9.9.9'
-list dns '8.8.8.8'
-option gateway '192.168.1.254'
-
-config interface 'guest'
-option ifname 'br-guest'
-option proto 'static'
-option ipaddr '192.168.100.1'
-list dns '8.8.8.8'
-list dns '208.67.222.222'
-]])
-    f2:close()
     
     -- Perform real UCI config merge
     local success, merged_config = self.engine:merge_config("network", new_file, existing_file)
@@ -1025,68 +857,19 @@ function TestDuplicatePrevention:test_no_duplicates_in_firewall_ipset_entries()
     
     -- Create existing firewall config with duplicate ipset entries
     local existing_firewall_file = TEST_DIR .. "/existing_firewall"
-    local f1 = io.open(existing_firewall_file, "w")
-    if not f1 then
-        lu.fail("Could not create existing firewall config file")
+    local success1 = test_utils.copy_test_config("existing", "firewall_ipsets", existing_firewall_file)
+    if not success1 then
+        lu.fail("Could not copy existing firewall config file")
         return
     end
-    f1:write([[
-# Existing firewall config with ipset entries (some duplicates)
-config ipset
-option name 'uspot'
-list match 'src_mac'
-list entry 'aa:bb:cc:dd:ee:ff'
-list entry '11:22:33:44:55:66'
-list entry 'aa:bb:cc:dd:ee:ff'
-
-config ipset
-option name 'wlist'
-list match 'dest_ip'
-list entry '8.8.8.8'
-list entry '1.1.1.1'
-list entry '8.8.8.8'
-list entry '9.9.9.9'
-
-config zone
-option name 'lan'
-option input 'ACCEPT'
-list network 'lan'
-]])
-    f1:close()
     
     -- Create new firewall config to merge with more duplicate entries
     local new_firewall_file = TEST_DIR .. "/new_firewall"
-    local f2 = io.open(new_firewall_file, "w")
-    if not f2 then
-        lu.fail("Could not create new firewall config file")
+    local success2 = test_utils.copy_test_config("new", "firewall_ipsets", new_firewall_file)
+    if not success2 then
+        lu.fail("Could not copy new firewall config file")
         return
     end
-    f2:write([[
-# New firewall config with additional ipset entries (more duplicates)
-config ipset
-option name 'uspot'
-list entry '11:22:33:44:55:66'
-list entry 'ff:ee:dd:cc:bb:aa'
-
-config ipset
-option name 'wlist'
-list entry '1.1.1.1'
-list entry '208.67.222.222'
-list entry '8.8.8.8'
-
-config ipset
-option name 'blist'
-list match 'dest_ip'
-list entry '10.0.0.1'
-list entry '192.168.1.100'
-list entry '10.0.0.1'
-
-config zone
-option name 'guest'
-option input 'REJECT'
-list network 'guest'
-]])
-    f2:close()
     
     -- Perform actual UCI config merge
     local success, merged_config = self.engine:merge_config("firewall", new_firewall_file, existing_firewall_file)

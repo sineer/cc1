@@ -1,0 +1,13 @@
+# New network config with more duplicates
+config interface 'lan'
+list dns '1.1.1.1'
+list dns '9.9.9.9'
+list dns '8.8.8.8'
+option gateway '192.168.1.254'
+
+config interface 'guest'
+option ifname 'br-guest'
+option proto 'static'
+option ipaddr '192.168.100.1'
+list dns '8.8.8.8'
+list dns '208.67.222.222'

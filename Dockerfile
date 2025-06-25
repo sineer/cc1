@@ -14,6 +14,7 @@ COPY bin/uci-config ./bin/
 COPY etc ./etc
 COPY lib/ ./lib/
 COPY test/*.lua ./test/
+COPY test/etc ./test/etc
 
 # Make UCI config tool executable
 RUN chmod +x /app/bin/uci-config

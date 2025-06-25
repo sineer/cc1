@@ -1,0 +1,4 @@
+config system
+option hostname 'new-uspot-router'
+option timezone 'UTC'
+option log_level '7'

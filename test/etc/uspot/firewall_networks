@@ -1,0 +1,4 @@
+config zone
+option name 'lan'
+list network 'captive'
+list network 'iot'

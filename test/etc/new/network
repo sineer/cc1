@@ -1,0 +1,5 @@
+config interface 'guest'
+option ifname 'eth0.100'
+option proto 'static'
+option ipaddr '192.168.100.1'
+option netmask '255.255.255.0'

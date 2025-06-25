@@ -1,0 +1,13 @@
+config zone 'lan'
+option name 'lan'
+option input 'DROP'
+option output 'DROP'
+option forward 'DROP'
+list network 'lan'
+
+config zone 'conflicting_zone'
+option name 'guest'
+option input 'ACCEPT'
+option output 'ACCEPT'
+option forward 'ACCEPT'
+list network 'guest'

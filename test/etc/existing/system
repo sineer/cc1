@@ -1,0 +1,4 @@
+config system
+option hostname 'existing-router'
+option timezone 'America/New_York'
+option log_size '32'
