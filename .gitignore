@@ -36,3 +36,4 @@ coverage/
 # Deployment artifacts
 deployment-*.txt
 deploy-*.log
+CLAUDE.local.md

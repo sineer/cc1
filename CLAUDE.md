@@ -48,6 +48,21 @@ mcp/
 
 **Both test runners work perfectly!** Use `./run-tests.sh` for MCP architecture or `./run-tests-direct.sh` for direct execution.
 
+## GitHub Configuration
+
+### Pushing to GitHub
+For pushing existing local commits to GitHub, use standard git commands:
+```bash
+# Check CLAUDE.local.md for GitHub token configuration
+# Authenticate gh CLI first (see CLAUDE.local.md)
+gh auth status || source CLAUDE.local.md
+
+# Push commits
+git push origin master
+```
+
+**Note**: GitHub MCP tools can only create new commits directly on GitHub. They cannot push existing local commits. For local commits, use `git push` with proper authentication.
+
 ## Claude-Flow Complete Command Reference
 
 ### Core System Commands
