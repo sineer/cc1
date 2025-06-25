@@ -50,18 +50,48 @@ mcp/
 
 ## GitHub Configuration
 
-### Pushing to GitHub
-For pushing existing local commits to GitHub, use standard git commands:
+### Git Push vs MCP Tools - Best Practices
+
+**For Local Commits (Primary Use Case):**
+When you have local commits to push to GitHub (most common scenario):
 ```bash
+# Ensure GitHub token has 'repo' scope for push permissions
 # Check CLAUDE.local.md for GitHub token configuration
-# Authenticate gh CLI first (see CLAUDE.local.md)
 gh auth status || source CLAUDE.local.md
 
-# Push commits
+# Push existing local commits to remote origin
 git push origin master
+git push origin <branch-name>  # for feature branches
 ```
 
-**Note**: GitHub MCP tools can only create new commits directly on GitHub. They cannot push existing local commits. For local commits, use `git push` with proper authentication.
+**For Direct GitHub Commits (Special Cases):**
+MCP GitHub tools create commits directly on GitHub (bypassing local git):
+```bash
+# Use MCP tools only for:
+# - Creating new files directly on GitHub
+# - Making commits without local git workflow
+# - Automated remote operations
+```
+
+**Key Distinctions:**
+- **`git push`**: Pushes existing local commits to remote origin (normal workflow)
+- **`mcp__github__push_files`**: Creates new commits directly on GitHub (special cases)
+- **"Push" typically means**: Moving local commits to remote origin via `git push`
+
+**Required Token Scopes:**
+- **`repo`**: Required for `git push` operations
+- **`contents:write`**: Required for MCP GitHub tools
+
+**Authentication Setup:**
+```bash
+# Configure git to use gh CLI for secure authentication
+git config --global credential.helper '!gh auth git-credential'
+```
+
+**Troubleshooting:**
+- **403 Permission Denied**: Token missing `repo` scope
+- **MCP tools work but git push fails**: Token scope issue
+- **Both failing**: Authentication or token validity issue
 
 ## Claude-Flow Complete Command Reference
 
