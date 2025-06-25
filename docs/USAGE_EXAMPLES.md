@@ -186,14 +186,14 @@ uci-config merge --preserve-network --dedupe-lists --rollback-on-failure /path/t
 
 ### 10. Quick Merge with Default Safety Options
 
-Use the config command for safe merging with default options:
+Use the safe-merge command for safe merging with default options:
 
 ```bash
 # Equivalent to: merge --preserve-network --dedupe-lists --preserve-existing --rollback-on-failure
-uci-config config --target default
+uci-config safe-merge --target default
 
 # Preview mode
-uci-config config --target default --dry-run --verbose
+uci-config safe-merge --target default --dry-run --verbose
 ```
 
 This automatically enables:

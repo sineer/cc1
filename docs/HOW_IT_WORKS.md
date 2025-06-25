@@ -283,7 +283,7 @@ uci-config merge --preserve-network --dedupe-lists --rollback-on-failure /path/t
 ### Config Command Flow (Simplified)
 
 ```bash
-uci-config config --target default
+uci-config safe-merge --target default
 ```
 
 **Equivalent to**:

@@ -12,7 +12,7 @@ RUN mkdir -p /app/etc/config /tmp/uci-config-backups
 # Copy UCI config tool and config files
 COPY bin/uci-config ./bin/
 COPY etc ./etc
-COPY lib/*.lua ./lib/
+COPY lib/ ./lib/
 COPY test/*.lua ./test/
 
 # Make UCI config tool executable

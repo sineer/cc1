@@ -28,7 +28,7 @@ Usage: uci-config <command> [options] [target]
 
 Commands:
   merge     Merge UCI configurations from directory with service restart
-  config    Merge configs with default safety options (--target shorthand)
+  safe-merge Merge configs with default safety options (--target shorthand)
   backup    Create timestamped configuration backup
   validate  Validate UCI configuration syntax and structure
   remove    Remove configurations matching those in target with service restart
@@ -199,18 +199,18 @@ function commands.merge()
     return merge_cmd:execute(args)
 end
 
--- Command: config  
+-- Command: safe-merge
 -- Purpose: Shorthand for merge with default safety options
-function commands.config()
+function commands.safe_merge()
     -- Parse command line to extract options
     local CommandBase = require("command_base")
-    local base = CommandBase.new("config")
+    local base = CommandBase.new("safe-merge")
     local options, target = base:parse_options(args, 2)
     
     if not options.target then
-        log("error", "No target specified for config command")
-        log("error", "Usage: uci-config config --target <config-name>")
-        log("info", "Example: uci-config config --target default")
+        log("error", "No target specified for safe-merge command")
+        log("error", "Usage: uci-config safe-merge --target <config-name>")
+        log("info", "Example: uci-config safe-merge --target default")
         return 1
     end
     
@@ -228,17 +228,17 @@ function commands.config()
         quiet = options.quiet or false
     }
     
-    print("CONFIG INFO: Config command using target: " .. options.target)
-    print("CONFIG INFO: Source directory: " .. source_dir)
-    print("CONFIG INFO: Config command enabled with default safety options:")
-    print("CONFIG INFO:   --preserve-network (network safety)")
-    print("CONFIG INFO:   --dedupe-lists (duplicate removal)")
-    print("CONFIG INFO:   --preserve-existing (keep existing values on conflicts)")
+    print("SAFE-MERGE INFO: Using target: " .. options.target)
+    print("SAFE-MERGE INFO: Source directory: " .. source_dir)
+    print("SAFE-MERGE INFO: Enabled default safety options:")
+    print("SAFE-MERGE INFO:   --preserve-network (network safety)")
+    print("SAFE-MERGE INFO:   --dedupe-lists (duplicate removal)")
+    print("SAFE-MERGE INFO:   --preserve-existing (keep existing values on conflicts)")
     if not config_options["no-restart"] then
-        print("CONFIG INFO:   --rollback-on-failure (rollback on service restart failure)")
+        print("SAFE-MERGE INFO:   --rollback-on-failure (rollback on service restart failure)")
     end
     if config_options["dry-run"] then
-        print("CONFIG INFO:   --dry-run (preview mode)")
+        print("SAFE-MERGE INFO:   --dry-run (preview mode)")
     end
     
     -- Execute merge command with configured options
@@ -294,7 +294,7 @@ local function main()
     -- Core commands (implemented)
     local core_commands = {
         merge = true,
-        config = true,
+        ["safe-merge"] = true,
         backup = true,
         validate = true,
         remove = true
@@ -312,7 +312,7 @@ local function main()
     elseif planned_commands[command] then
         -- Handle planned but unimplemented commands
         log("error", "Command '" .. command .. "' is planned but not yet implemented")
-        log("info", "Currently available commands: merge, config, backup, validate, remove")
+        log("info", "Currently available commands: merge, safe-merge, backup, validate, remove")
         log("info", "Use 'uci-config help' for full information")
         return 1
     else

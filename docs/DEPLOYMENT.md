@@ -107,7 +107,7 @@ tar -xzf /tmp/uci-config-backups/backup-pre-deployment-20250624.tar.gz -C /etc/c
 
 ```bash
 # Deploy complete captive portal setup
-./bin/uci-config config --target default
+./bin/uci-config safe-merge --target default
 ```
 
 ### Custom Network Configuration

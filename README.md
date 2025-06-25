@@ -42,10 +42,10 @@ Merge UCI configurations with service restart:
 ./bin/uci-config merge [options] <source-directory>
 ```
 
-### config
+### safe-merge
 Quick merge with default safety options:
 ```bash
-./bin/uci-config config --target default
+./bin/uci-config safe-merge --target default
 ```
 
 ### backup
@@ -93,15 +93,20 @@ Remove configurations matching target:
 
 ## Testing
 
-Run the complete test suite:
+Run the complete test suite in an OpenWRT environment:
 ```bash
-docker-compose build && docker-compose run --rm lua-test
+# Build the OpenWRT test container
+docker build -t uci-config-test .
+
+# Run all tests
+docker run uci-config-test
 ```
 
-Or use the MCP test runner:
-```bash
-python3 run-mcp-tests.py
-```
+The Dockerfile provides an authentic OpenWRT 23.05 environment for testing:
+- UCI Config Tests
+- Merge Engine Tests  
+- Advanced Integration Tests
+- Production Deployment Tests
 
 ## Documentation
 

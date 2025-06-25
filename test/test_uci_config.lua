@@ -61,9 +61,9 @@ function TestUCIConfig:test_merge_dry_run()
     lu.assertStrContains(result, "No changes will be applied")
 end
 
-function TestUCIConfig:test_config_command_dry_run()
-    local result, success = execute_command(UCI_CONFIG_TOOL .. " config --target default --dry-run")
-    lu.assertStrContains(result, "Config command using target: default")
+function TestUCIConfig:test_safe_merge_command_dry_run()
+    local result, success = execute_command(UCI_CONFIG_TOOL .. " safe-merge --target default --dry-run")
+    lu.assertStrContains(result, "SAFE-MERGE INFO: Using target: default")
     lu.assertStrContains(result, "Source directory: ./etc/config/default")
     lu.assertStrContains(result, "default safety options")
     lu.assertStrContains(result, "preserve-network")
@@ -71,10 +71,10 @@ function TestUCIConfig:test_config_command_dry_run()
     lu.assertStrContains(result, "preserve-existing")
 end
 
-function TestUCIConfig:test_config_command_missing_target()
-    local result, success = execute_command(UCI_CONFIG_TOOL .. " config")
+function TestUCIConfig:test_safe_merge_command_missing_target()
+    local result, success = execute_command(UCI_CONFIG_TOOL .. " safe-merge")
     lu.assertStrContains(result, "No target specified")
-    lu.assertStrContains(result, "Usage: uci-config config --target")
+    lu.assertStrContains(result, "Usage: uci-config safe-merge --target")
 end
 
 function TestUCIConfig:test_remove_command_dry_run()

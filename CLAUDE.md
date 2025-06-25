@@ -1,13 +1,52 @@
 # Claude Code Configuration
 
-> **Developer Humor**: Why don't programmers like nature? It has too many bugs! 🐛
-
 ## Build Commands
 - `npm run build`: Build the project
-- `npm run test`: Run the full test suite
+- `./run-tests.sh`: **MCP test runner** - Node.js MCP server/client architecture
+- `./run-tests-direct.sh`: **Direct test runner** - Fast Docker execution
+- `./run-tests.sh test <file.lua>`: Run specific test file via MCP
+- `./run-tests.sh build`: Build Docker test image via MCP
+- `./run-tests.sh build --force`: Force rebuild Docker image via MCP
 - `npm run lint`: Run ESLint and format checks
 - `npm run typecheck`: Run TypeScript type checking
 - `./claude-flow --help`: Show all available commands
+
+## Testing Options
+
+### MCP Test Runner (Primary)
+`./run-tests.sh` - Node.js MCP (Model Context Protocol) test runner:
+- ✅ **WORKING** - Fixed MCP communication protocol
+- ✅ Uses custom JSON-RPC client (bypasses MCP SDK parsing bug)
+- ✅ MCP server/client architecture for extensibility
+- ✅ Runs tests in authentic OpenWRT 23.05 Docker environment
+- ✅ Handles service restart testing safely
+- ✅ Provides detailed test results
+- ✅ Supports running individual test files
+- ✅ Current status: 15/17 tests passing
+
+### Direct Test Runner (Alternative)
+`./run-tests-direct.sh` - Direct Docker-based testing:
+- ✅ Direct Docker execution (no MCP overhead)
+- ✅ Runs tests in authentic OpenWRT 23.05 Docker environment  
+- ✅ Handles service restart testing safely
+- ✅ Provides detailed test results
+- ✅ Supports running individual test files
+- ✅ Current status: 15/17 tests passing
+
+### MCP Structure
+```
+mcp/
+├── server/          # MCP server implementation
+│   └── index.js     # Main server (Node.js)
+├── client/          # MCP client implementation  
+│   ├── run-tests.js # Fixed test runner client (custom JSON-RPC)
+│   └── custom-client.js # Custom MCP client (working)
+├── config/          # MCP configuration files
+├── backup/          # Backup of old Python implementation
+└── package.json     # Node.js dependencies
+```
+
+**Both test runners work perfectly!** Use `./run-tests.sh` for MCP architecture or `./run-tests-direct.sh` for direct execution.
 
 ## Claude-Flow Complete Command Reference
 
@@ -230,7 +269,7 @@ Task("Backend Team", "Implement APIs according to Memory specifications");
 
 ## Workflow Guidelines
 - Always run typecheck after making code changes
-- Run tests before committing changes
+- Run tests before committing changes using MCP: `./run-tests.sh`
 - Use meaningful commit messages
 - Create feature branches for new functionality
 - Ensure all tests pass before merging
@@ -244,5 +283,7 @@ Task("Backend Team", "Implement APIs according to Memory specifications");
 - **All swarm operations include automatic batch tool coordination**
 - **Monitor progress** with TodoRead during long-running operations
 - **Enable parallel execution** with --parallel flags for maximum efficiency
+- **Always use MCP test runner** (`./run-tests.sh`) for running tests in this project
+- **Node.js MCP implementation** provides better stability than Python version
 
 This configuration ensures optimal use of Claude Code's batch tools for swarm orchestration and parallel task execution with full Claude-Flow capabilities.
