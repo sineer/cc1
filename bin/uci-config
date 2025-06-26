@@ -283,6 +283,9 @@ function commands.diff()
     return 1
 end
 
+-- Fix hyphenated command names (Lua table key compatibility)
+commands["safe-merge"] = commands.safe_merge
+
 -- Function: main
 -- Purpose: Main entry point for CLI tool
 local function main()

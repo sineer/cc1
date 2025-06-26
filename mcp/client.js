@@ -109,13 +109,13 @@ class SimpleMCPClient {
       
       this.serverProcess.stdin.write(JSON.stringify(request) + '\n');
       
-      // Timeout after 60 seconds
+      // Timeout after 30 seconds for remote testing
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
           reject(new Error('Request timeout'));
         }
-      }, 60000);
+      }, 30000);
     });
   }
 

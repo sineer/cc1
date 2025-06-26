@@ -17,10 +17,16 @@ math.randomseed = function(seed)
     return original_randomseed(seed)
 end
 
--- Load the original luaunit
-local result = original_luaunit()
+-- Load the original luaunit with error handling
+local result
+if original_luaunit then
+    result = original_luaunit()
+else
+    -- Fallback to require if loadfile failed
+    result = require("luaunit")
+end
 
 -- Restore original randomseed
 math.randomseed = original_randomseed
 
-return result or require("luaunit")
+return result

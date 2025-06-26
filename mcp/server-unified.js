@@ -16,6 +16,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { exec } from 'child_process';
 import { promises as fs } from 'fs';
+import { appendFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { promisify } from 'util';
@@ -24,6 +25,15 @@ const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '../');
+
+// Debug logging
+const DEBUG_LOG = '/tmp/unified-mcp-debug.log';
+function debugLog(message) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${message}\n`;
+  appendFileSync(DEBUG_LOG, logMessage);
+  console.error(`[DEBUG] ${message}`);
+}
 
 class UnifiedTestServer {
   constructor() {
@@ -181,14 +191,26 @@ class UnifiedTestServer {
    */
   async runRemoteTest(target, test, options) {
     try {
+      debugLog(`Starting remote test execution: target=${target}, test=${test}`);
+      debugLog(`Options: ${JSON.stringify(options)}`);
+      
+      // Clear previous debug log
+      writeFileSync(DEBUG_LOG, `=== UNIFIED MCP RUNNER DEBUG LOG ===\nStarted: ${new Date().toISOString()}\n\n`);
+      
       // Load target profile
+      debugLog('Loading target profile...');
       const profile = await this.loadProfile(target);
+      debugLog(`Profile loaded: ${JSON.stringify(profile, null, 2)}`);
       
       // Setup SSH authentication
+      debugLog('Setting up SSH authentication...');
       const ssh = this.setupSSH(profile, options);
+      debugLog('SSH setup complete');
       
       // Validate connectivity
+      debugLog('Testing SSH connectivity...');
       const connectTest = await ssh.exec('echo "SSH_OK"');
+      debugLog(`SSH test result: ${JSON.stringify(connectTest)}`);
       if (!connectTest.success || !connectTest.stdout.includes('SSH_OK')) {
         return this.formatError(`Cannot connect to ${target}: ${connectTest.stderr}`);
       }
@@ -199,40 +221,111 @@ class UnifiedTestServer {
 
       // Create backup if not dry run
       if (!options.dryRun) {
+        debugLog('Creating configuration backup...');
         output += '💾 Creating configuration backup...\n';
         const backupResult = await ssh.exec('uci export > /tmp/test-backup.uci');
+        debugLog(`Backup result: ${JSON.stringify(backupResult)}`);
         if (!backupResult.success) {
           return this.formatError(`Backup failed: ${backupResult.stderr}`);
         }
+      } else {
+        debugLog('Skipping backup (dry run mode)');
       }
 
       try {
-        // Upload test framework
+        // Upload test framework using optimized tar approach
         output += '📤 Uploading test framework...\n';
-        await ssh.exec('mkdir -p /tmp/uci-tests/lib /tmp/uci-tests/test');
+        debugLog('Starting framework upload...');
         
-        // Upload necessary files
-        const filesToUpload = [
-          { local: 'lib/uci_merge_engine.lua', remote: '/tmp/uci-tests/lib/' },
-          { local: 'lib/test_utils.lua', remote: '/tmp/uci-tests/lib/' },
-          { local: 'lib/list_deduplicator.lua', remote: '/tmp/uci-tests/lib/' },
-          { local: 'lib/fs_utils.lua', remote: '/tmp/uci-tests/lib/' },
-          { local: 'test/luaunit_fixed.lua', remote: '/tmp/uci-tests/test/' },
-          { local: `test/${test}`, remote: '/tmp/uci-tests/test/' },
-          { local: 'test/etc', remote: '/tmp/uci-tests/test/' },
-        ];
-
-        for (const file of filesToUpload) {
-          const uploadResult = await ssh.upload(file.local, file.remote);
-          if (!uploadResult.success) {
-            throw new Error(`Failed to upload ${file.local}: ${uploadResult.stderr}`);
-          }
+        // Create tar archive locally with proper directory structure
+        const archiveName = 'uci-test-framework.tar.gz';
+        const tarCmd = `cd ${REPO_ROOT} && tar -czf /tmp/${archiveName} bin/ lib/ test/`;
+        
+        // Create archive locally
+        debugLog('Creating archive...');
+        debugLog(`Tar command: ${tarCmd}`);
+        const createArchive = await this.execute(tarCmd);
+        debugLog(`Archive creation result: ${JSON.stringify(createArchive)}`);
+        if (!createArchive.success) {
+          throw new Error(`Failed to create archive: ${createArchive.stderr}`);
         }
+        debugLog('Archive created successfully');
+        
+        // Upload single archive  
+        debugLog('Uploading archive...');
+        const localArchivePath = `/tmp/${archiveName}`;
+        debugLog(`Local archive path: ${localArchivePath}`);
+        const uploadResult = await ssh.upload(localArchivePath, `/tmp/${archiveName}`);
+        debugLog(`Upload result: ${JSON.stringify(uploadResult)}`);
+        if (!uploadResult.success) {
+          throw new Error(`Failed to upload archive: ${uploadResult.stderr}`);
+        }
+        debugLog('Archive uploaded successfully');
+        
+        // Extract archive on remote
+        debugLog('Extracting archive on remote...');
+        const extractResult = await ssh.exec(`cd /tmp && tar -xzf ${archiveName} && rm ${archiveName}`);
+        debugLog(`Extract result: ${JSON.stringify(extractResult)}`);
+        if (!extractResult.success) {
+          throw new Error(`Failed to extract archive: ${extractResult.stderr}`);
+        }
+        debugLog('Archive extracted successfully');
+        
+        // Clean up local archive
+        const cleanupResult = await this.execute(`rm -f /tmp/${archiveName}`);
+        debugLog(`Local cleanup result: ${JSON.stringify(cleanupResult)}`);
+
+        // Make uci-config executable and set up environment
+        debugLog('Setting up executables and symlinks...');
+        const chmodResult = await ssh.exec('chmod +x /tmp/bin/uci-config');
+        debugLog(`Chmod result: ${JSON.stringify(chmodResult)}`);
+        
+        // Create symlinks to fix hardcoded /app paths
+        const symlinkResult1 = await ssh.exec('mkdir -p /app/bin && ln -sf /tmp/bin/uci-config /app/bin/uci-config');
+        debugLog(`Symlink 1 result: ${JSON.stringify(symlinkResult1)}`);
+        const symlinkResult2 = await ssh.exec('mkdir -p /app && ln -sf /tmp/lib /app/lib');
+        debugLog(`Symlink 2 result: ${JSON.stringify(symlinkResult2)}`);
+        
+        // Create missing /app/etc/config/default directory and copy real test configs
+        debugLog('Creating missing directories and copying test configs...');
+        const createConfigDirs = await ssh.exec('mkdir -p /app/etc/config/default');
+        debugLog(`Config dirs result: ${JSON.stringify(createConfigDirs)}`);
+        
+        // Copy actual test config files from archive to /app/etc/config/default
+        const copyTestConfigs = await ssh.exec('cp /tmp/test/etc/existing/* /app/etc/config/default/ 2>/dev/null && cp /tmp/test/etc/uspot/* /app/etc/config/default/ 2>/dev/null && echo "config uspot" > /app/etc/config/default/uspot 2>/dev/null || echo "Copied available configs"');
+        debugLog(`Copy test configs result: ${JSON.stringify(copyTestConfigs)}`);
+        
+        debugLog('Setup complete, starting test execution...');
 
         // Run test
         output += `\n🧪 Running test: ${test}\n`;
-        const testCmd = `cd /tmp/uci-tests && LUA_PATH='./lib/?.lua;./test/?.lua' lua test/${test}`;
+        debugLog('Preparing test command...');
+        let testCmd;
+        if (test === 'all') {
+          // Run all tests sequentially with proper environment
+          testCmd = `cd /tmp && export PATH="/tmp/bin:/usr/sbin:/usr/bin:/sbin:/bin" && export LUA_PATH='./lib/?.lua;./test/?.lua' && echo '=== UCI CONFIG TESTS ===' && lua test/test_uci_config.lua && echo '=== MERGE ENGINE TESTS ===' && lua test/test_merge_engine.lua && echo '=== ADVANCED INTEGRATION TESTS ===' && lua test/test_advanced_integration.lua && echo '=== PRODUCTION DEPLOYMENT TESTS ===' && lua test/test_production_deployment.lua`;
+        } else {
+          testCmd = `cd /tmp && export PATH="/tmp/bin:/usr/sbin:/usr/bin:/sbin:/bin" && export LUA_PATH='./lib/?.lua;./test/?.lua' && lua test/${test}`;
+        }
+        
+        debugLog(`Test command: ${testCmd}`);
+        debugLog('Executing test command...');
         const testResult = await ssh.exec(testCmd);
+        debugLog(`Test execution result: ${JSON.stringify({
+          success: testResult.success,
+          stdoutLength: testResult.stdout?.length || 0,
+          stderrLength: testResult.stderr?.length || 0,
+          code: testResult.code
+        })}`);
+        debugLog('Test execution completed');
+        
+        // Log complete test output for debugging (no truncation)
+        if (testResult.stdout) {
+          debugLog(`Test stdout (full): ${testResult.stdout}`);
+        }
+        if (testResult.stderr) {
+          debugLog(`Test stderr (full): ${testResult.stderr}`);
+        }
         
         output += testResult.stdout;
         if (!testResult.success) {
@@ -242,7 +335,10 @@ class UnifiedTestServer {
         }
 
         // Cleanup
-        await ssh.exec('rm -rf /tmp/uci-tests');
+        debugLog('Cleaning up...');
+        const cleanupFinalResult = await ssh.exec('rm -rf /tmp/bin /tmp/lib /tmp/test');
+        debugLog(`Final cleanup result: ${JSON.stringify(cleanupFinalResult)}`);
+        debugLog('Cleanup completed');
 
       } catch (error) {
         // Restore on error if not dry run
@@ -314,7 +410,8 @@ class UnifiedTestServer {
     return {
       exec: async (cmd) => this.execute(`${sshCmd} ${host} "${cmd}"`),
       upload: async (local, remote) => {
-        const localPath = path.join(REPO_ROOT, local);
+        // Handle absolute paths vs relative paths
+        const localPath = path.isAbsolute(local) ? local : path.join(REPO_ROOT, local);
         return this.execute(`${scpCmd} -r "${localPath}" ${host}:"${remote}"`);
       },
     };
