@@ -46,7 +46,7 @@ function Logger.new(config)
     local instance = {
         module_name = config.module_name or "UCI",
         quiet = config.quiet or false,
-        verbose = config.verbose or false
+        verbose_enabled = config.verbose or false  -- Renamed to avoid method collision
     }
     setmetatable(instance, Logger)
     return instance
@@ -78,7 +78,7 @@ end
 --   message (string): Verbose message to log
 -- Note: Verbose messages only shown when verbose mode is enabled
 function Logger:verbose(message)
-    if self.verbose then
+    if self.verbose_enabled then
         print(self.module_name .. " VERBOSE: " .. message)
     end
 end
@@ -95,7 +95,7 @@ function Logger:update_config(config)
         self.quiet = config.quiet
     end
     if config.verbose ~= nil then
-        self.verbose = config.verbose
+        self.verbose_enabled = config.verbose
     end
 end
 

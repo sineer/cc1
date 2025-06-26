@@ -14,6 +14,7 @@ source "$SCRIPT_DIR/lib/ssh-common.sh"
 # Default configuration
 DEFAULT_TARGET=""
 DEFAULT_COMMAND=""
+PREFIX="/usr/local"
 VERBOSE=false
 PASSWORD=""
 PASSWORD_SET=false
@@ -39,6 +40,7 @@ function init_logging() {
     log_info "Target: $TARGET"
     log_info "Command: $COMMAND"
     log_info "Arguments: ${UCI_ARGS[*]}"
+    log_info "Installation prefix: $PREFIX"
     log_info "Log file: $LOG_FILE"
     log_info "======================================="
 }
@@ -66,9 +68,11 @@ function show_help() {
     echo "Options:"
     echo "  --password <pass>   SSH password (use \"\" for empty)"
     echo "  --key-file <path>   SSH key file"
+    echo "  --prefix <path>     Installation prefix (default: /usr/local)"
     echo "  --verbose           Enable verbose output"
     echo "  --no-confirm        Skip confirmation prompts"
     echo "  --no-backup         Skip automatic backup"
+    echo "  --restart-services  Allow service restarts (default: disabled to prevent SSH hangs)"
     echo "  --help              Show this help"
     echo ""
     echo "Examples:"
@@ -84,6 +88,22 @@ function show_help() {
     echo ""
     echo "  # Remove old configurations"
     echo "  ./run-deploy.sh 10.0.0.1 remove --target old-config --dry-run --password \"\""
+    echo ""
+    echo "  # Custom installation prefix"
+    echo "  ./run-deploy.sh 192.168.11.2 safe-merge --target default --prefix /opt/uci-config --password \"\""
+    echo ""
+    echo "  # Enable service restarts (may cause SSH hangs)"
+    echo "  ./run-deploy.sh 192.168.11.2 safe-merge --target default --restart-services --password \"\""
+    echo ""
+    echo "Installation Structure:"
+    echo "  \$PREFIX/bin/uci-config              # Executable binary"
+    echo "  \$PREFIX/lib/uci-config/             # Lua library files"
+    echo "  \$PREFIX/share/uci-config/etc/       # Configuration templates"
+    echo ""
+    echo "Notes:"
+    echo "  - Service restarts are disabled by default to prevent SSH connection hangs"
+    echo "  - Use --restart-services to enable service restarts if needed"
+    echo "  - Consider manually restarting services after deployment via console"
     echo ""
     echo "Logs are saved to: logs/deploy-TIMESTAMP-TARGET.log"
 }
@@ -117,6 +137,7 @@ function deploy_create_remote_backup() {
 
 function upload_framework() {
     log_info "Uploading UCI config framework..."
+    log_info "Installing to prefix: $PREFIX"
     
     # Use shared archive creation and upload
     local archive_name="uci-deploy-framework.tar.gz"
@@ -124,16 +145,29 @@ function upload_framework() {
         error_exit "Failed to upload framework archive"
     fi
     
-    # Extract and setup on remote
+    # Extract and setup on remote with Unix-compliant structure
     log_verbose "Setting up framework on remote device..."
     local setup_commands=(
+        # Extract to temporary location
         "cd /tmp && tar -xzf $archive_name"
-        "chmod +x /tmp/bin/uci-config"
-        "mkdir -p /app/bin /app/etc/config"
-        "ln -sf /tmp/bin/uci-config /app/bin/uci-config"
-        "ln -sf /tmp/lib /app/lib"
-        "ln -sf /tmp/etc /app/etc"
-        "rm -f /tmp/$archive_name"
+        
+        # Create prefix directory structure
+        "mkdir -p $PREFIX/bin"
+        "mkdir -p $PREFIX/lib/uci-config"
+        "mkdir -p $PREFIX/share/uci-config"
+        
+        # Install binary
+        "cp /tmp/bin/uci-config $PREFIX/bin/"
+        "chmod +x $PREFIX/bin/uci-config"
+        
+        # Install Lua library files
+        "cp -r /tmp/lib/* $PREFIX/lib/uci-config/"
+        
+        # Install configuration templates
+        "cp -r /tmp/etc $PREFIX/share/uci-config/"
+        
+        # Clean up temporary files
+        "rm -rf /tmp/bin /tmp/lib /tmp/etc /tmp/$archive_name"
     )
     
     for cmd in "${setup_commands[@]}"; do
@@ -142,7 +176,10 @@ function upload_framework() {
         fi
     done
     
-    log_info "✅ Framework uploaded and configured"
+    log_info "✅ Framework installed to $PREFIX"
+    log_verbose "Binary: $PREFIX/bin/uci-config"
+    log_verbose "Libraries: $PREFIX/lib/uci-config/"
+    log_verbose "Templates: $PREFIX/share/uci-config/etc/"
 }
 
 function confirm_deployment() {
@@ -186,14 +223,32 @@ function confirm_deployment() {
 function execute_uci_command() {
     log_info "Executing UCI command: $COMMAND ${UCI_ARGS[*]}"
     
-    # Build the remote command
-    local remote_cmd="cd /tmp && export PATH=\"/tmp/bin:/usr/sbin:/usr/bin:/sbin:/bin\" && export LUA_PATH='./lib/?.lua' && uci-config $COMMAND"
+    # Build the remote command with prefix paths
+    local remote_cmd="cd $PREFIX/share/uci-config && export PATH=\"$PREFIX/bin:/usr/sbin:/usr/bin:/sbin:/bin\" && export LUA_PATH='$PREFIX/lib/uci-config/?.lua;$PREFIX/lib/uci-config/commands/?.lua' && uci-config $COMMAND"
+    
+    # Add --no-restart by default to prevent SSH hangs from network service restarts
+    # (unless user explicitly adds --restart-services to override)
+    local has_restart_option=false
+    for arg in "${UCI_ARGS[@]}"; do
+        if [[ "$arg" == "--restart-services" || "$arg" == "--no-restart" ]]; then
+            has_restart_option=true
+            break
+        fi
+    done
+    
+    if [ "$has_restart_option" = "false" ]; then
+        remote_cmd="$remote_cmd --no-restart"
+        log_verbose "Added --no-restart to prevent SSH connection hangs"
+    fi
     
     # Add UCI arguments
     for arg in "${UCI_ARGS[@]}"; do
-        # Escape arguments properly
-        local escaped_arg=$(printf '%q' "$arg")
-        remote_cmd="$remote_cmd $escaped_arg"
+        # Skip --restart-services as it's just used to disable our --no-restart default
+        if [ "$arg" != "--restart-services" ]; then
+            # Escape arguments properly
+            local escaped_arg=$(printf '%q' "$arg")
+            remote_cmd="$remote_cmd $escaped_arg"
+        fi
     done
     
     log_verbose "Remote command: $remote_cmd"
@@ -247,9 +302,13 @@ function execute_uci_command() {
 }
 
 function cleanup_remote() {
-    log_verbose "Cleaning up remote temporary files..."
+    log_verbose "Cleaning up remote installation..."
     
-    execute_ssh_command "rm -rf /tmp/bin /tmp/lib /tmp/etc /app/bin/uci-config /app/lib /app/etc" >/dev/null 2>&1 || true
+    # Clean up prefix installation
+    execute_ssh_command "rm -rf $PREFIX/bin/uci-config $PREFIX/lib/uci-config $PREFIX/share/uci-config" >/dev/null 2>&1 || true
+    
+    # Clean up any remaining temporary files
+    execute_ssh_command "rm -rf /tmp/bin /tmp/lib /tmp/etc /tmp/uci-deploy-framework.tar.gz" >/dev/null 2>&1 || true
     
     log_verbose "Remote cleanup completed"
 }
@@ -289,6 +348,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --key-file)
             KEY_FILE="$2"
+            shift 2
+            ;;
+        --prefix)
+            PREFIX="$2"
             shift 2
             ;;
         --verbose)
