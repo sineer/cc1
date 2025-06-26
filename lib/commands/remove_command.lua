@@ -99,8 +99,10 @@ end
 --   options (table): Parsed command options
 -- Returns: boolean, string - validation result and error message
 function RemoveCommand:validate_remove_options(options)
-    if not options.target then
-        return false, "No target specified for remove command"
+    -- Use common validation from base class
+    local valid, error_msg = self:validate_target_option(options, "remove")
+    if not valid then
+        return false, error_msg
     end
     
     -- For remove command, we allow non-existent targets (will just report 0 configs)
@@ -114,34 +116,17 @@ end
 --   target_name (string): Target configuration name
 -- Returns: table - List of configuration file names
 function RemoveCommand:get_configs_to_remove(target_name)
-    local source_dir = "./etc/config/" .. target_name
-    local configs = {}
+    local source_dir, exists = self:get_source_directory(target_name)
     
     -- Check if directory exists first
-    if not self.config_manager:directory_exists(source_dir) then
+    if not exists then
         -- Directory doesn't exist - this is fine for remove command
         self:log("verbose", "Target directory does not exist: " .. source_dir)
         return {}
     end
     
-    local success, err = pcall(function()
-        for file in lfs.dir(source_dir) do
-            if file ~= "." and file ~= ".." then
-                local source_path = source_dir .. "/" .. file
-                local attr = lfs.attributes(source_path)
-                if attr and attr.mode == "file" then
-                    table.insert(configs, file)
-                end
-            end
-        end
-    end)
-    
-    if not success then
-        self:log("error", "Error reading target directory: " .. tostring(err))
-        return {}
-    end
-    
-    return configs
+    -- Use common helper method from base class
+    return self:get_config_files_from_directory(source_dir)
 end
 
 -- Function: load_target_config
@@ -242,7 +227,7 @@ end
 --   options (table): Command options
 -- Returns: boolean, table, table - success, results, and config list
 function RemoveCommand:perform_removal(target_name, options)
-    local source_dir = "./etc/config/" .. target_name
+    local source_dir, _ = self:get_source_directory(target_name)
     
     self:log("info", "Remove command using target: " .. target_name)
     self:log("info", "Source directory: " .. source_dir)
@@ -250,8 +235,16 @@ function RemoveCommand:perform_removal(target_name, options)
     -- Get list of configs to process
     local configs_to_process = self:get_configs_to_remove(target_name)
     if #configs_to_process == 0 then
-        return false, {}, {}, "No configuration files found in target directory"
+        if options["dry-run"] then
+            self:log("info", "Would remove 0 sections (no matching configuration files found)")
+        else
+            self:log("info", "No configuration files found in target directory - nothing to remove")
+        end
+        return true, {}, {}, nil
     end
+    
+    -- Show summary using base class helper
+    self:show_config_summary(configs_to_process, source_dir, "remove")
     
     local total_removed = 0
     local processed_configs = {}

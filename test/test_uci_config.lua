@@ -92,7 +92,7 @@ end
 
 function TestUCIConfig:test_remove_nonexistent_target()
     local result, success = execute_command(UCI_CONFIG_TOOL .. " remove --target nonexistent --dry-run")
-    lu.assertStrContains(result, "No configuration files found in target directory")
+    lu.assertStrContains(result, "Would remove 0 sections")
 end
 
 function TestUCIConfig:test_invalid_command()

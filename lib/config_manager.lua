@@ -472,7 +472,9 @@ function ConfigManager:cleanup_old_backups(max_backups)
     local backups = self:get_backup_list()
     
     if #backups <= max_backups then
-        self.logger:verbose("No backup cleanup needed (" .. #backups .. " backups)")
+        if self.logger and type(self.logger.verbose) == "function" then
+            self.logger:verbose("No backup cleanup needed (" .. #backups .. " backups)")
+        end
         return
     end
     
@@ -483,12 +485,16 @@ function ConfigManager:cleanup_old_backups(max_backups)
         if success then
             removed_count = removed_count + 1
         else
-            self.logger:error("Failed to remove old backup: " .. backup.filename)
+            if self.logger and type(self.logger.error) == "function" then
+                self.logger:error("Failed to remove old backup: " .. backup.filename)
+            end
         end
     end
     
     if removed_count > 0 then
-        self.logger:info("Cleaned up " .. removed_count .. " old backup(s)")
+        if self.logger and type(self.logger.info) == "function" then
+            self.logger:info("Cleaned up " .. removed_count .. " old backup(s)")
+        end
     end
 end
 

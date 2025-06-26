@@ -239,7 +239,7 @@ class UnifiedTestServer {
         
         // Create tar archive locally with proper directory structure
         const archiveName = 'uci-test-framework.tar.gz';
-        const tarCmd = `cd ${REPO_ROOT} && tar -czf /tmp/${archiveName} bin/ lib/ test/`;
+        const tarCmd = `cd ${REPO_ROOT} && tar -czf /tmp/${archiveName} bin/ lib/ test/ etc/`;
         
         // Create archive locally
         debugLog('Creating archive...');

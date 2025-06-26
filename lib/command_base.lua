@@ -33,6 +33,31 @@ local ConfigManager = require("config_manager")
 local CommandBase = {}
 CommandBase.__index = CommandBase
 
+-- Exit codes for consistent error reporting
+CommandBase.EXIT_CODES = {
+    SUCCESS = 0,
+    GENERAL_ERROR = 1,
+    INVALID_ARGUMENTS = 2,
+    FILE_NOT_FOUND = 3,
+    PERMISSION_DENIED = 4,
+    NETWORK_ERROR = 5,
+    SERVICE_ERROR = 6,
+    VALIDATION_ERROR = 7
+}
+
+-- Standard error messages
+CommandBase.ERRORS = {
+    NO_TARGET = "No target specified for %s command",
+    MISSING_ARGS = "Missing required arguments for %s command",
+    INVALID_TARGET = "Invalid target '%s' for %s command",
+    FILE_NOT_FOUND = "Configuration file not found: %s",
+    DIRECTORY_NOT_FOUND = "Directory not found: %s",
+    PERMISSION_DENIED = "Permission denied: %s",
+    VALIDATION_FAILED = "Validation failed: %s",
+    SERVICE_FAILED = "Service operation failed: %s",
+    BACKUP_FAILED = "Backup creation failed: %s"
+}
+
 -- Function: CommandBase.new
 -- Purpose: Create a new command instance
 -- Parameters:
@@ -65,6 +90,54 @@ function CommandBase:log(level, message)
     elseif level == "verbose" and self.options.verbose then
         print(prefix .. " VERBOSE: " .. message)
     end
+end
+
+-- Function: error_with_code
+-- Purpose: Log error message and return standardized exit code
+-- Parameters:
+--   error_template (string): Error message template or direct message
+--   exit_code (number): Exit code to return
+--   ... (varargs): Arguments for string formatting
+-- Returns: number - The exit code
+function CommandBase:error_with_code(error_template, exit_code, ...)
+    local message
+    if ... then
+        message = string.format(error_template, ...)
+    else
+        message = error_template
+    end
+    
+    self:log("error", message)
+    return exit_code or self.EXIT_CODES.GENERAL_ERROR
+end
+
+-- Function: validation_error
+-- Purpose: Log validation error and return validation error code
+-- Parameters:
+--   message (string): Error message
+--   ... (varargs): Arguments for string formatting
+-- Returns: number - Validation error exit code
+function CommandBase:validation_error(message, ...)
+    return self:error_with_code(message, self.EXIT_CODES.VALIDATION_ERROR, ...)
+end
+
+-- Function: file_not_found_error
+-- Purpose: Log file not found error and return appropriate exit code
+-- Parameters:
+--   file_path (string): Path to the missing file
+-- Returns: number - File not found exit code
+function CommandBase:file_not_found_error(file_path)
+    return self:error_with_code(self.ERRORS.FILE_NOT_FOUND, self.EXIT_CODES.FILE_NOT_FOUND, file_path)
+end
+
+-- Function: service_error
+-- Purpose: Log service operation error and return service error code
+-- Parameters:
+--   message (string): Error message
+--   ... (varargs): Arguments for string formatting
+-- Returns: number - Service error exit code
+function CommandBase:service_error(message, ...)
+    return self:error_with_code(self.ERRORS.SERVICE_FAILED, self.EXIT_CODES.SERVICE_ERROR, message, ...)
 end
 
 -- Function: parse_boolean_flags
@@ -318,6 +391,108 @@ function CommandBase:validate_environment()
     end
     
     return true, nil
+end
+
+-- Function: get_source_directory
+-- Purpose: Get and validate source directory for a target
+-- Parameters:
+--   target_name (string): Target configuration name
+-- Returns: string, boolean - Source directory path and existence check
+function CommandBase:get_source_directory(target_name)
+    local source_dir = "./etc/config/" .. target_name
+    local exists = self.config_manager:directory_exists(source_dir)
+    return source_dir, exists
+end
+
+-- Function: get_config_files_from_directory
+-- Purpose: Get list of configuration files from a directory
+-- Parameters:
+--   directory (string): Directory path to scan
+-- Returns: table - List of configuration file names
+function CommandBase:get_config_files_from_directory(directory)
+    local configs = {}
+    
+    if not self.config_manager:directory_exists(directory) then
+        return configs
+    end
+    
+    local success, err = pcall(function()
+        local lfs = require("lfs")
+        for file in lfs.dir(directory) do
+            if file ~= "." and file ~= ".." then
+                local file_path = directory .. "/" .. file
+                local attr = lfs.attributes(file_path)
+                if attr and attr.mode == "file" then
+                    table.insert(configs, file)
+                end
+            end
+        end
+    end)
+    
+    if not success then
+        self:log("error", "Error reading directory " .. directory .. ": " .. tostring(err))
+        return {}
+    end
+    
+    return configs
+end
+
+-- Function: validate_target_option
+-- Purpose: Common validation for target option across commands
+-- Parameters:
+--   options (table): Parsed command options
+--   command_name (string): Name of the command for error messages
+-- Returns: boolean, string - validation result and error message
+function CommandBase:validate_target_option(options, command_name)
+    if not options.target then
+        local error_msg = string.format(self.ERRORS.NO_TARGET, command_name)
+        return false, error_msg
+    end
+    return true, nil
+end
+
+-- Function: show_config_summary
+-- Purpose: Display summary of configuration files to be processed
+-- Parameters:
+--   configs (table): List of configuration files
+--   source_dir (string): Source directory path
+--   operation (string): Operation being performed (e.g., "merge", "remove")
+function CommandBase:show_config_summary(configs, source_dir, operation)
+    if #configs == 0 then
+        self:log("info", "No configuration files found in " .. source_dir)
+        return
+    end
+    
+    self:log("info", "Found " .. #configs .. " configuration file(s) to " .. operation .. ":")
+    if self.options.verbose then
+        for _, config in ipairs(configs) do
+            self:log("info", "  " .. config)
+        end
+    end
+end
+
+-- Function: handle_operation_errors
+-- Purpose: Common error handling and reporting for operations
+-- Parameters:
+--   results (table): Operation results
+--   operation (string): Operation name (e.g., "merge", "remove")
+-- Returns: boolean - true if no errors found
+function CommandBase:handle_operation_errors(results, operation)
+    local has_errors = false
+    
+    for config_name, result in pairs(results) do
+        if not result.success then
+            self:log("error", string.format("%s failed for %s: %s", 
+                operation, config_name, result.error or "unknown error"))
+            has_errors = true
+        end
+    end
+    
+    if has_errors then
+        self:log("error", "Some configurations failed to process")
+    end
+    
+    return not has_errors
 end
 
 -- Function: cleanup
