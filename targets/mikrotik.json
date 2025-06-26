@@ -1,0 +1,62 @@
+{
+  "name": "MikroTik RouterOS Device",
+  "description": "MikroTik router running RouterOS (limited UCI compatibility)",
+  "device_type": "mikrotik-routeros",
+  "connection": {
+    "method": "ssh",
+    "host": "192.168.88.1",
+    "port": 22,
+    "username": "admin",
+    "key_file": "~/.ssh/id_rsa",
+    "timeout": 30,
+    "keepalive": true
+  },
+  "system": {
+    "architecture": "auto-detect",
+    "openwrt_version": "none",
+    "memory_mb": 128,
+    "storage_mb": 16,
+    "cpu_cores": 1
+  },
+  "network": {
+    "management_interface": "ether1",
+    "management_ip": "192.168.88.1",
+    "management_subnet": "192.168.88.0/24",
+    "preserve_interfaces": ["ether1", "bridge"],
+    "critical_services": ["ssh", "winbox"]
+  },
+  "safety": {
+    "backup_location": "/tmp/routeros-backup",
+    "max_test_duration": 120,
+    "connectivity_check_interval": 20,
+    "auto_rollback_enabled": true,
+    "preserve_network": true,
+    "require_confirmation": true
+  },
+  "test_config": {
+    "allowed_tests": [],
+    "skip_tests": ["*"],
+    "test_timeout": 60,
+    "dry_run_first": true
+  },
+  "device_specific": {
+    "vendor": "MikroTik",
+    "model": "auto-detect",
+    "firmware_variant": "routeros",
+    "luci_available": false,
+    "uci_tools": "none"
+  },
+  "recovery": {
+    "reset_button_available": true,
+    "recovery_mode": "netinstall",
+    "tftp_recovery": false,
+    "recovery_ip": "192.168.88.1",
+    "emergency_contact": "Use MikroTik Netinstall for recovery"
+  },
+  "compatibility": {
+    "uci_supported": false,
+    "openwrt_compatible": false,
+    "test_framework_supported": false,
+    "notes": "MikroTik devices run RouterOS, not OpenWRT. UCI tests not applicable."
+  }
+}

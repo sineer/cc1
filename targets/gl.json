@@ -1,0 +1,59 @@
+{
+  "name": "GL-iNet Router",
+  "description": "GL-iNet series routers with OpenWRT firmware",
+  "device_type": "gl-inet",
+  "connection": {
+    "method": "ssh",
+    "host": "192.168.8.1",
+    "port": 22,
+    "username": "root",
+    "key_file": "~/.ssh/id_rsa",
+    "timeout": 30,
+    "keepalive": true
+  },
+  "system": {
+    "architecture": "mips",
+    "openwrt_version": "23.05",
+    "memory_mb": 128,
+    "storage_mb": 16,
+    "cpu_cores": 1
+  },
+  "network": {
+    "management_interface": "lan",
+    "management_ip": "192.168.8.1",
+    "management_subnet": "192.168.8.0/24",
+    "preserve_interfaces": ["lan", "br-lan"],
+    "critical_services": ["dropbear", "uhttpd"]
+  },
+  "safety": {
+    "backup_location": "/tmp/uci-backup",
+    "max_test_duration": 300,
+    "connectivity_check_interval": 30,
+    "auto_rollback_enabled": true,
+    "preserve_network": true,
+    "require_confirmation": true
+  },
+  "test_config": {
+    "allowed_tests": [
+      "test_production_deployment.lua",
+      "test_advanced_integration.lua"
+    ],
+    "skip_tests": [],
+    "test_timeout": 600,
+    "dry_run_first": true
+  },
+  "device_specific": {
+    "vendor": "GL-iNet",
+    "model": "generic",
+    "firmware_variant": "openwrt",
+    "luci_available": true,
+    "uci_tools": "standard"
+  },
+  "recovery": {
+    "reset_button_available": true,
+    "recovery_mode": "30-30-30",
+    "tftp_recovery": true,
+    "recovery_ip": "192.168.1.1",
+    "emergency_contact": "Physical access required"
+  }
+}

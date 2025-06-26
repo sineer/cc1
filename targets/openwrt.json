@@ -1,0 +1,60 @@
+{
+  "name": "Generic OpenWRT Device",
+  "description": "Standard OpenWRT installation on various hardware",
+  "device_type": "openwrt-generic",
+  "connection": {
+    "method": "ssh",
+    "host": "192.168.1.1",
+    "port": 22,
+    "username": "root",
+    "key_file": "~/.ssh/id_rsa",
+    "timeout": 30,
+    "keepalive": true
+  },
+  "system": {
+    "architecture": "auto-detect",
+    "openwrt_version": "auto-detect",
+    "memory_mb": 64,
+    "storage_mb": 8,
+    "cpu_cores": 1
+  },
+  "network": {
+    "management_interface": "lan",
+    "management_ip": "192.168.1.1", 
+    "management_subnet": "192.168.1.0/24",
+    "preserve_interfaces": ["lan", "br-lan"],
+    "critical_services": ["dropbear", "uhttpd", "dnsmasq"]
+  },
+  "safety": {
+    "backup_location": "/tmp/uci-backup",
+    "max_test_duration": 600,
+    "connectivity_check_interval": 30,
+    "auto_rollback_enabled": true,
+    "preserve_network": true,
+    "require_confirmation": true
+  },
+  "test_config": {
+    "allowed_tests": [
+      "test_production_deployment.lua",
+      "test_advanced_integration.lua",
+      "test_merge_engine.lua"
+    ],
+    "skip_tests": [],
+    "test_timeout": 900,
+    "dry_run_first": true
+  },
+  "device_specific": {
+    "vendor": "generic",
+    "model": "auto-detect",
+    "firmware_variant": "openwrt",
+    "luci_available": true,
+    "uci_tools": "standard"
+  },
+  "recovery": {
+    "reset_button_available": "unknown",
+    "recovery_mode": "device-specific",
+    "tftp_recovery": "unknown",
+    "recovery_ip": "192.168.1.1",
+    "emergency_contact": "Check device documentation"
+  }
+}

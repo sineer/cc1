@@ -1,0 +1,61 @@
+{
+  "name": "Default Target Device",
+  "description": "Conservative default settings for unknown devices",
+  "device_type": "unknown",
+  "connection": {
+    "method": "ssh",
+    "host": "192.168.1.1",
+    "port": 22,
+    "username": "root",
+    "key_file": "~/.ssh/id_rsa",
+    "timeout": 30,
+    "keepalive": true
+  },
+  "system": {
+    "architecture": "auto-detect",
+    "openwrt_version": "auto-detect",
+    "memory_mb": 32,
+    "storage_mb": 4,
+    "cpu_cores": 1
+  },
+  "network": {
+    "management_interface": "lan",
+    "management_ip": "192.168.1.1",
+    "management_subnet": "192.168.1.0/24", 
+    "preserve_interfaces": ["lan", "br-lan", "eth0"],
+    "critical_services": ["dropbear", "uhttpd"]
+  },
+  "safety": {
+    "backup_location": "/tmp/uci-backup",
+    "max_test_duration": 180,
+    "connectivity_check_interval": 15,
+    "auto_rollback_enabled": true,
+    "preserve_network": true,
+    "require_confirmation": true
+  },
+  "test_config": {
+    "allowed_tests": [
+      "test_production_deployment.lua"
+    ],
+    "skip_tests": [
+      "test_large_config_performance",
+      "test_filesystem_constraints"
+    ],
+    "test_timeout": 300,
+    "dry_run_first": true
+  },
+  "device_specific": {
+    "vendor": "unknown",
+    "model": "unknown",
+    "firmware_variant": "openwrt",
+    "luci_available": "unknown",
+    "uci_tools": "standard"
+  },
+  "recovery": {
+    "reset_button_available": "unknown",
+    "recovery_mode": "unknown",
+    "tftp_recovery": "unknown", 
+    "recovery_ip": "192.168.1.1",
+    "emergency_contact": "Ensure physical access for recovery"
+  }
+}

@@ -1,27 +1,276 @@
 #!/bin/bash
 
-# UCI Config Tool Test Runner
-# Wrapper script for the Node.js MCP test client
+# UCI Config Tool Universal Test Runner
+# Unified wrapper that handles both Docker and remote testing
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MCP_CLIENT="$SCRIPT_DIR/mcp/client/run-tests.js"
+cd "$SCRIPT_DIR"
 
-# Check if Node.js is available
-if ! command -v node &> /dev/null; then
-    echo "❌ Error: Node.js is required but not installed."
-    echo "Please install Node.js to run the MCP test client."
+# Default configuration
+DEFAULT_TARGET="docker"
+DEFAULT_TEST="all"
+VERBOSE=false
+DRY_RUN=false
+REBUILD=false
+PASSWORD=""
+PASSWORD_SET=false
+KEY_FILE=""
+USE_LEGACY=false
+
+function show_help() {
+    echo "🧪 UCI Config Tool Universal Test Runner"
+    echo ""
+    echo "Usage:"
+    echo "  ./run-tests.sh [target] [test] [options]"
+    echo ""
+    echo "Targets:"
+    echo "  docker              Run tests in Docker container (default)"
+    echo "  <IP>                Run tests on remote device at IP address"
+    echo "  <profile>           Run tests using device profile (gl, openwrt, etc)"
+    echo ""
+    echo "Tests:"
+    echo "  all                 Run all tests (default)"
+    echo "  <file.lua>         Run specific test file"
+    echo ""
+    echo "Options:"
+    echo "  --password <pass>   SSH password for remote targets (use \"\" for empty)"
+    echo "  --key-file <path>   SSH key file for remote targets"
+    echo "  --verbose           Enable verbose output"
+    echo "  --dry-run           Perform dry run without making changes"
+    echo "  --rebuild           Force rebuild Docker image"
+    echo "  --legacy            Use legacy MCP implementation"
+    echo "  --help              Show this help"
+    echo ""
+    echo "Legacy Commands (for compatibility):"
+    echo "  build               Build Docker test image"
+    echo "  build --force       Force rebuild Docker image"
+    echo ""
+    echo "Examples:"
+    echo "  ./run-tests.sh                                    # All Docker tests"
+    echo "  ./run-tests.sh docker test_uci_config.lua       # Specific Docker test"
+    echo "  ./run-tests.sh 192.168.11.2 --password \"\"       # Remote device test"
+    echo "  ./run-tests.sh gl test_production_deployment.lua # GL router test"
+    echo "  ./run-tests.sh --dry-run --verbose               # Verbose dry run"
+    echo "  ./run-tests.sh build                             # Build Docker image"
+}
+
+function log() {
+    echo "🔧 $*" >&2
+}
+
+function error() {
+    echo "❌ $*" >&2
     exit 1
-fi
+}
 
-# Check if MCP dependencies are installed
-if [ ! -d "$SCRIPT_DIR/mcp/node_modules" ]; then
-    echo "📦 Installing MCP dependencies..."
-    cd "$SCRIPT_DIR/mcp"
-    npm install
-    cd - > /dev/null
-fi
+function check_requirements() {
+    # Check Node.js for MCP
+    if ! command -v node &> /dev/null; then
+        error "Node.js is required for test runner. Please install Node.js."
+    fi
+    
+    # Check if MCP dependencies are installed
+    if [ ! -d "$SCRIPT_DIR/mcp/node_modules" ]; then
+        log "Installing MCP dependencies..."
+        cd "$SCRIPT_DIR/mcp"
+        npm install
+        cd - > /dev/null
+    fi
+    
+    # Check if unified server exists
+    if [ ! -f "mcp/server-unified.js" ]; then
+        log "Unified server not found, using legacy approach"
+        USE_LEGACY=true
+    fi
+    
+    # Check if legacy server exists
+    if [ "$USE_LEGACY" = "true" ] && [ ! -f "mcp/server/index.js" ]; then
+        error "No MCP server implementation found"
+    fi
+    
+    # Check Docker for Docker targets
+    if [ "$TARGET" = "docker" ] && ! command -v docker &> /dev/null; then
+        error "Docker is required for Docker tests. Please install Docker."
+    fi
+    
+    # Check sshpass for password authentication
+    if [ -n "$PASSWORD" ] && ! command -v sshpass &> /dev/null; then
+        error "sshpass is required for password authentication. Please install sshpass."
+    fi
+}
 
-# Run the MCP test client with all arguments passed through
-exec node "$MCP_CLIENT" "$@"
+function build_docker_image() {
+    local force=${1:-false}
+    log "Building Docker test image..."
+    
+    if [ "$force" = "true" ]; then
+        docker build --no-cache -t uci-config-test .
+    else
+        docker build -t uci-config-test .
+    fi
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ Docker image built successfully"
+    else
+        error "Docker build failed"
+    fi
+}
+
+function run_unified_tests() {
+    log "Using unified MCP test runner"
+    
+    # Build arguments for the unified client
+    local args=()
+    
+    if [ "$TARGET" != "$DEFAULT_TARGET" ]; then
+        args+=(--target "$TARGET")
+    fi
+    
+    if [ "$TEST" != "$DEFAULT_TEST" ]; then
+        args+=(--test "$TEST")
+    fi
+    
+    if [ "$VERBOSE" = "true" ]; then
+        args+=(--verbose)
+    fi
+    
+    if [ "$DRY_RUN" = "true" ]; then
+        args+=(--dry-run)
+    fi
+    
+    if [ "$REBUILD" = "true" ]; then
+        args+=(--rebuild)
+    fi
+    
+    if [ "$PASSWORD_SET" = "true" ]; then
+        args+=(--password "$PASSWORD")
+    fi
+    
+    if [ -n "$KEY_FILE" ]; then
+        args+=(--key-file "$KEY_FILE")
+    fi
+    
+    # Run unified client
+    node mcp/client.js "${args[@]}"
+}
+
+function run_legacy_tests() {
+    log "Using legacy MCP test runner"
+    
+    if [ "$TARGET" = "docker" ]; then
+        # Use legacy Docker MCP runner
+        if [ "$TEST" = "all" ]; then
+            node mcp/client/run-tests.js
+        else
+            node mcp/client/run-tests.js --test "$TEST"
+        fi
+    else
+        # Use target device runner
+        local args=("$TARGET" "$TEST")
+        
+        if [ "$VERBOSE" = "true" ]; then
+            args+=(--verbose)
+        fi
+        
+        if [ "$DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+        fi
+        
+        if [ "$PASSWORD_SET" = "true" ]; then
+            args+=(--password "$PASSWORD")
+        fi
+        
+        ./run-tests-target.sh "${args[@]}"
+    fi
+}
+
+function run_direct_docker() {
+    log "Using direct Docker execution"
+    
+    if [ "$TEST" = "all" ]; then
+        ./run-tests-direct.sh
+    else
+        ./run-tests-direct.sh test "$TEST"
+    fi
+}
+
+# Parse command line arguments
+TARGET="$DEFAULT_TARGET"
+TEST="$DEFAULT_TEST"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --password)
+            PASSWORD="$2"
+            PASSWORD_SET=true
+            shift 2
+            ;;
+        --key-file)
+            KEY_FILE="$2"
+            shift 2
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --rebuild)
+            REBUILD=true
+            shift
+            ;;
+        --legacy)
+            USE_LEGACY=true
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        build)
+            # Legacy build command
+            force=false
+            if [ "$2" = "--force" ]; then
+                force=true
+                shift
+            fi
+            build_docker_image "$force"
+            exit 0
+            ;;
+        --*)
+            error "Unknown option: $1"
+            ;;
+        *)
+            # Positional arguments
+            if [ "$TARGET" = "$DEFAULT_TARGET" ]; then
+                TARGET="$1"
+            elif [ "$TEST" = "$DEFAULT_TEST" ]; then
+                TEST="$1"
+            else
+                error "Too many positional arguments: $1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Check requirements
+check_requirements
+
+# Execute tests based on configuration
+if [ "$USE_LEGACY" = "true" ]; then
+    run_legacy_tests
+elif [ -f "mcp/server-unified.js" ] && [ -f "mcp/client.js" ]; then
+    run_unified_tests
+else
+    # Fallback to direct Docker execution for docker targets
+    if [ "$TARGET" = "docker" ]; then
+        run_direct_docker
+    else
+        error "Unified test runner not available and target is not docker"
+    fi
+fi

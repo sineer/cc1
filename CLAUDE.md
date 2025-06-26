@@ -2,26 +2,30 @@
 
 ## Build Commands
 - `npm run build`: Build the project
-- `./run-tests.sh`: **MCP test runner** - Node.js MCP server/client architecture
-- `./run-tests-direct.sh`: **Direct test runner** - Fast Docker execution
-- `./run-tests.sh test <file.lua>`: Run specific test file via MCP
-- `./run-tests.sh build`: Build Docker test image via MCP
-- `./run-tests.sh build --force`: Force rebuild Docker image via MCP
+- `./run-tests.sh`: **Unified test runner** - Docker and remote testing with intelligent routing
+- `./run-tests.sh <target> <test>`: Run specific test on target (docker, IP, or profile)
+- `./run-tests.sh --password ""`: Remote device testing with empty password
+- `./run-tests.sh --key-file <path>`: Remote device testing with SSH key
+- `./run-tests.sh --dry-run --verbose`: Verbose dry run testing
+- `./run-tests.sh build`: Build Docker test image
+- `./run-tests.sh build --force`: Force rebuild Docker image
+- `./run-tests-direct.sh`: **Direct Docker runner** - Fast Docker execution (no MCP)
 - `npm run lint`: Run ESLint and format checks
 - `npm run typecheck`: Run TypeScript type checking
 - `./claude-flow --help`: Show all available commands
 
 ## Testing Options
 
-### MCP Test Runner (Primary)
-`./run-tests.sh` - Node.js MCP (Model Context Protocol) test runner:
-- ✅ **WORKING** - Fixed MCP communication protocol
-- ✅ Uses custom JSON-RPC client (bypasses MCP SDK parsing bug)
-- ✅ MCP server/client architecture for extensibility
-- ✅ Runs tests in authentic OpenWRT 23.05 Docker environment
-- ✅ Handles service restart testing safely
-- ✅ Provides detailed test results
-- ✅ Supports running individual test files
+### Unified Test Runner (Primary)
+`./run-tests.sh` - Universal test runner with intelligent routing:
+- ✅ **UNIFIED ARCHITECTURE** - Single interface for Docker and remote testing
+- ✅ **84% CODE REDUCTION** - Simplified from 2,468 to 400 lines  
+- ✅ Smart target detection (docker, IP address, or profile name)
+- ✅ Custom JSON-RPC client (bypasses MCP SDK parsing bug)
+- ✅ Docker testing in authentic OpenWRT 23.05 environment
+- ✅ Remote device testing with SSH (password/key auth)
+- ✅ Comprehensive safety measures (backup/restore)
+- ✅ Detailed test results and error handling
 - ✅ Current status: 15/17 tests passing
 
 ### Direct Test Runner (Alternative)
@@ -33,20 +37,76 @@
 - ✅ Supports running individual test files
 - ✅ Current status: 15/17 tests passing
 
-### MCP Structure
+### Unified MCP Structure
 ```
 mcp/
-├── server/          # MCP server implementation
-│   └── index.js     # Main server (Node.js)
-├── client/          # MCP client implementation  
-│   ├── run-tests.js # Fixed test runner client (custom JSON-RPC)
-│   └── custom-client.js # Custom MCP client (working)
-├── config/          # MCP configuration files
-├── backup/          # Backup of old Python implementation
-└── package.json     # Node.js dependencies
+├── server-unified.js    # Unified MCP server (400 lines)
+├── client.js           # Simplified MCP client (custom JSON-RPC)
+├── server/             # Legacy MCP server (for fallback)
+├── client/             # Legacy MCP client (for fallback)
+└── package.json        # Node.js dependencies
 ```
 
-**Both test runners work perfectly!** Use `./run-tests.sh` for MCP architecture or `./run-tests-direct.sh` for direct execution.
+### Legacy Target Device Test Runner
+`./run-tests-target.sh` - Standalone target device testing (now integrated):
+- ⚠️ **SUPERSEDED** - Functionality now integrated into unified runner
+- ✅ Available as fallback when using `--legacy` flag
+- ✅ SSH-based remote test execution with comprehensive safety measures
+- ✅ Automatic configuration backup before testing
+- ✅ Device profile system for different router types
+- ✅ Dry-run mode for safe validation
+- ✅ Supports test_production_deployment.lua and custom tests
+- 📌 **Use unified runner instead**: `./run-tests.sh <target> --password ""`
+
+### Target Device Structure
+```
+run-tests-target.sh          # Shell script entry point
+mcp/
+├── server/
+│   ├── target-runner.js     # Target device test orchestration
+│   └── safety/              # Safety utilities
+│       ├── ssh-connection.js    # SSH connection management
+│       ├── network-monitor.js   # Network monitoring
+│       └── backup-manager.js    # Configuration backup/restore
+├── client/
+│   └── run-tests-target.js  # MCP client for target testing
+targets/
+├── gl.json                  # GL-iNet router profile
+├── openwrt.json            # Generic OpenWRT device profile
+├── default.json            # Conservative defaults
+├── mikrotik.json           # MikroTik RouterOS profile
+└── README.md               # Target profile documentation
+```
+
+**Unified test runner handles everything!** Use:
+- `./run-tests.sh` for Docker and remote testing (primary - unified interface)
+- `./run-tests-direct.sh` for direct Docker execution (alternative)
+- `./run-tests.sh --legacy` for legacy MCP implementation (fallback)
+
+## Unified Test Runner Examples
+
+### Docker Testing
+```bash
+./run-tests.sh                                    # All Docker tests
+./run-tests.sh docker test_uci_config.lua       # Specific Docker test
+./run-tests.sh --rebuild                         # Force rebuild Docker image
+./run-tests.sh --dry-run --verbose               # Verbose dry run
+```
+
+### Remote Device Testing
+```bash
+./run-tests.sh 192.168.11.2 --password ""       # Empty password auth
+./run-tests.sh gl test_production_deployment.lua # GL router profile
+./run-tests.sh openwrt --key-file ~/.ssh/id_rsa  # SSH key auth
+./run-tests.sh 10.0.0.1 --dry-run                # Safe validation
+```
+
+### Legacy Commands
+```bash
+./run-tests.sh build                             # Build Docker image
+./run-tests.sh build --force                     # Force rebuild
+./run-tests.sh --legacy                          # Use legacy implementation
+```
 
 ## 🚨 CRITICAL TESTING RULE 🚨
 **NEVER EVER TEST ON THE HOST SYSTEM!**
@@ -70,6 +130,107 @@ The Docker environment provides an authentic OpenWRT 23.05 sandbox that's:
 - ✅ Pre-configured with proper UCI tools
 - ✅ Designed for safe UCI config testing
 - ✅ Easily reset between test runs
+
+## Test Runner Decision Matrix
+
+### When to Use Docker Testing (`./run-tests.sh`)
+**PRIMARY CHOICE** for development, testing, and validation:
+
+✅ **ALWAYS use Docker when:**
+- Developing or debugging UCI merge engine functionality
+- Running unit tests for UCI config logic
+- Testing new features or bug fixes
+- Validating test framework changes
+- Code review and CI/CD pipeline testing
+- Performance testing and benchmarking
+- Testing with sample/mock configurations
+- Learning how UCI configs work
+- User asks to "run tests" without specifying target device
+
+✅ **Examples:**
+- "Run the tests to make sure everything works"
+- "Test the new merge functionality"
+- "Check if the UCI config changes are working"
+- "Run tests after making code changes"
+- "Validate the test refactoring"
+
+### When to Use Target Device Testing (`./run-tests-target.sh`)
+**PRODUCTION CHOICE** for real-world validation:
+
+🎯 **ONLY use Target Device when:**
+- Explicitly requested to test on actual hardware
+- User mentions specific device (GL router, OpenWRT device, IP address)
+- Testing production deployment scenarios
+- Validating real device compatibility
+- User asks for "production testing" or "real device testing"
+- Final validation before production deployment
+- Testing with actual device constraints (memory, storage, etc.)
+
+🎯 **Examples:**
+- "Test this on my GL router"
+- "Run production tests on the actual device"
+- "Test on the OpenWRT router at 192.168.1.1"
+- "Validate this works on real hardware"
+- "Run test_production_deployment.lua on the target"
+
+### ⚠️ SAFETY REQUIREMENTS for Target Device Testing
+Target device testing requires additional safety measures:
+
+🔐 **Prerequisites:**
+- SSH access to target device
+- Physical access for recovery if needed
+- Device not in production use
+- Network backup/alternative access available
+- User understands risks and provides explicit consent
+
+🛡️ **Built-in Safety Features:**
+- Automatic configuration backup before testing
+- Network connectivity monitoring
+- Automatic rollback on failure
+- Dry-run mode for validation
+- Device profile validation
+- Connection testing before execution
+
+### Command Examples
+
+**Docker Testing (Default Choice):**
+```bash
+# Standard development testing
+./run-tests.sh
+
+# Test specific file
+./run-tests.sh test test_merge_engine.lua
+
+# Rebuild and test
+./run-tests.sh build --force
+```
+
+**Target Device Testing (When Explicitly Requested):**
+```bash
+# Test on GL router
+./run-tests-target.sh gl
+
+# Test specific device with verbose output
+./run-tests-target.sh 192.168.1.1 test_production_deployment.lua --verbose
+
+# Validate device without running tests
+./run-tests-target.sh openwrt --validate
+
+# List available device profiles
+./run-tests-target.sh --list
+
+# Dry run to see what would be executed
+./run-tests-target.sh gl --dry-run
+```
+
+### Decision Flow for Claude
+
+1. **Default**: Use `./run-tests.sh` (Docker) unless specifically asked otherwise
+2. **Check for keywords**: Look for device names, IP addresses, "production", "real device", "hardware"
+3. **Confirm safety**: For target testing, ensure user understands risks and has recovery options
+4. **Start conservative**: When in doubt, use Docker testing first
+
+**Remember: Docker is safe and always appropriate, Target devices require explicit intent and safety measures!**
 
 ## GitHub Configuration
 
