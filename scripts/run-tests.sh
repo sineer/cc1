@@ -8,6 +8,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Source shared SSH library
+source "$SCRIPT_DIR/lib/ssh-common.sh"
+
 # Default configuration
 DEFAULT_TARGET="docker"
 DEFAULT_TEST="all"
@@ -56,54 +59,41 @@ function show_help() {
     echo "  ./run-tests.sh build                             # Build Docker image"
 }
 
-function log() {
-    echo "🔧 $*" >&2
-}
-
-function error() {
-    echo "❌ $*" >&2
-    exit 1
-}
+# Using shared logging functions from ssh-common.sh
 
 function check_requirements() {
-    # Check Node.js for MCP
-    if ! command -v node &> /dev/null; then
-        error "Node.js is required for test runner. Please install Node.js."
-    fi
-    
-    # Check if MCP dependencies are installed
-    if [ ! -d "$SCRIPT_DIR/mcp/node_modules" ]; then
-        log "Installing MCP dependencies..."
-        cd "$SCRIPT_DIR/mcp"
-        npm install
-        cd - > /dev/null
-    fi
+    # Use shared Node.js checking
+    check_node_requirements
     
     # Check if unified server exists
-    if [ ! -f "mcp/server-unified.js" ]; then
-        log "Unified server not found, using legacy approach"
+    if [ ! -f "../mcp/server-unified.js" ]; then
+        log_info "Unified server not found, using legacy approach"
         USE_LEGACY=true
     fi
     
     # Check if legacy server exists
-    if [ "$USE_LEGACY" = "true" ] && [ ! -f "mcp/server/index.js" ]; then
-        error "No MCP server implementation found"
+    if [ "$USE_LEGACY" = "true" ] && [ ! -f "../mcp/server/index.js" ]; then
+        error_exit "No MCP server implementation found"
     fi
     
     # Check Docker for Docker targets
-    if [ "$TARGET" = "docker" ] && ! command -v docker &> /dev/null; then
-        error "Docker is required for Docker tests. Please install Docker."
+    if [ "$TARGET" = "docker" ]; then
+        check_docker_requirements
     fi
     
-    # Check sshpass for password authentication
-    if [ -n "$PASSWORD" ] && ! command -v sshpass &> /dev/null; then
-        error "sshpass is required for password authentication. Please install sshpass."
+    # Check SSH requirements for remote targets
+    if [ "$TARGET" != "docker" ]; then
+        # Initialize SSH common with current parameters
+        ssh_common_init "$TARGET" "$PASSWORD" "$PASSWORD_SET" "$KEY_FILE" "$VERBOSE" ""
     fi
 }
 
 function build_docker_image() {
     local force=${1:-false}
-    log "Building Docker test image..."
+    log_info "Building Docker test image..."
+    
+    # Need to go to parent directory for Docker build
+    cd ..
     
     if [ "$force" = "true" ]; then
         docker build --no-cache -t uci-config-test .
@@ -112,14 +102,17 @@ function build_docker_image() {
     fi
     
     if [ $? -eq 0 ]; then
-        echo "✅ Docker image built successfully"
+        log_info "✅ Docker image built successfully"
     else
-        error "Docker build failed"
+        error_exit "Docker build failed"
     fi
+    
+    # Return to script directory
+    cd "$SCRIPT_DIR"
 }
 
 function run_unified_tests() {
-    log "Using unified MCP test runner"
+    log_info "Using unified MCP test runner"
     
     # Build arguments for the unified client
     local args=()
@@ -153,18 +146,18 @@ function run_unified_tests() {
     fi
     
     # Run unified client
-    node mcp/client.js "${args[@]}"
+    node ../mcp/client.js "${args[@]}"
 }
 
 function run_legacy_tests() {
-    log "Using legacy MCP test runner"
+    log_info "Using legacy MCP test runner"
     
     if [ "$TARGET" = "docker" ]; then
         # Use legacy Docker MCP runner
         if [ "$TEST" = "all" ]; then
-            node mcp/client/run-tests.js
+            node ../mcp/client/run-tests.js
         else
-            node mcp/client/run-tests.js --test "$TEST"
+            node ../mcp/client/run-tests.js --test "$TEST"
         fi
     else
         # Use target device runner
@@ -187,7 +180,7 @@ function run_legacy_tests() {
 }
 
 function run_direct_docker() {
-    log "Using direct Docker execution"
+    log_info "Using direct Docker execution"
     
     if [ "$TEST" = "all" ]; then
         ./run-tests-direct.sh
@@ -242,7 +235,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         --*)
-            error "Unknown option: $1"
+            error_exit "Unknown option: $1"
             ;;
         *)
             # Positional arguments
@@ -251,7 +244,7 @@ while [[ $# -gt 0 ]]; do
             elif [ "$TEST" = "$DEFAULT_TEST" ]; then
                 TEST="$1"
             else
-                error "Too many positional arguments: $1"
+                error_exit "Too many positional arguments: $1"
             fi
             shift
             ;;
@@ -264,13 +257,13 @@ check_requirements
 # Execute tests based on configuration
 if [ "$USE_LEGACY" = "true" ]; then
     run_legacy_tests
-elif [ -f "mcp/server-unified.js" ] && [ -f "mcp/client.js" ]; then
+elif [ -f "../mcp/server-unified.js" ] && [ -f "../mcp/client.js" ]; then
     run_unified_tests
 else
     # Fallback to direct Docker execution for docker targets
     if [ "$TARGET" = "docker" ]; then
         run_direct_docker
     else
-        error "Unified test runner not available and target is not docker"
+        error_exit "Unified test runner not available and target is not docker"
     fi
 fi

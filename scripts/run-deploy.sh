@@ -8,6 +8,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Source shared SSH library
+source "$SCRIPT_DIR/lib/ssh-common.sh"
+
 # Default configuration
 DEFAULT_TARGET=""
 DEFAULT_COMMAND=""
@@ -23,10 +26,10 @@ LOG_FILE=""
 function init_logging() {
     local timestamp=$(date +"%Y%m%d-%H%M%S")
     local target_safe=$(echo "$TARGET" | sed 's/[^a-zA-Z0-9.-]/_/g')
-    LOG_FILE="$SCRIPT_DIR/logs/deploy-${timestamp}-${target_safe}.log"
+    LOG_FILE="$SCRIPT_DIR/../logs/deploy-${timestamp}-${target_safe}.log"
     
     # Ensure logs directory exists
-    mkdir -p "$SCRIPT_DIR/logs"
+    mkdir -p "$SCRIPT_DIR/../logs"
     
     # Create log file
     touch "$LOG_FILE"
@@ -40,36 +43,7 @@ function init_logging() {
     log_info "======================================="
 }
 
-# Logging functions
-function log_info() {
-    local message="[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"
-    echo "$message" | tee -a "$LOG_FILE" >&2
-}
-
-function log_error() {
-    local message="[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*"
-    echo "❌ $message" | tee -a "$LOG_FILE" >&2
-}
-
-function log_verbose() {
-    if [ "$VERBOSE" = "true" ]; then
-        local message="[$(date '+%Y-%m-%d %H:%M:%S')] VERBOSE: $*"
-        echo "$message" | tee -a "$LOG_FILE" >&2
-    fi
-}
-
-function log_command() {
-    local command="$1"
-    local result="$2"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] CMD: $command" >> "$LOG_FILE"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] RESULT: $result" >> "$LOG_FILE"
-}
-
-function error() {
-    log_error "$*"
-    log_info "=== Deployment Failed ==="
-    exit 1
-}
+# Using shared logging and SSH functions from ssh-common.sh
 
 function show_help() {
     echo "🚀 UCI Config Remote Deployment Tool"
@@ -118,196 +92,36 @@ function check_requirements() {
     log_verbose "Checking deployment requirements..."
     
     # Check if UCI config tool exists
-    if [ ! -f "$SCRIPT_DIR/bin/uci-config" ]; then
-        error "UCI config tool not found at $SCRIPT_DIR/bin/uci-config"
+    if [ ! -f "$SCRIPT_DIR/../bin/uci-config" ]; then
+        error_exit "UCI config tool not found at $SCRIPT_DIR/../bin/uci-config"
     fi
     
-    # Check sshpass for password authentication
-    if [ "$PASSWORD_SET" = "true" ] && ! command -v sshpass &> /dev/null; then
-        error "sshpass is required for password authentication. Please install sshpass."
-    fi
-    
-    # Check if key file exists when specified
-    if [ -n "$KEY_FILE" ] && [ ! -f "$KEY_FILE" ]; then
-        error "SSH key file not found: $KEY_FILE"
-    fi
+    # Use shared SSH requirements checking
+    # SSH requirements will be checked by ssh_common_init
     
     log_verbose "Requirements check passed"
 }
 
-function detect_target_type() {
-    log_verbose "Detecting target type for: $TARGET"
-    
-    # Check if target is an IP address
-    if [[ $TARGET =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        log_verbose "Target is IP address"
-        TARGET_TYPE="ip"
-        TARGET_HOST="$TARGET"
-        TARGET_USER="root"
-        TARGET_PORT="22"
-        return 0
-    fi
-    
-    # Check if target is a device profile
-    local profile_file="$SCRIPT_DIR/test/targets/${TARGET}.json"
-    if [ -f "$profile_file" ]; then
-        log_verbose "Target is device profile: $profile_file"
-        TARGET_TYPE="profile"
-        
-        # Parse profile for connection details
-        TARGET_HOST=$(grep -o '"host"[[:space:]]*:[[:space:]]*"[^"]*"' "$profile_file" | cut -d'"' -f4)
-        TARGET_USER=$(grep -o '"username"[[:space:]]*:[[:space:]]*"[^"]*"' "$profile_file" | cut -d'"' -f4 || echo "root")
-        TARGET_PORT=$(grep -o '"port"[[:space:]]*:[[:space:]]*[0-9]*' "$profile_file" | grep -o '[0-9]*' || echo "22")
-        
-        if [ -z "$TARGET_HOST" ]; then
-            error "Could not parse host from profile: $profile_file"
-        fi
-        
-        log_verbose "Profile parsed - Host: $TARGET_HOST, User: $TARGET_USER, Port: $TARGET_PORT"
-        return 0
-    fi
-    
-    error "Unknown target type: $TARGET (not an IP address or valid profile)"
-}
+# SSH and target detection functions now provided by shared library
 
-function build_ssh_command() {
-    local ssh_cmd="ssh"
-    local ssh_opts="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
-    
-    # Add port if not default
-    if [ "$TARGET_PORT" != "22" ]; then
-        ssh_opts="$ssh_opts -p $TARGET_PORT"
-    fi
-    
-    # Add key file if specified
-    if [ -n "$KEY_FILE" ]; then
-        ssh_opts="$ssh_opts -i $KEY_FILE"
-    fi
-    
-    echo "$ssh_cmd $ssh_opts $TARGET_USER@$TARGET_HOST"
-}
-
-function build_scp_command() {
-    local scp_cmd="scp"
-    local scp_opts="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
-    
-    # Add port if not default  
-    if [ "$TARGET_PORT" != "22" ]; then
-        scp_opts="$scp_opts -P $TARGET_PORT"
-    fi
-    
-    # Add key file if specified
-    if [ -n "$KEY_FILE" ]; then
-        scp_opts="$scp_opts -i $KEY_FILE"
-    fi
-    
-    echo "$scp_cmd $scp_opts"
-}
-
-function execute_ssh_command() {
-    local command="$1"
-    local ssh_base=$(build_ssh_command)
-    local full_command
-    
-    if [ "$PASSWORD_SET" = "true" ]; then
-        full_command="sshpass -p '$PASSWORD' $ssh_base '$command'"
-        log_verbose "Executing SSH command with password: $command"
-    else
-        full_command="$ssh_base '$command'"
-        log_verbose "Executing SSH command with key: $command"
-    fi
-    
-    # Execute and capture result
-    local output
-    local exit_code
-    
-    if [ "$PASSWORD_SET" = "true" ]; then
-        output=$(sshpass -p "$PASSWORD" $ssh_base "$command" 2>&1)
-        exit_code=$?
-    else
-        output=$($ssh_base "$command" 2>&1)
-        exit_code=$?
-    fi
-    
-    log_command "$command" "$output"
-    
-    if [ $exit_code -eq 0 ]; then
-        log_verbose "SSH command succeeded"
-        echo "$output"
-        return 0
-    else
-        log_error "SSH command failed (exit code: $exit_code): $command"
-        log_error "Output: $output"
-        return $exit_code
-    fi
-}
-
-function test_ssh_connection() {
-    log_info "Testing SSH connection to $TARGET_HOST..."
-    
-    local test_result
-    if test_result=$(execute_ssh_command "echo 'SSH_CONNECTION_OK'"); then
-        if [[ "$test_result" == *"SSH_CONNECTION_OK"* ]]; then
-            log_info "✅ SSH connection successful"
-            return 0
-        else
-            error "SSH connection test failed - unexpected response: $test_result"
-        fi
-    else
-        error "SSH connection test failed"
-    fi
-}
-
-function create_remote_backup() {
+function deploy_create_remote_backup() {
     if [ "$BACKUP" = "false" ]; then
         log_verbose "Skipping backup (--no-backup specified)"
         return 0
     fi
     
-    log_info "Creating remote configuration backup..."
-    
+    # Use shared backup function
     local backup_name="deploy-backup-$(date +%Y%m%d-%H%M%S)"
-    local backup_result
-    
-    if backup_result=$(execute_ssh_command "uci export > /tmp/${backup_name}.uci && echo 'BACKUP_SUCCESS'"); then
-        if [[ "$backup_result" == *"BACKUP_SUCCESS"* ]]; then
-            log_info "✅ Configuration backup created: /tmp/${backup_name}.uci"
-            echo "$backup_name"
-            return 0
-        else
-            error "Backup creation failed: $backup_result"
-        fi
-    else
-        error "Failed to create configuration backup"
-    fi
+    create_remote_backup "$backup_name"
 }
 
 function upload_framework() {
     log_info "Uploading UCI config framework..."
     
-    # Create temporary archive
+    # Use shared archive creation and upload
     local archive_name="uci-deploy-framework.tar.gz"
-    local local_archive="/tmp/$archive_name"
-    
-    log_verbose "Creating framework archive..."
-    if ! tar -czf "$local_archive" -C "$SCRIPT_DIR" bin/ lib/ etc/ 2>/dev/null; then
-        error "Failed to create framework archive"
-    fi
-    
-    # Upload archive using tar over SSH (OpenWRT compatible)
-    log_verbose "Uploading framework via tar over SSH..."
-    local ssh_base=$(build_ssh_command)
-    
-    if [ "$PASSWORD_SET" = "true" ]; then
-        if ! cat "$local_archive" | sshpass -p "$PASSWORD" $ssh_base "cat > /tmp/$archive_name"; then
-            rm -f "$local_archive"
-            error "Failed to upload framework archive via SSH"
-        fi
-    else
-        if ! cat "$local_archive" | $ssh_base "cat > /tmp/$archive_name"; then
-            rm -f "$local_archive"
-            error "Failed to upload framework archive via SSH"
-        fi
+    if ! create_and_upload_archive "bin/ lib/ etc/" "$archive_name" "/tmp" "$SCRIPT_DIR/.."; then
+        error_exit "Failed to upload framework archive"
     fi
     
     # Extract and setup on remote
@@ -324,13 +138,9 @@ function upload_framework() {
     
     for cmd in "${setup_commands[@]}"; do
         if ! execute_ssh_command "$cmd" >/dev/null; then
-            rm -f "$local_archive"
-            error "Failed to setup framework: $cmd"
+            error_exit "Failed to setup framework: $cmd"
         fi
     done
-    
-    # Cleanup local archive
-    rm -f "$local_archive"
     
     log_info "✅ Framework uploaded and configured"
 }
@@ -523,8 +333,8 @@ main() {
     # Initialize logging first
     init_logging
     
-    # Detect target type and connection details
-    detect_target_type
+    # Initialize SSH common with deployment parameters
+    ssh_common_init "$TARGET" "$PASSWORD" "$PASSWORD_SET" "$KEY_FILE" "$VERBOSE" "$LOG_FILE"
     
     # Check requirements
     check_requirements
@@ -534,7 +344,7 @@ main() {
     
     # Create backup
     local backup_name
-    backup_name=$(create_remote_backup)
+    backup_name=$(deploy_create_remote_backup)
     
     # Upload framework
     upload_framework

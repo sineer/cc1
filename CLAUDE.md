@@ -2,14 +2,14 @@
 
 ## Build Commands
 - `npm run build`: Build the project
-- `./run-tests.sh`: **Unified test runner** - Docker and remote testing with intelligent routing
-- `./run-tests.sh <target> <test>`: Run specific test on target (docker, IP, or profile)
-- `./run-tests.sh --password ""`: Remote device testing with empty password
-- `./run-tests.sh --key-file <path>`: Remote device testing with SSH key
-- `./run-tests.sh --dry-run --verbose`: Verbose dry run testing
-- `./run-tests.sh build`: Build Docker test image
-- `./run-tests.sh build --force`: Force rebuild Docker image
-- `./run-tests-direct.sh`: **Direct Docker runner** - Fast Docker execution (no MCP)
+- `./scripts/run-tests.sh`: **Unified test runner** - Docker and remote testing with intelligent routing
+- `./scripts/run-tests.sh <target> <test>`: Run specific test on target (docker, IP, or profile)
+- `./scripts/run-tests.sh --password ""`: Remote device testing with empty password
+- `./scripts/run-tests.sh --key-file <path>`: Remote device testing with SSH key
+- `./scripts/run-tests.sh --dry-run --verbose`: Verbose dry run testing
+- `./scripts/run-tests.sh build`: Build Docker test image
+- `./scripts/run-tests.sh build --force`: Force rebuild Docker image
+- `./scripts/run-tests-direct.sh`: **Direct Docker runner** - Fast Docker execution (no MCP)
 - `npm run lint`: Run ESLint and format checks
 - `npm run typecheck`: Run TypeScript type checking
 - `./claude-flow --help`: Show all available commands
@@ -17,7 +17,7 @@
 ## Testing Options
 
 ### Unified Test Runner (Primary)
-`./run-tests.sh` - Universal test runner with intelligent routing:
+`./scripts/run-tests.sh` - Universal test runner with intelligent routing:
 - ✅ **UNIFIED ARCHITECTURE** - Single interface for Docker and remote testing
 - ✅ **84% CODE REDUCTION** - Simplified from 2,468 to 400 lines  
 - ✅ Smart target detection (docker, IP address, or profile name)
@@ -29,7 +29,7 @@
 - ✅ Current status: 15/17 tests passing
 
 ### Direct Test Runner (Alternative)
-`./run-tests-direct.sh` - Direct Docker-based testing:
+`./scripts/run-tests-direct.sh` - Direct Docker-based testing:
 - ✅ Direct Docker execution (no MCP overhead)
 - ✅ Runs tests in authentic OpenWRT 23.05 Docker environment  
 - ✅ Handles service restart testing safely
@@ -48,7 +48,7 @@ mcp/
 ```
 
 ### Legacy Target Device Test Runner
-`./run-tests-target.sh` - Standalone target device testing (now integrated):
+`./scripts/run-tests-target.sh` - Standalone target device testing (now integrated):
 - ⚠️ **SUPERSEDED** - Functionality now integrated into unified runner
 - ✅ Available as fallback when using `--legacy` flag
 - ✅ SSH-based remote test execution with comprehensive safety measures
@@ -56,11 +56,11 @@ mcp/
 - ✅ Device profile system for different router types
 - ✅ Dry-run mode for safe validation
 - ✅ Supports test_production_deployment.lua and custom tests
-- 📌 **Use unified runner instead**: `./run-tests.sh <target> --password ""`
+- 📌 **Use unified runner instead**: `./scripts/run-tests.sh <target> --password ""`
 
 ### Target Device Structure
 ```
-run-tests-target.sh          # Shell script entry point
+scripts/run-tests-target.sh  # Shell script entry point
 mcp/
 ├── server/
 │   ├── target-runner.js     # Target device test orchestration
@@ -79,33 +79,33 @@ test/targets/
 ```
 
 **Unified test runner handles everything!** Use:
-- `./run-tests.sh` for Docker and remote testing (primary - unified interface)
-- `./run-tests-direct.sh` for direct Docker execution (alternative)
-- `./run-tests.sh --legacy` for legacy MCP implementation (fallback)
+- `./scripts/run-tests.sh` for Docker and remote testing (primary - unified interface)
+- `./scripts/run-tests-direct.sh` for direct Docker execution (alternative)
+- `./scripts/run-tests.sh --legacy` for legacy MCP implementation (fallback)
 
 ## Unified Test Runner Examples
 
 ### Docker Testing
 ```bash
-./run-tests.sh                                    # All Docker tests
-./run-tests.sh docker test_uci_config.lua       # Specific Docker test
-./run-tests.sh --rebuild                         # Force rebuild Docker image
-./run-tests.sh --dry-run --verbose               # Verbose dry run
+./scripts/run-tests.sh                                    # All Docker tests
+./scripts/run-tests.sh docker test_uci_config.lua       # Specific Docker test
+./scripts/run-tests.sh --rebuild                         # Force rebuild Docker image
+./scripts/run-tests.sh --dry-run --verbose               # Verbose dry run
 ```
 
 ### Remote Device Testing
 ```bash
-./run-tests.sh 192.168.11.2 --password ""       # Empty password auth
-./run-tests.sh gl test_production_deployment.lua # GL router profile
-./run-tests.sh openwrt --key-file ~/.ssh/id_rsa  # SSH key auth
-./run-tests.sh 10.0.0.1 --dry-run                # Safe validation
+./scripts/run-tests.sh 192.168.11.2 --password ""       # Empty password auth
+./scripts/run-tests.sh gl test_production_deployment.lua # GL router profile
+./scripts/run-tests.sh openwrt --key-file ~/.ssh/id_rsa  # SSH key auth
+./scripts/run-tests.sh 10.0.0.1 --dry-run                # Safe validation
 ```
 
 ### Legacy Commands
 ```bash
-./run-tests.sh build                             # Build Docker image
-./run-tests.sh build --force                     # Force rebuild
-./run-tests.sh --legacy                          # Use legacy implementation
+./scripts/run-tests.sh build                             # Build Docker image
+./scripts/run-tests.sh build --force                     # Force rebuild
+./scripts/run-tests.sh --legacy                          # Use legacy implementation
 ```
 
 ## 🚨 CRITICAL TESTING RULE 🚨
@@ -114,7 +114,7 @@ test/targets/
 🐳 Docker = ✅ Safe, isolated, authentic OpenWRT environment
 🖥️  Host   = ❌ Dangerous, pollutes system, breaks things
 
-ALWAYS use: ./run-tests.sh or ./run-tests-direct.sh
+ALWAYS use: ./scripts/run-tests.sh or ./scripts/run-tests-direct.sh
 NEVER use: lua, cd test && lua, manual execution on host
 ```
 **Remember: "When in doubt, Docker it out!" 🐳**
@@ -133,7 +133,7 @@ The Docker environment provides an authentic OpenWRT 23.05 sandbox that's:
 
 ## Test Runner Decision Matrix
 
-### When to Use Docker Testing (`./run-tests.sh`)
+### When to Use Docker Testing (`./scripts/run-tests.sh`)
 **PRIMARY CHOICE** for development, testing, and validation:
 
 ✅ **ALWAYS use Docker when:**
@@ -154,7 +154,7 @@ The Docker environment provides an authentic OpenWRT 23.05 sandbox that's:
 - "Run tests after making code changes"
 - "Validate the test refactoring"
 
-### When to Use Target Device Testing (`./run-tests-target.sh`)
+### When to Use Target Device Testing (`./scripts/run-tests-target.sh`)
 **PRODUCTION CHOICE** for real-world validation:
 
 🎯 **ONLY use Target Device when:**
@@ -196,36 +196,36 @@ Target device testing requires additional safety measures:
 **Docker Testing (Default Choice):**
 ```bash
 # Standard development testing
-./run-tests.sh
+./scripts/run-tests.sh
 
 # Test specific file
-./run-tests.sh test test_merge_engine.lua
+./scripts/run-tests.sh test test_merge_engine.lua
 
 # Rebuild and test
-./run-tests.sh build --force
+./scripts/run-tests.sh build --force
 ```
 
 **Target Device Testing (When Explicitly Requested):**
 ```bash
 # Test on GL router
-./run-tests-target.sh gl
+./scripts/run-tests-target.sh gl
 
 # Test specific device with verbose output
-./run-tests-target.sh 192.168.1.1 test_production_deployment.lua --verbose
+./scripts/run-tests-target.sh 192.168.1.1 test_production_deployment.lua --verbose
 
 # Validate device without running tests
-./run-tests-target.sh openwrt --validate
+./scripts/run-tests-target.sh openwrt --validate
 
 # List available device profiles
-./run-tests-target.sh --list
+./scripts/run-tests-target.sh --list
 
 # Dry run to see what would be executed
-./run-tests-target.sh gl --dry-run
+./scripts/run-tests-target.sh gl --dry-run
 ```
 
 ### Decision Flow for Claude
 
-1. **Default**: Use `./run-tests.sh` (Docker) unless specifically asked otherwise
+1. **Default**: Use `./scripts/run-tests.sh` (Docker) unless specifically asked otherwise
 2. **Check for keywords**: Look for device names, IP addresses, "production", "real device", "hardware"
 3. **Confirm safety**: For target testing, ensure user understands risks and has recovery options
 4. **Start conservative**: When in doubt, use Docker testing first
@@ -498,7 +498,7 @@ Task("Backend Team", "Implement APIs according to Memory specifications");
 
 ## Workflow Guidelines
 - Always run typecheck after making code changes
-- Run tests before committing changes using MCP: `./run-tests.sh`
+- Run tests before committing changes using MCP: `./scripts/run-tests.sh`
 - Use meaningful commit messages
 - Create feature branches for new functionality
 - Ensure all tests pass before merging
@@ -512,7 +512,7 @@ Task("Backend Team", "Implement APIs according to Memory specifications");
 - **All swarm operations include automatic batch tool coordination**
 - **Monitor progress** with TodoRead during long-running operations
 - **Enable parallel execution** with --parallel flags for maximum efficiency
-- **Always use MCP test runner** (`./run-tests.sh`) for running tests in this project
+- **Always use MCP test runner** (`./scripts/run-tests.sh`) for running tests in this project
 - **Node.js MCP implementation** provides better stability than Python version
 
 This configuration ensures optimal use of Claude Code's batch tools for swarm orchestration and parallel task execution with full Claude-Flow capabilities.
