@@ -2,10 +2,6 @@
 
 A production-ready UCI configuration management tool for OpenWRT 23.05+ with intelligent merging, service management, and safety features.
 
-*Test modification for ediff emacs extension window testing*
-
-> **Developer Joke**: Why do programmers prefer dark mode? Because light attracts bugs! 🐛💡
-
 ## Features
 
 - **Safe Configuration Merging** - Merge UCI configs with network connectivity preservation
@@ -21,7 +17,7 @@ A production-ready UCI configuration management tool for OpenWRT 23.05+ with int
 opkg update && opkg install lua luafilesystem libuci-lua
 
 # Clone and setup
-git clone https://github.com/your-org/uci-config-tool.git
+git clone https://github.com/sineer/uci-config-tool.git
 cd uci-config-tool
 chmod +x bin/uci-config
 

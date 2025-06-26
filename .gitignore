@@ -6,6 +6,9 @@
 /tmp/uci-config-backups/
 backups/
 
+# NPM
+node_modules/
+
 # Log files
 logs/*.log
 
