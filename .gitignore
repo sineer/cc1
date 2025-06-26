@@ -40,3 +40,4 @@ coverage/
 deployment-*.txt
 deploy-*.log
 CLAUDE.local.md
+settings.local.json

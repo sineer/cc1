@@ -1,7 +1,0 @@
-
-config interface 'captive'
-        option proto 'static'
-        option device 'eth2'
-        option ipaddr '10.0.0.1'
-        option netmask '255.255.252.0'
-        list dns '10.0.0.1'
