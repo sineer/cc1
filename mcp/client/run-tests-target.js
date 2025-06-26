@@ -46,7 +46,7 @@ TARGET FORMATS:
   gl                          Use predefined GL-iNet profile
   openwrt                     Use generic OpenWRT profile  
   192.168.1.1                 Direct IP connection
-  custom                      Use custom profile (targets/custom.json)
+  custom                      Use custom profile (test/targets/custom.json)
 
 OPTIONS:
   --verbose, -v               Enable verbose output
@@ -82,7 +82,7 @@ REQUIREMENTS:
   - Network connectivity to device
   - Proper device profile configuration
 
-For more information, see targets/README.md
+For more information, see test/targets/README.md
 `);
   }
 

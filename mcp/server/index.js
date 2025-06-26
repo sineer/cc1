@@ -558,7 +558,7 @@ Dockerfile: ${path.join(REPO_ROOT, 'Dockerfile')}`;
 
   async listTargetProfiles(args) {
     try {
-      const targetsDir = path.join(REPO_ROOT, 'targets');
+      const targetsDir = path.join(REPO_ROOT, 'test/targets');
       const files = await fs.readdir(targetsDir);
       const profileFiles = files.filter(file => file.endsWith('.json'));
 
@@ -567,7 +567,7 @@ Dockerfile: ${path.join(REPO_ROOT, 'Dockerfile')}`;
           content: [
             {
               type: 'text',
-              text: 'No target profiles found in targets/ directory',
+              text: 'No target profiles found in test/targets/ directory',
             },
           ],
         };

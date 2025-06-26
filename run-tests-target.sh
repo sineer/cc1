@@ -84,7 +84,7 @@ TARGET PROFILES:
     - openwrt     Generic OpenWRT devices
     - mikrotik    MikroTik RouterOS devices  
     - <ip>        Direct IP address connection
-    - custom      Load from targets/custom.json
+    - custom      Load from test/targets/custom.json
 
 For more information, see: https://docs.anthropic.com/claude-code/testing
 EOF
@@ -108,7 +108,7 @@ validate_target() {
     fi
     
     # Check if target profile exists
-    local profile_file="$SCRIPT_DIR/targets/${target}.json"
+    local profile_file="$SCRIPT_DIR/test/targets/${target}.json"
     if [[ -f "$profile_file" ]]; then
         print_status "Using target profile: $target"
         TARGET_PROFILE="$target"

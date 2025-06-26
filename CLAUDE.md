@@ -70,7 +70,7 @@ mcp/
 │       └── backup-manager.js    # Configuration backup/restore
 ├── client/
 │   └── run-tests-target.js  # MCP client for target testing
-targets/
+test/targets/
 ├── gl.json                  # GL-iNet router profile
 ├── openwrt.json            # Generic OpenWRT device profile
 ├── default.json            # Conservative defaults

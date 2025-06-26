@@ -113,7 +113,7 @@
           "Regression testing suite for CI/CD"
         ],
         "testing_framework": {
-          "unit_testing": "Lua busted framework for unit tests",
+          "unit_testing": "LuaUnit  framework for unit tests",
           "mocking": "Mock UCI cursor operations for isolated testing",
           "fixtures": "Sample UCI configurations for testing",
           "coverage": "Code coverage reporting and analysis"
@@ -625,16 +625,6 @@
             "Results are output with detailed error locations"
           ]
         }
-      },
-      "tdd_structure": {
-        "test_framework": "busted",
-        "mock_strategy": "Dependency injection with test doubles",
-        "test_patterns": {
-          "unit_test_template": "-- test/unit/domain/config_validator_test.lua\ndescribe(\"ConfigValidator\", function()\n    local validator\n    local mock_logger\n    \n    before_each(function()\n        mock_logger = mock(require(\"uci-config.core.logger\"))\n        validator = require(\"uci-config.domain.config_validator\"):new(mock_logger)\n    end)\n    \n    describe(\"#validate\", function()\n        it(\"should validate correct network config\", function()\n            local config = {network = {lan = {proto = \"static\"}}}\n            local schema = require(\"schemas.network\")\n            \n            local valid, errors = validator:validate(config, schema)\n            \n            assert.is_true(valid)\n            assert.is_nil(errors)\n        end)\n    end)\nend)",
-          "integration_test_template": "-- test/integration/uci_integration_test.lua\ndescribe(\"UCI Integration\", function()\n    local test_cursor\n    local test_config = \"test_network\"\n    \n    before_each(function()\n        test_cursor = require(\"uci-config.core.uci_cursor\"):new(\"/tmp/test_uci\")\n        -- Setup test environment\n    end)\n    \n    after_each(function()\n        -- Cleanup test files\n    end)\nend)"
-        },
-        "coverage_target": "90%",
-        "ci_integration": "GitHub Actions with OpenWRT SDK"
       },
       "error_handling": {
         "strategy": "Centralized error handling with error codes and context",
@@ -1510,144 +1500,6 @@
             "template": "-- UCI Config Plugin Template\nlocal plugin = {}\n\n-- Plugin metadata\nplugin.info = {\n    name = 'example-plugin',\n    version = '1.0.0',\n    description = 'Example plugin for UCI Config',\n    author = 'Plugin Author',\n    license = 'MIT'\n}\n\n-- Initialize plugin\nfunction plugin.init(config)\n    -- Plugin initialization code\n    return true\nend\n\n-- Get plugin information\nfunction plugin.get_info()\n    return plugin.info\nend\n\n-- Cleanup plugin resources\nfunction plugin.cleanup()\n    -- Cleanup code\nend\n\n-- Optional: Pre-merge hook\nfunction plugin.pre_merge(source, target, options)\n    -- Code to run before merge\n    return true\nend\n\n-- Optional: Post-merge hook\nfunction plugin.post_merge(result, options)\n    -- Code to run after merge\nend\n\nreturn plugin",
             "api_reference": "/usr/share/doc/uci-config/plugin-api.html",
             "examples": "/usr/share/uci-config/plugin-examples/"
-          }
-        },
-        "integration_patterns": {
-          "openwrt_integration": {
-            "uci_compatibility": {
-              "description": "Full compatibility with standard UCI commands",
-              "commands": {
-                "uci show": "uci-config list --values",
-                "uci get": "uci-config get",
-                "uci set": "uci-config set",
-                "uci delete": "uci-config delete",
-                "uci commit": "uci-config commit",
-                "uci revert": "uci-config revert"
-              }
-            },
-            "service_integration": {
-              "description": "Integration with OpenWRT service management",
-              "features": [
-                "Automatic service dependency detection",
-                "Smart service restart ordering",
-                "Configuration reload without restart where possible"
-              ],
-              "hooks": {
-                "pre_commit": "Run before committing changes",
-                "post_commit": "Run after committing changes",
-                "pre_restart": "Run before restarting services",
-                "post_restart": "Run after restarting services"
-              }
-            },
-            "procd_integration": {
-              "description": "Integration with procd process manager",
-              "features": [
-                "Service status monitoring",
-                "Configuration change triggers",
-                "Resource monitoring"
-              ]
-            }
-          },
-          "build_system_integration": {
-            "openwrt_buildroot": {
-              "description": "Integration with OpenWRT build system",
-              "features": [
-                "Build-time configuration validation",
-                "Custom configuration packages",
-                "Default configuration templates"
-              ]
-            },
-            "image_builder": {
-              "description": "Integration with OpenWRT Image Builder",
-              "features": [
-                "Pre-built configuration inclusion",
-                "Configuration template system",
-                "Automated image customization"
-              ]
-            }
-          },
-          "external_tool_integration": {
-            "ansible": {
-              "description": "Ansible module for UCI Config management",
-              "module_name": "uci_config",
-              "parameters": [
-                "action (merge|backup|restore|validate)",
-                "config (configuration data)",
-                "options (tool options)"
-              ]
-            },
-            "puppet": {
-              "description": "Puppet provider for UCI Config",
-              "type": "uci_config",
-              "providers": [
-                "uci_config"
-              ]
-            },
-            "terraform": {
-              "description": "Terraform provider for OpenWRT UCI",
-              "resources": [
-                "uci_config_section",
-                "uci_config_option",
-                "uci_config_backup"
-              ]
-            }
-          },
-          "monitoring_integration": {
-            "prometheus": {
-              "description": "Prometheus metrics exporter",
-              "metrics": [
-                "uci_config_changes_total",
-                "uci_config_validation_errors_total",
-                "uci_config_backup_age_seconds",
-                "uci_config_operation_duration_seconds"
-              ]
-            },
-            "collectd": {
-              "description": "Collectd plugin for configuration monitoring",
-              "metrics": [
-                "Configuration change rate",
-                "Validation error count",
-                "Backup success rate"
-              ]
-            }
-          }
-        },
-        "testing_framework": {
-          "unit_tests": {
-            "test_framework": "Lua unit testing framework",
-            "test_categories": [
-              "Configuration parsing",
-              "Merge operations",
-              "Validation logic",
-              "Backup/restore functionality",
-              "API interface testing"
-            ],
-            "mock_objects": [
-              "Mock UCI context",
-              "Mock file system",
-              "Mock service manager"
-            ]
-          },
-          "integration_tests": {
-            "test_environments": [
-              "OpenWRT QEMU instances",
-              "Docker containers",
-              "Physical hardware"
-            ],
-            "test_scenarios": [
-              "Multi-device configuration sync",
-              "Service restart verification",
-              "Rollback scenarios",
-              "Plugin interaction"
-            ]
-          },
-          "performance_tests": {
-            "benchmarks": [
-              "Large configuration merge performance",
-              "Backup/restore speed",
-              "Memory usage under load",
-              "Concurrent operation handling"
-            ]
           }
         },
         "documentation_structure": {

@@ -373,7 +373,7 @@ class UnifiedTestServer {
 
     // Try to load profile JSON
     try {
-      const profilePath = path.join(REPO_ROOT, 'targets', `${target}.json`);
+      const profilePath = path.join(REPO_ROOT, 'test/targets', `${target}.json`);
       const profileData = await fs.readFile(profilePath, 'utf8');
       return JSON.parse(profileData);
     } catch (error) {

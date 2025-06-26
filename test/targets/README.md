@@ -19,7 +19,7 @@ This directory contains JSON configuration profiles for different types of targe
 ./run-tests-target.sh 192.168.1.1
 
 # Use custom profile
-./run-tests-target.sh custom  # loads targets/custom.json
+./run-tests-target.sh custom  # loads test/targets/custom.json
 ```
 
 ## Profile Structure
@@ -70,7 +70,7 @@ Each profile contains the following sections:
 
 1. Copy an existing profile as a starting point:
    ```bash
-   cp targets/openwrt.json targets/mydevice.json
+   cp test/targets/openwrt.json test/targets/mydevice.json
    ```
 
 2. Edit the connection settings for your device:
