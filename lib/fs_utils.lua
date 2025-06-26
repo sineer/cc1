@@ -154,14 +154,8 @@ end
 function FSUtils.safe_execute(command, timeout_seconds)
     timeout_seconds = timeout_seconds or 60
     
-    -- Check if timeout command is available
-    local timeout_available = os.execute("which timeout >/dev/null 2>&1") == 0
+    -- On OpenWRT, skip timeout wrapper for better compatibility
     local final_command = command
-    
-    if timeout_available then
-        -- Add timeout wrapper if available
-        final_command = string.format("timeout %d %s", timeout_seconds, command)
-    end
     
     -- Execute command and capture output
     local handle = io.popen(final_command .. " 2>&1")
@@ -172,13 +166,11 @@ function FSUtils.safe_execute(command, timeout_seconds)
     local output = handle:read("*a") or ""
     local success, exit_type, exit_code = handle:close()
     
-    -- Check results
-    if exit_type == "exit" and exit_code == 0 then
+    -- Check results - be more lenient with exit code handling for OpenWRT
+    if success or (exit_type == "exit" and exit_code == 0) then
         return true, output:gsub("%s+$", "")  -- trim trailing whitespace
-    elseif timeout_available and exit_type == "exit" and exit_code == 124 then
-        return false, "Command timed out after " .. timeout_seconds .. " seconds"
     else
-        return false, "Command failed (exit code " .. (exit_code or "unknown") .. "): " .. output
+        return false, "Command failed (exit code " .. (exit_code or "unknown") .. "): " .. output:gsub("%s+$", "")
     end
 end
 

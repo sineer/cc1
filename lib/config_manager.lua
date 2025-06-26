@@ -232,9 +232,13 @@ function ConfigManager:validate_config_files(config_names, source_dir)
         
         if not success then
             overall_success = false
-            self.logger:error("Validation failed for " .. config_name .. ": " .. message)
+            if self.logger and type(self.logger.error) == "function" then
+                self.logger:error("Validation failed for " .. config_name .. ": " .. message)
+            end
         else
-            self.logger:verbose("Validation passed for " .. config_name)
+            if self.logger and type(self.logger.verbose) == "function" then
+                self.logger:verbose("Validation passed for " .. config_name)
+            end
         end
     end
     

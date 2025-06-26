@@ -388,31 +388,49 @@ function execute_uci_command() {
     
     log_verbose "Remote command: $remote_cmd"
     
-    # Execute command and capture output
+    # Execute command and capture output (no auto-logging to avoid duplication)
     local command_output
     local exit_code
+    local ssh_base=$(build_ssh_command)
     
     log_info "Executing command on remote device..."
-    if command_output=$(execute_ssh_command "$remote_cmd"); then
-        exit_code=0
+    
+    # Execute without using execute_ssh_command to avoid duplicate logging
+    if [ "$PASSWORD_SET" = "true" ]; then
+        if command_output=$(sshpass -p "$PASSWORD" $ssh_base "$remote_cmd" 2>&1); then
+            exit_code=0
+        else
+            exit_code=$?
+        fi
+    else
+        if command_output=$($ssh_base "$remote_cmd" 2>&1); then
+            exit_code=0
+        else
+            exit_code=$?
+        fi
+    fi
+    
+    # Log the command execution once, cleanly
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] UCI_COMMAND: $COMMAND ${UCI_ARGS[*]}" >> "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] UCI_OUTPUT_START" >> "$LOG_FILE"
+    echo "$command_output" >> "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] UCI_OUTPUT_END" >> "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] UCI_EXIT_CODE: $exit_code" >> "$LOG_FILE"
+    
+    # Display results
+    if [ $exit_code -eq 0 ]; then
         log_info "✅ UCI command completed successfully"
     else
-        exit_code=$?
         log_error "UCI command failed (exit code: $exit_code)"
     fi
     
-    # Display command output
+    # Display command output to user
     if [ -n "$command_output" ]; then
         echo ""
         echo "=== UCI Command Output ==="
         echo "$command_output"
         echo "=========================="
         echo ""
-        
-        # Also log the output
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] UCI_OUTPUT_START" >> "$LOG_FILE"
-        echo "$command_output" >> "$LOG_FILE"
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] UCI_OUTPUT_END" >> "$LOG_FILE"
     fi
     
     return $exit_code
