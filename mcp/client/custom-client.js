@@ -156,6 +156,8 @@ async function testCustomClient() {
   }
 }
 
+export { CustomMCPClient };
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   testCustomClient();
 }
