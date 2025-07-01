@@ -7,6 +7,9 @@ set -e
 
 QEMU_HOST="192.168.11.2"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_ENABLED=true
+TARGET_CONFIG="default"
+DEPLOYMENT_MODE="safe-merge"
 
 # Colors
 GREEN='\033[0;32m'
@@ -24,6 +27,53 @@ function log_success() {
 
 function log_step() {
     echo -e "${YELLOW}[STEP]${NC} $1"
+}
+
+function show_help() {
+    echo "🔧 QEMU ubispot Configuration Demo"
+    echo "=================================="
+    echo ""
+    echo "Demonstrates full UCI config deployment workflow with orchestration tracking"
+    echo ""
+    echo "Usage:"
+    echo "  $0 [options]"
+    echo ""
+    echo "Options:"
+    echo "  --no-deploy              Skip deployment, only take snapshots and show existing diffs"
+    echo "  --target <config>        Deployment target configuration (default: default)"
+    echo "  --mode <mode>           Deployment mode (default: safe-merge)"
+    echo "  --host <ip>             QEMU host IP address (default: 192.168.11.2)"
+    echo "  --help, -h              Show this help message"
+    echo ""
+    echo "Deployment Modes:"
+    echo "  safe-merge              Safe merge with default safety options (recommended)"
+    echo "  merge                   Standard merge operation"
+    echo "  validate                Validate configurations only"
+    echo ""
+    echo "Target Configurations:"
+    echo "  default                 Default ubispot configuration"
+    echo "  gl-mt3000               GL-iNet MT3000 specific configuration"
+    echo "  qemu-armv8              QEMU ARM64 specific configuration"
+    echo ""
+    echo "Examples:"
+    echo "  $0                                    # Full demo with deployment"
+    echo "  $0 --no-deploy                       # Snapshot and diff analysis only"
+    echo "  $0 --target gl-mt3000                # Deploy GL-iNet specific config"
+    echo "  $0 --mode validate --no-deploy       # Validation workflow only"
+    echo "  $0 --host 192.168.1.100             # Different QEMU host"
+    echo ""
+    echo "Workflow (with deployment enabled):"
+    echo "  1. Take pre-deployment snapshot"
+    echo "  2. Deploy ubispot configuration using scripts/run-deploy.sh"
+    echo "  3. Capture post-deployment snapshot"
+    echo "  4. Generate intelligent configuration diff"
+    echo "  5. Update interactive dashboard with timeline"
+    echo ""
+    echo "Workflow (with --no-deploy):"
+    echo "  1. Take current configuration snapshot"
+    echo "  2. Analyze existing configuration changes"
+    echo "  3. Generate dashboard with current state"
+    echo ""
 }
 
 function check_qemu_connection() {
@@ -56,17 +106,22 @@ function show_current_ubispot_config() {
 }
 
 function deploy_ubispot_config() {
-    log_step "Deploying ubispot configuration using uci-config tool"
+    if [ "$DEPLOY_ENABLED" = "false" ]; then
+        log_info "Deployment skipped (--no-deploy specified)"
+        return 0
+    fi
     
-    # Use the uci-config tool to deploy default ubispot configuration
-    log_info "Running: bin/uci-config --target default --no-confirm ${QEMU_HOST}"
+    log_step "Deploying ubispot configuration using UCI deployment framework"
     
-    # Run the uci-config deployment
-    if [ -f "bin/uci-config" ]; then
-        ./bin/uci-config --target default --no-confirm ${QEMU_HOST}
+    # Use the production deployment script
+    log_info "Running: ./scripts/run-deploy.sh ${QEMU_HOST} ${DEPLOYMENT_MODE} --target ${TARGET_CONFIG} --no-confirm --password \"\""
+    
+    # Run the deployment using the production script
+    if [ -f "scripts/run-deploy.sh" ]; then
+        ./scripts/run-deploy.sh ${QEMU_HOST} ${DEPLOYMENT_MODE} --target ${TARGET_CONFIG} --no-confirm --password ""
         deployment_result=$?
     else
-        echo "❌ Error: bin/uci-config tool not found"
+        echo "❌ Error: scripts/run-deploy.sh not found"
         exit 1
     fi
     
@@ -113,11 +168,27 @@ function main() {
     echo "🔧 QEMU ubispot Configuration Demo"
     echo "=================================="
     echo ""
-    echo "This demo will:"
-    echo "1. Take a baseline snapshot of your QEMU VM"
-    echo "2. Deploy ubispot configuration using bin/uci-config --target default --no-confirm"
-    echo "3. Capture post-deployment snapshot"
-    echo "4. Show intelligent diff view in the orchestration dashboard"
+    if [ "$DEPLOY_ENABLED" = "true" ]; then
+        echo "Deployment Mode: ENABLED"
+        echo "This demo will:"
+        echo "1. Take a pre-deployment snapshot of your QEMU VM"
+        echo "2. Deploy ubispot configuration using scripts/run-deploy.sh"
+        echo "3. Capture post-deployment snapshot"
+        echo "4. Show intelligent diff view in the orchestration dashboard"
+        echo ""
+        echo "Configuration:"
+        echo "  Target: ${TARGET_CONFIG}"
+        echo "  Mode: ${DEPLOYMENT_MODE}"
+        echo "  Host: ${QEMU_HOST}"
+    else
+        echo "Analysis Mode: DEPLOYMENT DISABLED"
+        echo "This demo will:"
+        echo "1. Take a current configuration snapshot"
+        echo "2. Analyze existing configuration state"
+        echo "3. Generate dashboard with current timeline"
+        echo ""
+        echo "Note: Use without --no-deploy to include deployment workflow"
+    fi
     echo ""
     
     log_info "Starting demo in 3 seconds..."
@@ -129,21 +200,27 @@ function main() {
     # Step 2: Show current config
     show_current_ubispot_config
     
-    # Step 3: Take pre-deployment snapshot
-    take_snapshot "pre-ubispot-deployment"
+    # Step 3: Take snapshot (different label based on mode)
+    if [ "$DEPLOY_ENABLED" = "true" ]; then
+        take_snapshot "pre-deployment-${TARGET_CONFIG}"
+    else
+        take_snapshot "analysis-$(date +%H%M%S)"
+    fi
     
-    # Step 4: Deploy ubispot configuration
+    # Step 4: Deploy configuration (if enabled)
     deploy_ubispot_config
     
-    # Step 5: Show updated config
-    log_info "Updated ubispot configuration:"
-    show_current_ubispot_config
-    
-    # Step 6: Take post-deployment snapshot
-    take_snapshot "post-ubispot-deployment"
-    
-    # Step 7: Compare snapshots
-    compare_snapshots
+    if [ "$DEPLOY_ENABLED" = "true" ]; then
+        # Step 5: Show updated config
+        log_info "Updated ubispot configuration:"
+        show_current_ubispot_config
+        
+        # Step 6: Take post-deployment snapshot
+        take_snapshot "post-deployment-${TARGET_CONFIG}"
+        
+        # Step 7: Compare snapshots
+        compare_snapshots
+    fi
     
     # Step 8: Show dashboard
     show_diff_dashboard
@@ -151,14 +228,59 @@ function main() {
     echo ""
     log_success "Demo completed successfully! 🎉"
     echo ""
-    echo "🔍 Next steps:"
-    echo "   1. Open the dashboard URL above"
-    echo "   2. Click on the latest snapshot's 'Compare with Previous' button"
-    echo "   3. Explore the detailed UCI configuration changes"
-    echo "   4. See how ubispot captive portal was configured"
+    if [ "$DEPLOY_ENABLED" = "true" ]; then
+        echo "🔍 Deployment Analysis:"
+        echo "   1. Open the dashboard URL above"
+        echo "   2. Click on the latest snapshot's 'Compare with Previous' button"
+        echo "   3. Explore the detailed UCI configuration changes"
+        echo "   4. See how ${TARGET_CONFIG} configuration was deployed"
+    else
+        echo "🔍 Configuration Analysis:"
+        echo "   1. Open the dashboard URL above"
+        echo "   2. Review the current configuration state"
+        echo "   3. Run again without --no-deploy to see deployment workflow"
+    fi
     echo ""
     echo "🤠 Happy orchestrating!"
 }
 
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --no-deploy)
+            DEPLOY_ENABLED=false
+            shift
+            ;;
+        --target)
+            TARGET_CONFIG="$2"
+            shift 2
+            ;;
+        --mode)
+            DEPLOYMENT_MODE="$2"
+            shift 2
+            ;;
+        --host)
+            QEMU_HOST="$2"
+            shift 2
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "❌ Error: Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Validate arguments
+if [ "$DEPLOYMENT_MODE" != "safe-merge" ] && [ "$DEPLOYMENT_MODE" != "merge" ] && [ "$DEPLOYMENT_MODE" != "validate" ]; then
+    echo "❌ Error: Invalid deployment mode: $DEPLOYMENT_MODE"
+    echo "Valid modes: safe-merge, merge, validate"
+    exit 1
+fi
+
 # Run the demo
-main "$@"
+main
