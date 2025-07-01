@@ -1,0 +1,110 @@
+{
+  "name": "QEMU OpenWRT VM",
+  "description": "OpenWRT running in QEMU virtual machine for development and testing",
+  "device_type": "qemu-vm",
+  "connection": {
+    "method": "ssh",
+    "host": "192.168.1.100",
+    "port": 22,
+    "username": "root",
+    "key_file": "~/.ssh/id_rsa",
+    "timeout": 30,
+    "keepalive": true
+  },
+  "system": {
+    "architecture": "x86_64",
+    "openwrt_version": "23.05",
+    "memory_mb": 512,
+    "storage_mb": 1024,
+    "cpu_cores": 2,
+    "virtualization": "qemu"
+  },
+  "network": {
+    "management_interface": "eth0",
+    "management_ip": "192.168.1.100",
+    "management_subnet": "192.168.1.0/24",
+    "preserve_interfaces": ["eth0", "br-lan"],
+    "critical_services": ["dropbear", "uhttpd"]
+  },
+  "safety": {
+    "backup_location": "/tmp/uci-backup",
+    "max_test_duration": 300,
+    "connectivity_check_interval": 30,
+    "auto_rollback_enabled": true,
+    "preserve_network": true,
+    "require_confirmation": false
+  },
+  "test_config": {
+    "allowed_tests": [
+      "test_production_deployment.lua",
+      "test_advanced_integration.lua",
+      "test_merge_engine.lua"
+    ],
+    "skip_tests": [],
+    "test_timeout": 600,
+    "dry_run_first": false
+  },
+  "device_specific": {
+    "vendor": "QEMU",
+    "model": "virtual-machine",
+    "firmware_variant": "openwrt",
+    "luci_available": true,
+    "uci_tools": "standard",
+    "vm_features": {
+      "snapshot_support": true,
+      "clone_support": true,
+      "reset_support": true
+    }
+  },
+  "recovery": {
+    "reset_button_available": false,
+    "recovery_mode": "vm-reset",
+    "tftp_recovery": false,
+    "recovery_ip": "192.168.1.100",
+    "emergency_contact": "VM console access available"
+  },
+  "orchestration": {
+    "environment": "dev",
+    "role": "secondary",
+    "deployment_order": 2,
+    "canary_device": false,
+    "auto_snapshot": true,
+    "snapshot_schedule": "before_deploy",
+    "config_templates": {
+      "base": "qemu-armv8",
+      "environment_overrides": {
+        "dev": "qemu-armv8-dev",
+        "test": "qemu-armv8-test",
+        "prod": "qemu-armv8"
+      }
+    }
+  },
+  "workflows": {
+    "uspot-setup": {
+      "enabled": true,
+      "config_files": ["network", "firewall", "dhcp", "ubispot", "uhttpd"],
+      "validation_tests": ["connectivity", "uspot_service", "web_interface"],
+      "rollback_on_failure": true,
+      "vm_specific": {
+        "pre_deploy_snapshot": true,
+        "post_deploy_snapshot": true
+      }
+    },
+    "openwisp-agent": {
+      "enabled": false,
+      "planned": true,
+      "config_files": ["system", "openwisp"],
+      "validation_tests": ["agent_connection", "registration"],
+      "vm_specific": {
+        "test_in_isolation": true
+      }
+    },
+    "development": {
+      "enabled": true,
+      "frequent_snapshots": true,
+      "snapshot_interval": "hourly",
+      "auto_cleanup": true,
+      "max_snapshots": 24
+    }
+  }
+}

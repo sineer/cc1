@@ -55,5 +55,35 @@
     "tftp_recovery": true,
     "recovery_ip": "192.168.1.1",
     "emergency_contact": "Physical access required"
+  },
+  "orchestration": {
+    "environment": "prod",
+    "role": "primary",
+    "deployment_order": 1,
+    "canary_device": true,
+    "auto_snapshot": true,
+    "snapshot_schedule": "before_deploy",
+    "config_templates": {
+      "base": "gl-mt3000",
+      "environment_overrides": {
+        "dev": "gl-mt3000-dev",
+        "test": "gl-mt3000-test", 
+        "prod": "gl-mt3000"
+      }
+    }
+  },
+  "workflows": {
+    "uspot-setup": {
+      "enabled": true,
+      "config_files": ["network", "firewall", "dhcp", "ubispot", "uhttpd"],
+      "validation_tests": ["connectivity", "uspot_service", "web_interface"],
+      "rollback_on_failure": true
+    },
+    "openwisp-agent": {
+      "enabled": false,
+      "planned": true,
+      "config_files": ["system", "openwisp"],
+      "validation_tests": ["agent_connection", "registration"]
+    }
   }
 }
