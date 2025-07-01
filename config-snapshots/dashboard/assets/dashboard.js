@@ -30,7 +30,7 @@ function compareTo(snapshotId1, snapshotId2) {
     const beforeName = extractLabelFromId(snapshotId2);  // baseline-cowboy-demo
     
     const diffFileName = `${deviceName}-${beforeName}-${afterName}.html`;
-    const diffUrl = `diffs/${encodeURIComponent(diffFileName)}`;
+    const diffUrl = `diffs/${diffFileName}`;
     
     console.log('Opening diff file:', diffFileName);
     

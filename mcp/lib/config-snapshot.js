@@ -349,7 +349,7 @@ export class ConfigSnapshotEngine {
     
     sshCommand += ` ${connection.username}@${connection.host} "${command}"`;
     
-    this.log(`Executing: ${sshCommand.replace(command, '[COMMAND]')}`);
+    this.log(`Executing: ${sshCommand}`);
     
     try {
       const result = await execAsync(sshCommand);
