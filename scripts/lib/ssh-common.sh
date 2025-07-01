@@ -272,12 +272,13 @@ function check_node_requirements() {
         error_exit "Node.js is required for test runner. Please install Node.js."
     fi
     
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local project_root="$(cd "$script_dir/../../" && pwd)"
     
     # Check if MCP dependencies are installed
-    if [ ! -d "$script_dir/../mcp/node_modules" ]; then
+    if [ ! -d "$project_root/mcp/node_modules" ]; then
         log_info "Installing MCP dependencies..."
-        cd "$script_dir/../mcp"
+        cd "$project_root/mcp"
         npm install
         cd - > /dev/null
     fi

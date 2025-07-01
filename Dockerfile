@@ -20,4 +20,4 @@ COPY test/etc ./test/etc
 RUN chmod +x /app/bin/uci-config
 
 # Set default command to run all tests
-CMD ["sh", "-c", "echo '=== UCI CONFIG TESTS ===' && lua test/test_uci_config.lua && echo '=== MERGE ENGINE TESTS ===' && lua test/test_merge_engine.lua && echo '=== ADVANCED INTEGRATION TESTS ===' && lua test/test_advanced_integration.lua && echo '=== PRODUCTION DEPLOYMENT TESTS ===' && lua test/test_production_deployment.lua"]
+CMD ["sh", "-c", "echo '=== UCI CONFIG TESTS ===' && lua test/test_uci_config.lua && echo '=== MERGE ENGINE TESTS ===' && lua test/test_merge_engine.lua && echo '=== ADVANCED INTEGRATION TESTS ===' && lua test/test_advanced_integration.lua && echo '=== PRODUCTION DEPLOYMENT TESTS ===' && lua test/test_production_deployment.lua && echo '=== LOGGER TESTS ===' && lua test/test_logger.lua && echo '=== PREFIX DEPLOYMENT TESTS ===' && lua test/test_prefix_deployment.lua"]
