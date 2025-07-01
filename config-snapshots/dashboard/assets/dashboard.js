@@ -25,12 +25,14 @@ function compareTo(snapshotId1, snapshotId2) {
     // Generate diff file name from snapshot IDs
     const deviceName = 'QEMU OpenWRT VM';
     
-    // Extract meaningful names from snapshot IDs for filename
-    const beforeName = extractLabelFromId(snapshotId1);
-    const afterName = extractLabelFromId(snapshotId2);
+    // Note: snapshotId1 is actually the "after" snapshot, snapshotId2 is the "before"
+    const afterName = extractLabelFromId(snapshotId1);   // after-changes
+    const beforeName = extractLabelFromId(snapshotId2);  // baseline-cowboy-demo
     
     const diffFileName = `${deviceName}-${beforeName}-${afterName}.html`;
     const diffUrl = `diffs/${encodeURIComponent(diffFileName)}`;
+    
+    console.log('Opening diff file:', diffFileName);
     
     // Try to open the diff file
     const newWindow = window.open(diffUrl, '_blank');
