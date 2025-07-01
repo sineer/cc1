@@ -1,7 +1,6 @@
 # Claude Code Configuration
 
-## Build Commands
-- `npm run build`: Build the project
+## ubi-config Test Commands
 - `./scripts/run-tests.sh`: **Unified test runner** - Docker and remote testing with intelligent routing
 - `./scripts/run-tests.sh <target> <test>`: Run specific test on target (docker, IP, or profile)
 - `./scripts/run-tests.sh --password ""`: Remote device testing with empty password
@@ -10,9 +9,6 @@
 - `./scripts/run-tests.sh build`: Build Docker test image
 - `./scripts/run-tests.sh build --force`: Force rebuild Docker image
 - `./scripts/run-tests-direct.sh`: **Direct Docker runner** - Fast Docker execution (no MCP)
-- `npm run lint`: Run ESLint and format checks
-- `npm run typecheck`: Run TypeScript type checking
-- `./claude-flow --help`: Show all available commands
 
 ## Testing Options
 
@@ -71,10 +67,9 @@ mcp/
 ├── client/
 │   └── run-tests-target.js  # MCP client for target testing
 test/targets/
-├── gl.json                  # GL-iNet router profile
+├── gl.json                 # GL-iNet router profile
 ├── openwrt.json            # Generic OpenWRT device profile
 ├── default.json            # Conservative defaults
-├── mikrotik.json           # MikroTik RouterOS profile
 └── README.md               # Target profile documentation
 ```
 
@@ -87,15 +82,15 @@ test/targets/
 
 ### Docker Testing
 ```bash
-./scripts/run-tests.sh                                    # All Docker tests
-./scripts/run-tests.sh docker test_uci_config.lua       # Specific Docker test
+./scripts/run-tests.sh                                   # All Docker tests
+./scripts/run-tests.sh docker test_uci_config.lua        # Specific Docker test
 ./scripts/run-tests.sh --rebuild                         # Force rebuild Docker image
 ./scripts/run-tests.sh --dry-run --verbose               # Verbose dry run
 ```
 
 ### Remote Device Testing
 ```bash
-./scripts/run-tests.sh 192.168.11.2 --password ""       # Empty password auth
+./scripts/run-tests.sh 192.168.11.2 --password ""        # Empty password auth
 ./scripts/run-tests.sh gl test_production_deployment.lua # GL router profile
 ./scripts/run-tests.sh openwrt --key-file ~/.ssh/id_rsa  # SSH key auth
 ./scripts/run-tests.sh 10.0.0.1 --dry-run                # Safe validation
@@ -232,50 +227,6 @@ Target device testing requires additional safety measures:
 
 **Remember: Docker is safe and always appropriate, Target devices require explicit intent and safety measures!**
 
-## GitHub Configuration
-
-### Git Push vs MCP Tools - Best Practices
-
-**For Local Commits (Primary Use Case):**
-When you have local commits to push to GitHub (most common scenario):
-```bash
-# Ensure GitHub token has 'repo' scope for push permissions
-# Check CLAUDE.local.md for GitHub token configuration
-gh auth status || source CLAUDE.local.md
-
-# Push existing local commits to remote origin
-git push origin master
-git push origin <branch-name>  # for feature branches
-```
-
-**For Direct GitHub Commits (Special Cases):**
-MCP GitHub tools create commits directly on GitHub (bypassing local git):
-```bash
-# Use MCP tools only for:
-# - Creating new files directly on GitHub
-# - Making commits without local git workflow
-# - Automated remote operations
-```
-
-**Key Distinctions:**
-- **`git push`**: Pushes existing local commits to remote origin (normal workflow)
-- **`mcp__github__push_files`**: Creates new commits directly on GitHub (special cases)
-- **"Push" typically means**: Moving local commits to remote origin via `git push`
-
-**Required Token Scopes:**
-- **`repo`**: Required for `git push` operations
-- **`contents:write`**: Required for MCP GitHub tools
-
-**Authentication Setup:**
-```bash
-# Configure git to use gh CLI for secure authentication
-git config --global credential.helper '!gh auth git-credential'
-```
-
-**Troubleshooting:**
-- **403 Permission Denied**: Token missing `repo` scope
-- **MCP tools work but git push fails**: Token scope issue
-- **Both failing**: Authentication or token validity issue
 
 ## Claude-Flow Complete Command Reference
 
@@ -487,17 +438,7 @@ Task("Frontend Team", "Develop UI using Memory architecture specs");
 Task("Backend Team", "Implement APIs according to Memory specifications");
 ```
 
-## Code Style Preferences
-- Use ES modules (import/export) syntax
-- Destructure imports when possible
-- Use TypeScript for all new code
-- Follow existing naming conventions
-- Add JSDoc comments for public APIs
-- Use async/await instead of Promise chains
-- Prefer const/let over var
-
 ## Workflow Guidelines
-- Always run typecheck after making code changes
 - Run tests before committing changes using MCP: `./scripts/run-tests.sh`
 - Use meaningful commit messages
 - Create feature branches for new functionality
