@@ -67,6 +67,79 @@ export class DashboardGenerator {
     // Generate static assets first
     await this.generateStaticAssets();
 
+    // Load all snapshot data for embedding
+    const snapshotData = {};
+    for (const snapshot of snapshots) {
+      const snapshotDir = path.join('./config-snapshots', deviceName, snapshot.id);
+      const data = {
+        metadata: null,
+        systemInfo: null,
+        networkStatus: null,
+        serviceStatus: null,
+        configFiles: {}
+      };
+
+      try {
+        // Load metadata
+        try {
+          const metadataPath = path.join(snapshotDir, 'metadata.json');
+          const metadataContent = await fs.readFile(metadataPath, 'utf8');
+          data.metadata = JSON.parse(metadataContent);
+        } catch (e) {
+          this.log(`Warning: Could not load metadata for ${snapshot.id}: ${e.message}`);
+        }
+
+        // Load system info
+        try {
+          const systemInfoPath = path.join(snapshotDir, 'system-info.json');
+          const systemInfoContent = await fs.readFile(systemInfoPath, 'utf8');
+          data.systemInfo = JSON.parse(systemInfoContent);
+        } catch (e) {
+          this.log(`Warning: Could not load system info for ${snapshot.id}: ${e.message}`);
+        }
+
+        // Load network status
+        try {
+          const networkStatusPath = path.join(snapshotDir, 'network-status.json');
+          const networkStatusContent = await fs.readFile(networkStatusPath, 'utf8');
+          data.networkStatus = JSON.parse(networkStatusContent);
+        } catch (e) {
+          this.log(`Warning: Could not load network status for ${snapshot.id}: ${e.message}`);
+        }
+
+        // Load service status
+        try {
+          const serviceStatusPath = path.join(snapshotDir, 'service-status.json');
+          const serviceStatusContent = await fs.readFile(serviceStatusPath, 'utf8');
+          data.serviceStatus = JSON.parse(serviceStatusContent);
+        } catch (e) {
+          this.log(`Warning: Could not load service status for ${snapshot.id}: ${e.message}`);
+        }
+
+        // Load config files
+        const configFiles = [
+          'dhcp.conf', 'dropbear.conf', 'firewall.conf', 'luci.conf', 'network.conf',
+          'openvpn.conf', 'openvpn-opkg.conf', 'openwisp.conf', 'openwisp-monitoring.conf',
+          'rpcd.conf', 'socat.conf', 'system.conf', 'ubispot.conf', 'ubispot-opkg.conf',
+          'ucitrack.conf', 'uhttpd.conf'
+        ];
+
+        for (const fileName of configFiles) {
+          try {
+            const filePath = path.join(snapshotDir, fileName);
+            const fileContent = await fs.readFile(filePath, 'utf8');
+            data.configFiles[fileName] = fileContent;
+          } catch (e) {
+            // File doesn't exist, skip silently
+          }
+        }
+
+        snapshotData[snapshot.id] = data;
+      } catch (error) {
+        this.log(`Warning: Could not load data for snapshot ${snapshot.id}: ${error.message}`);
+      }
+    }
+
     // Pre-generate diff files and collect per-snapshot statistics
     let totalChanges = {
       options_added: 0,
@@ -232,7 +305,8 @@ export class DashboardGenerator {
         has_errors: s.has_errors,
         diff_stats: s.diff_stats
       })),
-      change_statistics: totalChanges
+      change_statistics: totalChanges,
+      snapshot_data: snapshotData
     };
 
     const html = this.generateDeviceDashboardHTML(deviceData);
@@ -374,6 +448,11 @@ export class DashboardGenerator {
         </main>
     </div>
 
+    <script>
+        // Embedded snapshot data to avoid CORS issues
+        ${data.snapshot_data ? `window.SNAPSHOT_DATA = ${JSON.stringify(data.snapshot_data, null, 2)};` : ''}
+        ${data.device_name ? `window.DEVICE_NAME = ${JSON.stringify(data.device_name)};` : ''}
+    </script>
     <script src="assets/dashboard.js"></script>
 </body>
 </html>`;
@@ -574,6 +653,11 @@ export class DashboardGenerator {
         </main>
     </div>
 
+    <script>
+        // Embedded snapshot data to avoid CORS issues
+        ${data.snapshot_data ? `window.SNAPSHOT_DATA = ${JSON.stringify(data.snapshot_data, null, 2)};` : ''}
+        ${data.device_name ? `window.DEVICE_NAME = ${JSON.stringify(data.device_name)};` : ''}
+    </script>
     <script src="assets/dashboard.js"></script>
 </body>
 </html>`;
@@ -1240,6 +1324,311 @@ body {
         width: 100%;
         justify-content: space-between;
     }
+}
+
+/* Modal Styles */
+.snapshot-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 2% auto;
+    padding: 0;
+    border: 1px solid #888;
+    width: 90%;
+    max-width: 1000px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    padding: 20px;
+    background: #3498db;
+    color: white;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+}
+
+.modal-close {
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.modal-close:hover,
+.modal-close:focus {
+    opacity: 1;
+}
+
+.modal-tabs {
+    background: #f8f9fa;
+    padding: 10px 20px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+}
+
+.tab-button {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1em;
+    color: #495057;
+    border-radius: 4px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.tab-button:hover {
+    background: #e9ecef;
+}
+
+.tab-button.active {
+    background: #3498db;
+    color: white;
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+}
+
+.tab-content h3 {
+    margin-bottom: 20px;
+    color: #2c3e50;
+}
+
+.tab-content h4 {
+    margin-bottom: 15px;
+    color: #495057;
+}
+
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.overview-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.overview-item strong {
+    display: block;
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-bottom: 5px;
+}
+
+.overview-item span {
+    color: #2c3e50;
+    font-size: 1.1em;
+}
+
+.file-list {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-name {
+    color: #495057;
+    font-family: monospace;
+}
+
+.file-size {
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+.info-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.info-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.info-section h4 {
+    margin-bottom: 15px;
+    color: #495057;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 10px;
+}
+
+.network-info,
+.service-info {
+    margin-bottom: 15px;
+}
+
+.network-info strong,
+.service-info strong {
+    display: block;
+    color: #495057;
+    margin-bottom: 10px;
+}
+
+.network-info pre,
+.service-info pre {
+    background: white;
+    padding: 15px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    overflow-x: auto;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+}
+
+.config-section {
+    margin-bottom: 20px;
+}
+
+.config-files-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.config-file-btn {
+    padding: 10px 15px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.config-file-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.config-file-btn.active {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+.config-file-content {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.config-file-viewer {
+    background: white;
+    padding: 15px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    max-height: 400px;
+    overflow: auto;
+}
+
+.config-file-viewer pre {
+    margin: 0;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 0.85em;
+    line-height: 1.4;
+}
+
+.config-file-viewer code {
+    display: block;
+    white-space: pre;
+}
+
+.error-message {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid #f5c6cb;
+}
+
+.error-message h3 {
+    margin-bottom: 10px;
+}
+
+.error-message p {
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 10px auto;
+    }
+    
+    .modal-tabs {
+        padding: 10px;
+    }
+    
+    .tab-button {
+        padding: 8px 12px;
+        font-size: 0.9em;
+    }
+    
+    .overview-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .config-files-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
 }`;
   }
 
@@ -1272,11 +1661,464 @@ function refreshDashboard() {
 }
 
 function compareTo(snapshotId1, snapshotId2) {
-    alert('Comparing ' + snapshotId1 + ' with ' + snapshotId2);
+    const deviceName = window.DEVICE_NAME || document.title.includes('QEMU OpenWRT VM') ? 'QEMU OpenWRT VM' : 'Unknown Device';
+    const fileName = \`\${deviceName}-\${snapshotId2.replace(/2025-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z-/, '')}-\${snapshotId1.replace(/2025-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z-/, '')}.html\`;
+    const diffUrl = \`diffs/\${fileName}\`;
+    window.open(diffUrl, '_blank');
 }
 
 function viewSnapshot(snapshotId) {
-    alert('Viewing snapshot: ' + snapshotId);
+    showSnapshotModal(snapshotId);
+}
+
+// Modal functionality
+function showSnapshotModal(snapshotId) {
+    // Create modal if it doesn't exist
+    if (!document.getElementById('snapshotModal')) {
+        createSnapshotModal();
+    }
+    
+    const modal = document.getElementById('snapshotModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalContent = document.getElementById('modalContent');
+    
+    modalTitle.textContent = \`Snapshot: \${snapshotId}\`;
+    modalContent.innerHTML = '<div class="loading">Loading snapshot details...</div>';
+    
+    modal.style.display = 'block';
+    
+    // Load snapshot data
+    loadSnapshotData(snapshotId);
+}
+
+function createSnapshotModal() {
+    const modal = document.createElement('div');
+    modal.id = 'snapshotModal';
+    modal.className = 'snapshot-modal';
+    
+    modal.innerHTML = \`
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Snapshot Details</h2>
+                <span class="modal-close" onclick="closeSnapshotModal()">&times;</span>
+            </div>
+            <div class="modal-tabs">
+                <button class="tab-button active" onclick="showTab('overview')">Overview</button>
+                <button class="tab-button" onclick="showTab('system')">System</button>
+                <button class="tab-button" onclick="showTab('network')">Network</button>
+                <button class="tab-button" onclick="showTab('services')">Services</button>
+                <button class="tab-button" onclick="showTab('configuration')">Configuration</button>
+            </div>
+            <div id="modalContent" class="modal-body">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    \`;
+    
+    document.body.appendChild(modal);
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeSnapshotModal();
+        }
+    });
+}
+
+function closeSnapshotModal() {
+    const modal = document.getElementById('snapshotModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function showTab(tabName) {
+    // Update tab buttons
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Show appropriate content
+    const modalContent = document.getElementById('modalContent');
+    const currentSnapshotId = document.getElementById('modalTitle').textContent.replace('Snapshot: ', '');
+    
+    switch(tabName) {
+        case 'overview':
+            loadOverviewTab(currentSnapshotId, modalContent);
+            break;
+        case 'system':
+            loadSystemTab(currentSnapshotId, modalContent);
+            break;
+        case 'network':
+            loadNetworkTab(currentSnapshotId, modalContent);
+            break;
+        case 'services':
+            loadServicesTab(currentSnapshotId, modalContent);
+            break;
+        case 'configuration':
+            loadConfigurationTab(currentSnapshotId, modalContent);
+            break;
+    }
+}
+
+async function loadSnapshotData(snapshotId) {
+    // Default to overview tab
+    loadOverviewTab(snapshotId, document.getElementById('modalContent'));
+}
+
+async function loadOverviewTab(snapshotId, container) {
+    try {
+        const deviceName = window.DEVICE_NAME || 'QEMU OpenWRT VM';
+        let metadata = {};
+        
+        // Use embedded data if available, otherwise show fallback
+        if (window.SNAPSHOT_DATA && window.SNAPSHOT_DATA[snapshotId] && window.SNAPSHOT_DATA[snapshotId].metadata) {
+            metadata = window.SNAPSHOT_DATA[snapshotId].metadata;
+        }
+        
+        container.innerHTML = \`
+            <div class="tab-content">
+                <h3>📊 Snapshot Overview</h3>
+                <div class="overview-grid">
+                    <div class="overview-item">
+                        <strong>Snapshot ID:</strong>
+                        <span>\${snapshotId}</span>
+                    </div>
+                    <div class="overview-item">
+                        <strong>Captured:</strong>
+                        <span>\${metadata.timestamp ? new Date(metadata.timestamp).toLocaleString() : 'Unknown'}</span>
+                    </div>
+                    <div class="overview-item">
+                        <strong>Files Count:</strong>
+                        <span>\${metadata.file_count || 'Unknown'}</span>
+                    </div>
+                    <div class="overview-item">
+                        <strong>Total Size:</strong>
+                        <span>\${metadata.total_size ? (metadata.total_size / 1024).toFixed(1) + ' KB' : 'Unknown'}</span>
+                    </div>
+                </div>
+                
+                <h4>📁 Captured Files</h4>
+                <div class="file-list">
+                    \${metadata.files ? metadata.files.map(file => \`
+                        <div class="file-item">
+                            <span class="file-name">\${file.name}</span>
+                            <span class="file-size">\${(file.size / 1024).toFixed(1)} KB</span>
+                        </div>
+                    \`).join('') : '<p>File information not available</p>'}
+                </div>
+            </div>
+        \`;
+    } catch (error) {
+        container.innerHTML = \`
+            <div class="tab-content">
+                <div class="error-message">
+                    <h3>⚠ Error Loading Overview</h3>
+                    <p>Could not load snapshot overview: \${error.message}</p>
+                </div>
+            </div>
+        \`;
+    }
+}
+
+async function loadSystemTab(snapshotId, container) {
+    try {
+        const deviceName = window.DEVICE_NAME || 'QEMU OpenWRT VM';
+        let systemInfo = null;
+        
+        // Use embedded data if available
+        if (window.SNAPSHOT_DATA && window.SNAPSHOT_DATA[snapshotId] && window.SNAPSHOT_DATA[snapshotId].systemInfo) {
+            systemInfo = window.SNAPSHOT_DATA[snapshotId].systemInfo;
+        } else {
+            throw new Error('System information not available for this snapshot');
+        }
+        
+        container.innerHTML = \`
+            <div class="tab-content">
+                <h3>🖥 System Information</h3>
+                <div class="info-sections">
+                    <div class="info-section">
+                        <h4>Basic Information</h4>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <strong>Hostname:</strong>
+                                <span>\${systemInfo.hostname || 'Unknown'}</span>
+                            </div>
+                            <div class="info-item">
+                                <strong>Uptime:</strong>
+                                <span>\${systemInfo.uptime || 'Unknown'}</span>
+                            </div>
+                            <div class="info-item">
+                                <strong>Date:</strong>
+                                <span>\${systemInfo.date || 'Unknown'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4>Hardware & OS</h4>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <strong>Kernel:</strong>
+                                <span>\${systemInfo.uname || 'Unknown'}</span>
+                            </div>
+                            <div class="info-item">
+                                <strong>OpenWRT Release:</strong>
+                                <span>\${systemInfo.openwrt_release || 'Unknown'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4>Memory & Storage</h4>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <strong>Memory Usage:</strong>
+                                <span>\${systemInfo.memory_usage || 'Unknown'}</span>
+                            </div>
+                            <div class="info-item">
+                                <strong>Disk Usage:</strong>
+                                <span>\${systemInfo.disk_usage || 'Unknown'}</span>
+                            </div>
+                            <div class="info-item">
+                                <strong>Load Average:</strong>
+                                <span>\${systemInfo.load_average || 'Unknown'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        \`;
+    } catch (error) {
+        container.innerHTML = \`
+            <div class="tab-content">
+                <div class="error-message">
+                    <h3>⚠ System Information Not Available</h3>
+                    <p>System information not available for this snapshot: \${error.message}</p>
+                </div>
+            </div>
+        \`;
+    }
+}
+
+async function loadNetworkTab(snapshotId, container) {
+    try {
+        const deviceName = window.DEVICE_NAME || 'QEMU OpenWRT VM';
+        let networkInfo = null;
+        
+        // Use embedded data if available
+        if (window.SNAPSHOT_DATA && window.SNAPSHOT_DATA[snapshotId] && window.SNAPSHOT_DATA[snapshotId].networkStatus) {
+            networkInfo = window.SNAPSHOT_DATA[snapshotId].networkStatus;
+        } else {
+            throw new Error('Network information not available for this snapshot');
+        }
+        
+        container.innerHTML = \`
+            <div class="tab-content">
+                <h3>🌐 Network Status</h3>
+                <div class="info-sections">
+                    <div class="info-section">
+                        <h4>Interface Information</h4>
+                        <div class="network-info">
+                            <strong>IP Addresses:</strong>
+                            <pre>\${networkInfo.ip_addresses || 'Not available'}</pre>
+                        </div>
+                        <div class="network-info">
+                            <strong>Routing Table:</strong>
+                            <pre>\${networkInfo.routes || 'Not available'}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4>Network Statistics</h4>
+                        <div class="network-info">
+                            <strong>Interface Statistics:</strong>
+                            <pre>\${networkInfo.interface_stats || 'Not available'}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4>Connectivity</h4>
+                        <div class="network-info">
+                            <strong>DNS Resolution:</strong>
+                            <pre>\${networkInfo.dns_test || 'Not available'}</pre>
+                        </div>
+                        <div class="network-info">
+                            <strong>Gateway Ping:</strong>
+                            <pre>\${networkInfo.gateway_ping || 'Not available'}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        \`;
+    } catch (error) {
+        container.innerHTML = \`
+            <div class="tab-content">
+                <div class="error-message">
+                    <h3>⚠ Network Information Not Available</h3>
+                    <p>Network information not available for this snapshot: \${error.message}</p>
+                </div>
+            </div>
+        \`;
+    }
+}
+
+async function loadServicesTab(snapshotId, container) {
+    try {
+        const deviceName = window.DEVICE_NAME || 'QEMU OpenWRT VM';
+        let serviceInfo = null;
+        
+        // Use embedded data if available
+        if (window.SNAPSHOT_DATA && window.SNAPSHOT_DATA[snapshotId] && window.SNAPSHOT_DATA[snapshotId].serviceStatus) {
+            serviceInfo = window.SNAPSHOT_DATA[snapshotId].serviceStatus;
+        } else {
+            throw new Error('Service information not available for this snapshot');
+        }
+        
+        container.innerHTML = \`
+            <div class="tab-content">
+                <h3>⚙ Services Status</h3>
+                <div class="info-sections">
+                    <div class="info-section">
+                        <h4>Running Processes</h4>
+                        <div class="service-info">
+                            <pre>\${serviceInfo.processes || 'Process information not available'}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4>Service Configuration</h4>
+                        <div class="service-info">
+                            <pre>\${serviceInfo.enabled_services || 'Service configuration not available'}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4>System Logs</h4>
+                        <div class="service-info">
+                            <strong>Recent Log Entries:</strong>
+                            <pre>\${serviceInfo.recent_logs || 'Log information not available'}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        \`;
+    } catch (error) {
+        container.innerHTML = \`
+            <div class="tab-content">
+                <div class="error-message">
+                    <h3>⚠ Service Information Not Available</h3>
+                    <p>Service information not available for this snapshot: \${error.message}</p>
+                </div>
+            </div>
+        \`;
+    }
+}
+
+async function loadConfigurationTab(snapshotId, container) {
+    try {
+        const deviceName = window.DEVICE_NAME || 'QEMU OpenWRT VM';
+        
+        // Get list of config files
+        const configFiles = [
+            'dhcp.conf', 'dropbear.conf', 'firewall.conf', 'luci.conf', 'network.conf',
+            'openvpn.conf', 'openvpn-opkg.conf', 'openwisp.conf', 'openwisp-monitoring.conf',
+            'rpcd.conf', 'socat.conf', 'system.conf', 'ubispot.conf', 'ubispot-opkg.conf',
+            'ucitrack.conf', 'uhttpd.conf'
+        ];
+        
+        // Filter to only show files that exist in the embedded data
+        const availableFiles = configFiles.filter(file => 
+            window.SNAPSHOT_DATA && 
+            window.SNAPSHOT_DATA[snapshotId] && 
+            window.SNAPSHOT_DATA[snapshotId].configFiles && 
+            window.SNAPSHOT_DATA[snapshotId].configFiles[file]
+        );
+        
+        const fileButtons = availableFiles.map(file => \`
+            <button class="config-file-btn" onclick="loadConfigFile('\${snapshotId}', '\${file}')">
+                \${file}
+            </button>
+        \`).join('');
+        
+        container.innerHTML = \`
+            <div class="tab-content">
+                <h3>📝 Configuration Files</h3>
+                <div class="config-section">
+                    <h4>Available Configuration Files (\${availableFiles.length})</h4>
+                    <div class="config-files-grid">
+                        \${fileButtons || '<p>No configuration files available for this snapshot</p>'}
+                    </div>
+                </div>
+                <div id="configFileContent" class="config-file-content">
+                    <p>Select a configuration file to view its contents.</p>
+                </div>
+            </div>
+        \`;
+    } catch (error) {
+        container.innerHTML = \`
+            <div class="tab-content">
+                <div class="error-message">
+                    <h3>⚠ Configuration Not Available</h3>
+                    <p>Configuration files not available for this snapshot: \${error.message}</p>
+                </div>
+            </div>
+        \`;
+    }
+}
+
+async function loadConfigFile(snapshotId, fileName) {
+    const contentDiv = document.getElementById('configFileContent');
+    contentDiv.innerHTML = '<div class="loading">Loading configuration file...</div>';
+    
+    try {
+        const deviceName = window.DEVICE_NAME || 'QEMU OpenWRT VM';
+        let content = null;
+        
+        // Use embedded data if available
+        if (window.SNAPSHOT_DATA && window.SNAPSHOT_DATA[snapshotId] && 
+            window.SNAPSHOT_DATA[snapshotId].configFiles && 
+            window.SNAPSHOT_DATA[snapshotId].configFiles[fileName]) {
+            content = window.SNAPSHOT_DATA[snapshotId].configFiles[fileName];
+        } else {
+            throw new Error(\`File not found: \${fileName}\`);
+        }
+        
+        contentDiv.innerHTML = \`
+            <h4>📄 \${fileName}</h4>
+            <div class="config-file-viewer">
+                <pre><code>\${escapeHtml(content)}</code></pre>
+            </div>
+        \`;
+        
+        // Highlight active file button
+        document.querySelectorAll('.config-file-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        
+    } catch (error) {
+        contentDiv.innerHTML = \`
+            <div class="error-message">
+                <p>Error loading \${fileName}: \${error.message}</p>
+            </div>
+        \`;
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Debug function to check embedded data
+function checkEmbeddedData() {
+    if (window.SNAPSHOT_DATA) {
+        console.log('✅ Embedded snapshot data available for', Object.keys(window.SNAPSHOT_DATA).length, 'snapshots');
+        console.log('Device name:', window.DEVICE_NAME);
+        console.log('Available snapshots:', Object.keys(window.SNAPSHOT_DATA));
+    } else {
+        console.log('❌ No embedded snapshot data found');
+    }
 }
 
 // Auto-refresh every 5 minutes
@@ -1290,7 +2132,11 @@ setInterval(function() {
     }
 }, 60000);
 
-console.log('UCI Configuration Dashboard loaded');`;
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('UCI Configuration Dashboard loaded');
+    checkEmbeddedData();
+});`;
   }
 
   /**
