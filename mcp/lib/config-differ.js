@@ -577,6 +577,28 @@ export class ConfigDiffEngine {
   }
 
   deepEqual(a, b) {
+    // Handle UCI list comparison intelligently
+    // Lists can be stored as arrays ['item1', 'item2'] or strings 'item1 item2'
+    const normalizeUCIValue = (value) => {
+      if (Array.isArray(value)) {
+        // Convert array to space-separated string
+        return value.join(' ');
+      } else if (typeof value === 'string') {
+        // Keep string as-is
+        return value;
+      }
+      return value;
+    };
+
+    const normalizedA = normalizeUCIValue(a);
+    const normalizedB = normalizeUCIValue(b);
+    
+    // If both are now strings, compare them
+    if (typeof normalizedA === 'string' && typeof normalizedB === 'string') {
+      return normalizedA === normalizedB;
+    }
+    
+    // Fallback to JSON comparison for complex objects
     return JSON.stringify(a) === JSON.stringify(b);
   }
 
