@@ -4,10 +4,10 @@
   "device_type": "qemu-vm",
   "connection": {
     "method": "ssh",
-    "host": "192.168.1.100",
+    "host": "192.168.11.2",
     "port": 22,
     "username": "root",
-    "key_file": "~/.ssh/id_rsa",
+    "password": "",
     "timeout": 30,
     "keepalive": true
   },
@@ -21,8 +21,8 @@
   },
   "network": {
     "management_interface": "eth0",
-    "management_ip": "192.168.1.100",
-    "management_subnet": "192.168.1.0/24",
+    "management_ip": "192.168.11.2",
+    "management_subnet": "192.168.11.0/24",
     "preserve_interfaces": ["eth0", "br-lan"],
     "critical_services": ["dropbear", "uhttpd"]
   },
@@ -60,7 +60,7 @@
     "reset_button_available": false,
     "recovery_mode": "vm-reset",
     "tftp_recovery": false,
-    "recovery_ip": "192.168.1.100",
+    "recovery_ip": "192.168.11.2",
     "emergency_contact": "VM console access available"
   },
   "orchestration": {
