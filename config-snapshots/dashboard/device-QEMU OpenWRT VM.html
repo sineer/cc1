@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Dashboard - QEMU OpenWRT VM</title>
+    <link rel="stylesheet" href="assets/dashboard.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <h1>📱 QEMU OpenWRT VM Dashboard</h1>
+            <nav class="breadcrumb">
+                <a href="index.html">Dashboard</a> › QEMU OpenWRT VM
+            </nav>
+        </header>
+
+        <main class="dashboard-main">
+            <section class="device-info">
+                <h2>Device Information</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="label">Total Snapshots</span>
+                        <span class="value">2</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Latest Snapshot</span>
+                        <span class="value">7/1/2025, 3:48:12 PM</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="snapshots-timeline">
+                <h2>📈 Snapshots Timeline</h2>
+                <div class="timeline">
+                    
+                        <div class="timeline-item ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>after-changes</h4>
+                                    <span class="timestamp">7/1/2025, 3:48:12 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                </div>
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T15-48-12-531Z-after-changes', '2025-07-01T15-44-23-553Z-baseline-cowboy-demo')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T15-48-12-531Z-after-changes')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>baseline-cowboy-demo</h4>
+                                    <span class="timestamp">7/1/2025, 3:44:23 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                </div>
+                                <div class="timeline-actions">
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T15-44-23-553Z-baseline-cowboy-demo')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="assets/dashboard.js"></script>
+</body>
+</html>
