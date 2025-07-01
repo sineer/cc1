@@ -20,6 +20,9 @@ import { appendFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { promisify } from 'util';
+import { ConfigSnapshotEngine } from './lib/config-snapshot.js';
+import { ConfigDiffEngine } from './lib/config-differ.js';
+import { DashboardGenerator } from './lib/dashboard-generator.js';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -39,8 +42,8 @@ class UnifiedTestServer {
   constructor() {
     this.server = new Server(
       {
-        name: 'uci-config-unified-test-server',
-        version: '2.0.0',
+        name: 'uci-config-unified-server',
+        version: '3.0.0',
       },
       {
         capabilities: {
@@ -48,6 +51,27 @@ class UnifiedTestServer {
         },
       }
     );
+
+    // Initialize orchestration engines
+    this.snapshotDir = path.join(REPO_ROOT, 'config-snapshots');
+    this.dashboardDir = path.join(this.snapshotDir, 'dashboard');
+    
+    this.snapshotEngine = new ConfigSnapshotEngine({
+      snapshotDir: this.snapshotDir,
+      debug: true
+    });
+    
+    this.diffEngine = new ConfigDiffEngine({
+      debug: true,
+      colorOutput: true
+    });
+
+    this.dashboardGenerator = new DashboardGenerator({
+      dashboardDir: this.dashboardDir,
+      debug: true,
+      snapshotEngine: this.snapshotEngine,
+      diffEngine: this.diffEngine
+    });
 
     this.setupToolHandlers();
     this.setupErrorHandling();
@@ -64,60 +88,207 @@ class UnifiedTestServer {
   setupToolHandlers() {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
-        tools: [{
-          name: 'test',
-          description: 'Run UCI config tests on Docker or remote targets',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              target: {
-                type: 'string',
-                description: 'Target: docker (default), IP address, or profile name (gl, openwrt, etc)',
-                default: 'docker',
-              },
-              test: {
-                type: 'string',
-                description: 'Test file name or "all" to run all tests',
-                default: 'all',
-              },
-              password: {
-                type: 'string',
-                description: 'SSH password for remote targets (empty string for no password)',
-              },
-              keyFile: {
-                type: 'string',
-                description: 'SSH key file path for remote targets',
-              },
-              verbose: {
-                type: 'boolean',
-                description: 'Enable verbose output',
-                default: false,
-              },
-              dryRun: {
-                type: 'boolean',
-                description: 'Perform dry run without making changes',
-                default: false,
-              },
-              rebuild: {
-                type: 'boolean',
-                description: 'Force rebuild Docker image (Docker mode only)',
-                default: false,
+        tools: [
+          {
+            name: 'test',
+            description: 'Run UCI config tests on Docker or remote targets',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                target: {
+                  type: 'string',
+                  description: 'Target: docker (default), IP address, or profile name (gl, openwrt, etc)',
+                  default: 'docker',
+                },
+                test: {
+                  type: 'string',
+                  description: 'Test file name or "all" to run all tests',
+                  default: 'all',
+                },
+                password: {
+                  type: 'string',
+                  description: 'SSH password for remote targets (empty string for no password)',
+                },
+                keyFile: {
+                  type: 'string',
+                  description: 'SSH key file path for remote targets',
+                },
+                verbose: {
+                  type: 'boolean',
+                  description: 'Enable verbose output',
+                  default: false,
+                },
+                dryRun: {
+                  type: 'boolean',
+                  description: 'Perform dry run without making changes',
+                  default: false,
+                },
+                rebuild: {
+                  type: 'boolean',
+                  description: 'Force rebuild Docker image (Docker mode only)',
+                  default: false,
+                },
               },
             },
           },
-        }],
+          {
+            name: 'snapshot',
+            description: 'Capture device configuration snapshot via SSH',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                device: {
+                  type: 'string',
+                  description: 'Device profile name (qemu, gl, openwrt) or IP address',
+                  default: 'qemu',
+                },
+                label: {
+                  type: 'string',
+                  description: 'Snapshot label for identification',
+                  default: 'manual',
+                },
+                password: {
+                  type: 'string',
+                  description: 'SSH password (empty string for no password)',
+                },
+                keyFile: {
+                  type: 'string',
+                  description: 'SSH key file path',
+                },
+              },
+              required: ['device'],
+            },
+          },
+          {
+            name: 'compare',
+            description: 'Compare two device configuration snapshots',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                device: {
+                  type: 'string',
+                  description: 'Device name or profile',
+                  default: 'qemu',
+                },
+                before: {
+                  type: 'string',
+                  description: 'Before snapshot ID or label',
+                },
+                after: {
+                  type: 'string',
+                  description: 'After snapshot ID or label',
+                },
+                format: {
+                  type: 'string',
+                  description: 'Output format: text, html, json',
+                  default: 'text',
+                },
+              },
+              required: ['device', 'before', 'after'],
+            },
+          },
+          {
+            name: 'dashboard',
+            description: 'Generate interactive HTML dashboard for device configuration timeline',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                device: {
+                  type: 'string',
+                  description: 'Device name (default: all devices)',
+                  default: 'all',
+                },
+                days: {
+                  type: 'number',
+                  description: 'Number of days to include in timeline',
+                  default: 7,
+                },
+              },
+            },
+          },
+          {
+            name: 'demo',
+            description: 'Run complete deployment demo workflows',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                type: {
+                  type: 'string',
+                  description: 'Demo type: ubispot, cowboy',
+                  default: 'ubispot',
+                },
+                host: {
+                  type: 'string',
+                  description: 'Target device IP or profile',
+                  default: '192.168.11.2',
+                },
+                deploy: {
+                  type: 'boolean',
+                  description: 'Enable actual deployment (false for analysis only)',
+                  default: true,
+                },
+                target: {
+                  type: 'string',
+                  description: 'Target configuration (default, gl-mt3000, qemu-armv8)',
+                  default: 'default',
+                },
+                mode: {
+                  type: 'string',
+                  description: 'Deployment mode (safe-merge, merge, validate)',
+                  default: 'safe-merge',
+                },
+                password: {
+                  type: 'string',
+                  description: 'SSH password (empty string for no password)',
+                },
+              },
+              required: ['type'],
+            },
+          },
+          {
+            name: 'history',
+            description: 'Show device configuration history and snapshots',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                device: {
+                  type: 'string',
+                  description: 'Device name or profile',
+                  default: 'qemu',
+                },
+                days: {
+                  type: 'number',
+                  description: 'Number of days to show',
+                  default: 7,
+                },
+              },
+              required: ['device'],
+            },
+          },
+        ],
       };
     });
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
       
-      if (name !== 'test') {
-        throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
-      }
-
       try {
-        return await this.runTest(args || {});
+        switch (name) {
+          case 'test':
+            return await this.runTest(args || {});
+          case 'snapshot':
+            return await this.runSnapshot(args || {});
+          case 'compare':
+            return await this.runCompare(args || {});
+          case 'dashboard':
+            return await this.runDashboard(args || {});
+          case 'demo':
+            return await this.runDemo(args || {});
+          case 'history':
+            return await this.runHistory(args || {});
+          default:
+            throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
+        }
       } catch (error) {
         throw new McpError(ErrorCode.InternalError, error.message);
       }
@@ -485,12 +656,347 @@ class UnifiedTestServer {
   }
 
   /**
+   * Take device configuration snapshot
+   */
+  async runSnapshot(args) {
+    const { device = 'qemu', label = 'manual', password, keyFile } = args;
+    
+    try {
+      // Load device profile
+      const deviceProfile = await this.loadDeviceProfile(device, password, keyFile);
+      
+      // Capture snapshot
+      const result = await this.snapshotEngine.captureSnapshot(deviceProfile, label);
+      
+      return this.formatResult(`✅ Configuration snapshot captured successfully
+
+Device: ${device}
+Snapshot ID: ${result.snapshotId}
+Label: ${label}
+Timestamp: ${result.metadata.timestamp}
+Location: ${result.snapshotPath}
+
+Captured files: ${result.metadata.files_captured.length} files
+
+${result.metadata.errors.length > 0 ? 
+  `⚠️ Warnings: ${result.metadata.errors.length} files had issues` : ''}
+
+Use 'compare' tool to see differences between snapshots.
+Use 'history' tool to see all snapshots for this device.`);
+      
+    } catch (error) {
+      return this.formatError(`Snapshot failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Compare device configuration snapshots
+   */
+  async runCompare(args) {
+    const { device = 'qemu', before, after, format = 'text' } = args;
+    
+    if (!before || !after) {
+      return this.formatError('Both before and after snapshot IDs are required');
+    }
+    
+    try {
+      // Find snapshots
+      const deviceName = this.getDeviceName(device);
+      const beforeSnapshot = await this.snapshotEngine.findSnapshot(deviceName, before);
+      const afterSnapshot = await this.snapshotEngine.findSnapshot(deviceName, after);
+      
+      if (!beforeSnapshot) {
+        return this.formatError(`Before snapshot not found: ${before}`);
+      }
+      if (!afterSnapshot) {
+        return this.formatError(`After snapshot not found: ${after}`);
+      }
+      
+      // Generate diff
+      const diff = await this.diffEngine.generateSnapshotDiff(
+        beforeSnapshot.path,
+        afterSnapshot.path,
+        format
+      );
+      
+      return this.formatResult(`🔍 Configuration Diff: ${deviceName}
+
+Before: ${before} (${beforeSnapshot.id})
+After:  ${after} (${afterSnapshot.id})
+
+${diff}`);
+      
+    } catch (error) {
+      return this.formatError(`Comparison failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Generate interactive HTML dashboard
+   */
+  async runDashboard(args) {
+    const { device = 'all', days = 7 } = args;
+    
+    try {
+      let dashboardUrl;
+      
+      if (device === 'all') {
+        // Generate overview dashboard
+        dashboardUrl = await this.dashboardGenerator.generateOverviewDashboard(days);
+      } else {
+        // Generate device-specific dashboard
+        const deviceName = this.getDeviceName(device);
+        dashboardUrl = await this.dashboardGenerator.generateDeviceDashboard(deviceName, days);
+      }
+      
+      return this.formatResult(`📊 Dashboard generated for ${device}!
+
+Dashboard location: ${dashboardUrl}
+View in browser: file://${dashboardUrl}
+
+${device === 'all' ? 'Overview dashboard' : 'Device dashboard'} includes:
+- ${device === 'all' ? 'All devices' : 'Device-specific'} configuration snapshots
+- Timeline view of all changes
+- Snapshot comparison tools
+- ${device === 'all' ? 'Multi-device' : 'Device-specific'} metrics
+
+Open the dashboard to explore your ${device === 'all' ? 'infrastructure' : 'device'}'s configuration history.`);
+      
+    } catch (error) {
+      return this.formatError(`Dashboard generation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Run complete deployment demo workflows
+   */
+  async runDemo(args) {
+    const {
+      type = 'ubispot',
+      host = '192.168.11.2',
+      deploy = true,
+      target = 'default',
+      mode = 'safe-merge',
+      password
+    } = args;
+    
+    try {
+      if (type === 'ubispot') {
+        return await this.runUbispotDemo({ host, deploy, target, mode, password });
+      } else if (type === 'cowboy') {
+        return await this.runCowboyDemo({ host, deploy, target, mode, password });
+      } else {
+        return this.formatError(`Unknown demo type: ${type}. Available: ubispot, cowboy`);
+      }
+    } catch (error) {
+      return this.formatError(`Demo failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Show device configuration history
+   */
+  async runHistory(args) {
+    const { device = 'qemu', days = 7 } = args;
+    
+    try {
+      const deviceName = this.getDeviceName(device);
+      const snapshots = await this.snapshotEngine.listSnapshots(deviceName, {
+        since: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+      });
+      
+      if (snapshots.length === 0) {
+        return this.formatResult(`📋 No snapshots found for ${deviceName} in the last ${days} days.
+
+Use 'snapshot' tool to create your first snapshot.`);
+      }
+      
+      let output = `📋 Configuration history for ${deviceName} (last ${days} days):
+
+Total snapshots: ${snapshots.length}
+
+Timeline:`;
+      
+      for (const snapshot of snapshots.slice(0, 10)) { // Show latest 10
+        const date = new Date(snapshot.timestamp).toLocaleString();
+        const status = snapshot.has_errors ? '⚠️' : '✅';
+        output += `\n  ${status} ${snapshot.label} - ${date} (${snapshot.files_count} files)`;
+      }
+      
+      if (snapshots.length > 10) {
+        output += `\n  ... and ${snapshots.length - 10} more snapshots`;
+      }
+      
+      output += `\n\nUse 'compare' tool to see differences between snapshots.
+Use 'dashboard' tool to explore the interactive timeline.`;
+      
+      return this.formatResult(output);
+      
+    } catch (error) {
+      return this.formatError(`History lookup failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Run ubispot deployment demo
+   */
+  async runUbispotDemo(args) {
+    const { host, deploy, target, mode, password } = args;
+    const device = 'qemu';
+    const deviceName = 'QEMU OpenWRT VM';
+    
+    let output = '🔧 ubispot Deployment Demo\n';
+    output += '================================\n\n';
+    
+    if (deploy) {
+      output += 'Deployment Mode: ENABLED\n';
+      output += `Target: ${target}, Mode: ${mode}, Host: ${host}\n\n`;
+    } else {
+      output += 'Analysis Mode: DEPLOYMENT DISABLED\n\n';
+    }
+    
+    try {
+      // Step 1: Pre-deployment snapshot
+      const preLabel = deploy ? `pre-uci-config-${target}` : `analysis-${Date.now()}`;
+      output += `📸 Taking ${deploy ? 'pre-deployment' : 'analysis'} snapshot...\n`;
+      
+      const deviceProfile = await this.loadDeviceProfile(device, password);
+      await this.snapshotEngine.captureSnapshot(deviceProfile, preLabel);
+      output += `✅ Snapshot captured: ${preLabel}\n\n`;
+      
+      if (deploy) {
+        // Step 2: Run deployment
+        output += '🚀 Running UCI configuration deployment...\n';
+        const deployResult = await this.runDeployment(host, mode, target, password);
+        output += deployResult.success ? '✅ Deployment completed\n\n' : '⚠️ Deployment completed with warnings\n\n';
+        
+        // Step 3: Post-deployment snapshot
+        const postLabel = `post-uci-config-${target}`;
+        output += '📸 Taking post-deployment snapshot...\n';
+        await this.snapshotEngine.captureSnapshot(deviceProfile, postLabel);
+        output += `✅ Snapshot captured: ${postLabel}\n\n`;
+        
+        // Step 4: Generate comparison
+        output += '🔍 Generating configuration diff...\n';
+        const diff = await this.diffEngine.generateSnapshotDiff(
+          await this.getSnapshotPath(deviceName, preLabel),
+          await this.getSnapshotPath(deviceName, postLabel),
+          'text'
+        );
+        output += 'Configuration changes:\n' + diff + '\n\n';
+      }
+      
+      // Step 5: Generate dashboard
+      output += '📊 Generating dashboard...\n';
+      const dashboardUrl = await this.dashboardGenerator.generateDeviceDashboard(deviceName, 7);
+      output += `✅ Dashboard available: file://${dashboardUrl}\n\n`;
+      
+      output += '🎉 Demo completed successfully!\n\n';
+      output += deploy ? 
+        '🔍 Check the dashboard for detailed configuration changes.' :
+        '🔍 Check the dashboard for current configuration state.';
+      
+      return this.formatResult(output);
+      
+    } catch (error) {
+      return this.formatError(`ubispot demo failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Run cowboy demo (configuration snapshot analysis)
+   */
+  async runCowboyDemo(args) {
+    const device = 'qemu';
+    const deviceName = 'QEMU OpenWRT VM';
+    
+    let output = '🤠 Cowboy Configuration Demo\n';
+    output += '============================\n\n';
+    output += 'This demo shows configuration snapshot and analysis workflow.\n\n';
+    
+    try {
+      // Take baseline snapshot
+      output += '📸 Taking baseline snapshot...\n';
+      const deviceProfile = await this.loadDeviceProfile(device, args.password);
+      await this.snapshotEngine.captureSnapshot(deviceProfile, 'baseline-cowboy-demo');
+      output += '✅ Baseline snapshot captured\n\n';
+      
+      output += '👉 Now make some configuration changes on your device...\n';
+      output += '   (This demo captured the baseline - you can compare against it later)\n\n';
+      
+      // Generate dashboard
+      output += '📊 Generating dashboard...\n';
+      const dashboardUrl = await this.dashboardGenerator.generateDeviceDashboard(deviceName, 7);
+      output += `✅ Dashboard available: file://${dashboardUrl}\n\n`;
+      
+      output += '🤠 Cowboy demo baseline completed!\n\n';
+      output += 'Next steps:\n';
+      output += '1. Make configuration changes on your device\n';
+      output += '2. Run: snapshot tool with label "after-changes"\n';
+      output += '3. Run: compare tool to see differences\n';
+      output += '4. Check the dashboard for visual timeline\n';
+      
+      return this.formatResult(output);
+      
+    } catch (error) {
+      return this.formatError(`Cowboy demo failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Helper methods
+   */
+  async loadDeviceProfile(device, password, keyFile) {
+    // Convert device parameter to proper profile format
+    const profilesDir = path.join(REPO_ROOT, 'test', 'targets');
+    
+    if (device.includes('.')) {
+      // IP address - create dynamic profile
+      return {
+        name: device,
+        connection: {
+          host: device,
+          username: 'root',
+          password: password || '',
+          key_file: keyFile
+        }
+      };
+    } else {
+      // Profile name - load from file
+      const profilePath = path.join(profilesDir, `${device}.json`);
+      const profile = JSON.parse(await fs.readFile(profilePath, 'utf8'));
+      
+      // Override with provided credentials
+      if (password !== undefined) profile.connection.password = password;
+      if (keyFile) profile.connection.key_file = keyFile;
+      
+      return profile;
+    }
+  }
+
+  getDeviceName(device) {
+    return device.includes('.') ? device : `QEMU OpenWRT VM`;
+  }
+
+  async runDeployment(host, mode, target, password) {
+    const cmd = `./scripts/run-deploy.sh ${host} ${mode} --target ${target} --no-confirm --password "${password || ''}"`;
+    const result = await this.execute(cmd);
+    return result;
+  }
+
+  async getSnapshotPath(deviceName, label) {
+    const snapshots = await this.snapshotEngine.listSnapshots(deviceName);
+    const snapshot = snapshots.find(s => s.label === label);
+    return snapshot ? snapshot.path : null;
+  }
+
+  /**
    * Start the server
    */
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('🚀 Unified UCI Config Test Server running');
+    console.error('🚀 Unified UCI Config Server with Orchestration running');
   }
 }
 

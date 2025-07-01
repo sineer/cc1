@@ -223,11 +223,11 @@ class OrchestratorDemo {
         // Step 2: Deploy configuration
         await this.deployConfiguration(host, mode, target);
 
-        // Step 3: Take post-deployment snapshot
-        await this.takeSnapshot(device, `post-deployment-${target}`);
+        // Step 3: Take post-UCI-config snapshot (immediately after UCI command)
+        await this.takeSnapshot(device, `post-uci-config-${target}`);
 
         // Step 4: Compare configurations
-        await this.compareConfigs(deviceName, preLabel, `post-deployment-${target}`);
+        await this.compareConfigs(deviceName, preLabel, `post-uci-config-${target}`);
       }
 
       // Step 5: Generate dashboard

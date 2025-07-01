@@ -1,6 +1,211 @@
 # Claude Code Configuration
 
-## ubi-config Test Commands
+## 🚨 CRITICAL: ALWAYS USE UCI-MCP UNIFIED COMMAND 🚨
+**PRIMARY TOOL: `./bin/uci-mcp` - Simplified interface for ALL UCI operations!**
+
+### Quick Start - New Unified Command
+```bash
+# Primary command (RECOMMENDED)
+./bin/uci-mcp                                    # Run all tests
+./bin/uci-mcp dashboard "QEMU OpenWRT VM" --days 30   # Generate dashboard  
+./bin/uci-mcp demo ubispot                       # Run deployment demo
+./bin/uci-mcp help                              # Show all commands
+
+# Alternative (advanced users)
+node mcp/client.js                              # Direct MCP client access
+```
+
+## 🚨 CRITICAL: ALWAYS USE MCP CLIENT FOR ALL OPERATIONS 🚨
+**MANDATORY: Use MCP client for ALL UCI config operations, testing, and deployments!**
+**NEVER run bash commands directly when MCP client is available!**
+
+### Why MCP Client is REQUIRED:
+- ✅ **Structured JSON-RPC API** - Clean programmatic interface for Claude Code
+- ✅ **Type-safe parameters** - Better validation and error handling
+- ✅ **Unified architecture** - Single tool for ALL operations
+- ✅ **MCP ecosystem integration** - Works with Claude Code natively
+- ✅ **Consistent output format** - Easier parsing and integration
+- ✅ **Enhanced error handling** - Structured error codes and responses
+
+### MCP Client Usage (ALWAYS USE THIS)
+**🔧 UNIFIED MCP CLIENT - All UCI config operations through one interface!**
+
+#### Primary Command: `./bin/uci-mcp` (Recommended)
+**Simplified unified command interface for ALL UCI config operations:**
+```bash
+# Testing (default command)
+./bin/uci-mcp                                         # All Docker tests
+./bin/uci-mcp test docker test_uci_config.lua         # Specific Docker test
+./bin/uci-mcp test 192.168.11.2 --password ""        # Remote device testing
+./bin/uci-mcp test gl --dry-run --verbose             # Safe validation
+
+# Configuration Management
+./bin/uci-mcp snapshot qemu baseline                  # Take device snapshot
+./bin/uci-mcp compare qemu baseline after-changes     # Compare configurations  
+./bin/uci-mcp dashboard "QEMU OpenWRT VM" --days 7    # Generate HTML dashboard (7 days)
+./bin/uci-mcp dashboard "QEMU OpenWRT VM" --days 30   # Generate HTML dashboard (30 days)
+./bin/uci-mcp history qemu --days 14                  # Show config timeline (14 days)
+
+# Deployment Demos  
+./bin/uci-mcp demo ubispot --host 192.168.11.2        # Full ubispot deployment demo
+./bin/uci-mcp demo cowboy                             # Cowboy configuration demo
+./bin/uci-mcp demo ubispot --target gl-mt3000         # GL-iNet specific config
+
+# Legacy compatibility
+./bin/uci-mcp build                                   # Build Docker image
+./bin/uci-mcp build --force                           # Force rebuild
+```
+
+#### Alternative: Direct MCP Client (Advanced)
+**Direct access to MCP client (when bin/uci-mcp is not suitable):**
+```bash
+# Testing (default tool)
+node mcp/client.js                                         # All Docker tests
+node mcp/client.js test docker test_uci_config.lua         # Specific Docker test
+node mcp/client.js test 192.168.11.2 --password ""        # Remote device testing
+node mcp/client.js test gl --dry-run --verbose             # Safe validation
+
+# Configuration Management
+node mcp/client.js snapshot qemu baseline                  # Take device snapshot
+node mcp/client.js compare qemu baseline after-changes     # Compare configurations  
+node mcp/client.js dashboard "QEMU OpenWRT VM" --days 7    # Generate HTML dashboard (7 days)
+node mcp/client.js dashboard "QEMU OpenWRT VM" --days 30   # Generate HTML dashboard (30 days)
+node mcp/client.js history qemu --days 14                  # Show config timeline (14 days)
+
+# Deployment Demos  
+node mcp/client.js demo ubispot --host 192.168.11.2        # Full ubispot deployment demo
+node mcp/client.js demo cowboy --no-deploy                 # Cowboy analysis demo
+node mcp/client.js demo ubispot --target gl-mt3000         # GL-iNet specific config
+```
+
+#### Available MCP Tools (Unified Server)
+The unified MCP server provides **6 powerful tools**:
+- `test` - Run UCI config tests on Docker or remote targets (default)
+- `snapshot` - Capture complete device configuration via SSH
+- `compare` - Generate intelligent before/after configuration diffs
+- `dashboard` - Create interactive HTML dashboards with comprehensive change analytics
+- `demo` - Run complete deployment demo workflows (ubispot, cowboy)
+- `history` - Show device configuration timeline and snapshots
+
+#### Dashboard Tool - Interactive Configuration Analytics
+The `dashboard` tool generates comprehensive HTML dashboards with:
+- **Timeline Window Control**: `--days N` sets how many days back to include (default: 7)
+- **Comprehensive Statistics**: Package/section/option change counts across all snapshots
+- **Visual Change Analytics**: Color-coded statistics (added/removed/modified)
+- **Pre-generated Diffs**: Automatic diff file generation for all snapshot pairs
+- **Interactive Navigation**: Click-to-compare functionality with working buttons
+- **Real Change Detection**: Shows actual configuration changes, not "0 diff"
+
+**Dashboard Examples:**
+```bash
+node mcp/client.js dashboard "QEMU OpenWRT VM"             # Last 7 days (default)
+node mcp/client.js dashboard "QEMU OpenWRT VM" --days 1    # Today only
+node mcp/client.js dashboard "QEMU OpenWRT VM" --days 30   # Last month
+node mcp/client.js dashboard "QEMU OpenWRT VM" --days 90   # Last quarter
+```
+
+**Dashboard Output:**
+- HTML file: `config-snapshots/dashboard/device-{DeviceName}.html`
+- Diff files: `config-snapshots/dashboard/diffs/*.html`
+- Statistics: Package, section, and option-level change analytics
+- Timeline: Interactive snapshot timeline with comparison tools
+
+#### 🚨 ALWAYS USE MCP CLIENT FOR DEMOS AND DEPLOYMENTS 🚨
+**NEVER run demo-orchestrator.js or bash scripts directly!**
+**ALWAYS use: `node mcp/client.js demo ...`**
+
+**ubispot Deployment Demo (ALWAYS via MCP):**
+```bash
+# Full ubispot captive portal deployment with orchestration tracking
+node mcp/client.js demo ubispot                            # Default QEMU deployment
+node mcp/client.js demo ubispot --no-deploy                # Analysis mode only  
+node mcp/client.js demo ubispot --target gl-mt3000 --host 192.168.1.100    # GL-iNet config
+
+# NEVER USE: ./qemu-ubispot-demo.sh or node demo-orchestrator.js
+```
+
+**Cowboy Demo (Configuration Snapshots - ALWAYS via MCP):**
+```bash
+# Configuration snapshot and analysis workflow
+node mcp/client.js demo cowboy                             # Create baseline snapshot
+# ... make config changes ...
+node mcp/client.js snapshot qemu after-changes             # Capture changes  
+node mcp/client.js compare qemu baseline-cowboy-demo after-changes  # View diff
+node mcp/client.js dashboard "QEMU OpenWRT VM"             # HTML visualization
+
+# NEVER USE: bash scripts or direct commands
+```
+
+#### Legacy Alternative (Fallback Only)
+**🚨 Use ONLY when MCP client is unavailable:**
+```bash
+# Legacy bash scripts (fallback only)
+./qemu-ubispot-demo.sh                                     # Bash ubispot demo
+node demo-orchestrator.js                                  # Separate orchestrator client
+./scripts/run-orchestrator.sh                              # Orchestrator server wrapper
+```
+
+**MCP Advantages:**
+- ✅ **Structured JSON-RPC API** - Clean programmatic interface
+- ✅ **Type-safe parameters** - Better validation and error handling  
+- ✅ **Unified architecture** - Single tool for Docker and remote testing
+- ✅ **MCP ecosystem integration** - Works with Claude Code natively
+- ✅ **Consistent output format** - Easier parsing and integration
+- ✅ **Enhanced error handling** - Structured error codes and responses
+
+**Use bash scripts ONLY when:**
+- MCP client is unavailable 
+- Running from command line directly outside Claude Code
+- Need specific bash script features not in MCP
+
+#### Quick Reference
+**Most Common Operations via UCI-MCP Command (Primary):**
+```bash
+# Testing (primary workflow)
+./bin/uci-mcp                                         # Run all UCI tests
+./bin/uci-mcp test docker test_uci_config.lua         # Specific test
+
+# Device configuration management  
+./bin/uci-mcp demo ubispot                            # ubispot deployment demo
+./bin/uci-mcp dashboard "QEMU OpenWRT VM" --days 30   # View config timeline (30 days)
+./bin/uci-mcp snapshot qemu manual                    # Take snapshot
+./bin/uci-mcp history qemu --days 14                  # Show config history (14 days)
+
+# Deployment demos
+./bin/uci-mcp demo ubispot --host 192.168.11.2        # Remote ubispot demo
+./bin/uci-mcp demo cowboy                             # Cowboy snapshot demo
+
+# Help and legacy
+./bin/uci-mcp help                                    # Show all commands
+./bin/uci-mcp build                                   # Build Docker image
+```
+
+**Alternative - Direct MCP Client (Advanced):**
+```bash
+# Testing (primary workflow)
+node mcp/client.js                                         # Run all UCI tests
+node mcp/client.js test docker test_uci_config.lua         # Specific test
+
+# Device configuration management  
+node mcp/client.js demo ubispot                            # ubispot deployment demo
+node mcp/client.js dashboard "QEMU OpenWRT VM" --days 30   # View config timeline (30 days)
+node mcp/client.js snapshot qemu manual                    # Take snapshot
+node mcp/client.js history qemu --days 14                  # Show config history (14 days)
+
+# Deployment demos
+node mcp/client.js demo ubispot --host 192.168.11.2        # Remote ubispot demo
+node mcp/client.js demo cowboy                             # Cowboy snapshot demo
+```
+
+## 🚨 ALWAYS USE MCP CLIENT FOR TESTING 🚨
+**Primary Method (ALWAYS USE THIS):**
+```bash
+node mcp/client.js                                    # Run all Docker tests
+node mcp/client.js test docker test_uci_config.lua    # Specific test
+node mcp/client.js test 192.168.11.2 --password ""    # Remote device testing
+```
+
+## Legacy Test Commands (ONLY if MCP unavailable)
 - `./scripts/run-tests.sh`: **Unified test runner** - Docker and remote testing with intelligent routing
 - `./scripts/run-tests.sh <target> <test>`: Run specific test on target (docker, IP, or profile)
 - `./scripts/run-tests.sh --password ""`: Remote device testing with empty password
@@ -73,14 +278,22 @@ test/targets/
 └── README.md               # Target profile documentation
 ```
 
-**Unified test runner handles everything!** Use:
-- `./scripts/run-tests.sh` for Docker and remote testing (primary - unified interface)
-- `./scripts/run-tests-direct.sh` for direct Docker execution (alternative)
-- `./scripts/run-tests.sh --legacy` for legacy MCP implementation (fallback)
+**Testing options in order of preference:**
+1. `node mcp/client.js` - **MCP client (PREFERRED)** - Structured API interface
+2. `./scripts/run-tests.sh` - Bash unified runner (fallback)
+3. `./scripts/run-tests-direct.sh` - Direct Docker execution (alternative)
 
-## Unified Test Runner Examples
+## MCP Client Examples (PREFERRED)
 
-### Docker Testing
+### Docker Testing with MCP Client
+```bash
+node mcp/client.js --target docker --test all              # All Docker tests (PREFERRED)
+node mcp/client.js --target docker --test test_uci_config.lua  # Specific test
+node mcp/client.js --dry-run --verbose                     # Safe validation
+node mcp/client.js --rebuild                               # Force rebuild Docker image
+```
+
+### Bash Fallback Examples (when MCP unavailable)
 ```bash
 ./scripts/run-tests.sh                                   # All Docker tests
 ./scripts/run-tests.sh docker test_uci_config.lua        # Specific Docker test
@@ -88,7 +301,15 @@ test/targets/
 ./scripts/run-tests.sh --dry-run --verbose               # Verbose dry run
 ```
 
-### Remote Device Testing
+### Remote Device Testing with MCP Client (PREFERRED)
+```bash
+node mcp/client.js --target 192.168.11.2 --password ""          # Empty password auth
+node mcp/client.js --target gl --test test_production_deployment.lua  # GL router profile
+node mcp/client.js --target openwrt --key-file ~/.ssh/id_rsa     # SSH key auth
+node mcp/client.js --target 10.0.0.1 --dry-run                  # Safe validation
+```
+
+### Remote Device Testing - Bash Fallback
 ```bash
 ./scripts/run-tests.sh 192.168.11.2 --password ""        # Empty password auth
 ./scripts/run-tests.sh gl test_production_deployment.lua # GL router profile
@@ -128,7 +349,10 @@ The Docker environment provides an authentic OpenWRT 23.05 sandbox that's:
 
 ## Test Runner Decision Matrix
 
-### When to Use Docker Testing (`./scripts/run-tests.sh`)
+### 🚨 ALWAYS USE MCP CLIENT FIRST 🚨
+**MANDATORY CHOICE**: `node mcp/client.js` for ALL testing operations
+
+### When to Use Docker Testing (via MCP Client)
 **PRIMARY CHOICE** for development, testing, and validation:
 
 ✅ **ALWAYS use Docker when:**
@@ -439,12 +663,48 @@ Task("Backend Team", "Implement APIs according to Memory specifications");
 ```
 
 ## Workflow Guidelines
-- Run tests before committing changes using MCP: `./scripts/run-tests.sh`
+
+### 🚨 CRITICAL WORKFLOW RULE 🚨
+**ALWAYS use MCP client for EVERYTHING - NO EXCEPTIONS!**
+
+### Mandatory UCI-MCP Usage:
+- **🚨 Testing**: ALWAYS `./bin/uci-mcp` or `./bin/uci-mcp test docker test_uci_config.lua`
+- **🚨 Snapshots**: ALWAYS `./bin/uci-mcp snapshot qemu baseline`
+- **🚨 Comparisons**: ALWAYS `./bin/uci-mcp compare qemu before after`
+- **🚨 Dashboards**: ALWAYS `./bin/uci-mcp dashboard "QEMU OpenWRT VM" --days 30`
+- **🚨 Demos**: ALWAYS `./bin/uci-mcp demo ubispot` or `./bin/uci-mcp demo cowboy`
+- **🚨 History**: ALWAYS `./bin/uci-mcp history qemu --days 14`
+- **🚨 Deployments**: ALWAYS `./bin/uci-mcp demo ubispot --host 192.168.11.2`
+
+### Alternative: Direct MCP Client (Advanced):
+- **Testing**: `node mcp/client.js` or `node mcp/client.js test docker test_uci_config.lua`
+- **Snapshots**: `node mcp/client.js snapshot qemu baseline`
+- **Comparisons**: `node mcp/client.js compare qemu before after`
+- **Dashboards**: `node mcp/client.js dashboard "QEMU OpenWRT VM" --days 30`
+- **Demos**: `node mcp/client.js demo ubispot` or `node mcp/client.js demo cowboy`
+- **History**: `node mcp/client.js history qemu --days 14`
+- **Deployments**: `node mcp/client.js demo ubispot --host 192.168.11.2`
+
+### Never Use These Directly:
+- ❌ `./scripts/run-tests.sh` (use MCP client instead)
+- ❌ `./qemu-ubispot-demo.sh` (use MCP client demo instead)
+- ❌ `node demo-orchestrator.js` (use MCP client demo instead)
+- ❌ Any bash scripts for testing/deployment (use MCP client)
+
+### Other Guidelines:
+- **Single unified interface replaces all separate tools** - everything through MCP client
+- Run tests before committing: `node mcp/client.js` (NEVER bash scripts)
 - Use meaningful commit messages
-- Create feature branches for new functionality
+- Create feature branches for new functionality  
 - Ensure all tests pass before merging
 
 ## Important Notes
+- **🚨 CRITICAL: Use UNIFIED MCP client for ALL UCI config operations**
+- **Single client interface**: `node mcp/client.js [tool]` - testing, snapshots, demos, everything!
+- **6 powerful tools in one**: test, snapshot, compare, dashboard, demo, history
+- **Unified structured API**: JSON-RPC with type-safe parameters and enhanced error handling
+- **Replaces all separate tools**: No more `demo-orchestrator.js`, `run-orchestrator.sh`, etc.
+- **Use bash scripts only as fallback**: when MCP unavailable or special requirements
 - **Use TodoWrite extensively** for all complex task coordination
 - **Leverage Task tool** for parallel agent execution on independent work
 - **Store all important information in Memory** for cross-agent coordination
@@ -453,7 +713,6 @@ Task("Backend Team", "Implement APIs according to Memory specifications");
 - **All swarm operations include automatic batch tool coordination**
 - **Monitor progress** with TodoRead during long-running operations
 - **Enable parallel execution** with --parallel flags for maximum efficiency
-- **Always use MCP test runner** (`./scripts/run-tests.sh`) for running tests in this project
 - **Node.js MCP implementation** provides better stability than Python version
 
 This configuration ensures optimal use of Claude Code's batch tools for swarm orchestration and parallel task execution with full Claude-Flow capabilities.

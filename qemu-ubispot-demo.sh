@@ -63,9 +63,9 @@ function show_help() {
     echo "  $0 --host 192.168.1.100             # Different QEMU host"
     echo ""
     echo "Workflow (with deployment enabled):"
-    echo "  1. Take pre-deployment snapshot"
+    echo "  1. Take pre-UCI-config snapshot"
     echo "  2. Deploy ubispot configuration using scripts/run-deploy.sh"
-    echo "  3. Capture post-deployment snapshot"
+    echo "  3. Capture post-UCI-config snapshot (immediately after UCI command)"
     echo "  4. Generate intelligent configuration diff"
     echo "  5. Update interactive dashboard with timeline"
     echo ""
@@ -158,9 +158,9 @@ function compare_snapshots() {
     log_step "Generating snapshot comparison"
     
     # Use the orchestrator to compare the before and after snapshots
-    log_info "Comparing pre-ubispot-deployment vs post-ubispot-deployment snapshots..."
+    log_info "Comparing pre-uci-config-${TARGET_CONFIG} vs post-uci-config-${TARGET_CONFIG} snapshots..."
     
-    node demo-orchestrator.js compare "QEMU OpenWRT VM" "pre-ubispot-deployment" "post-ubispot-deployment"
+    node demo-orchestrator.js compare "QEMU OpenWRT VM" "pre-uci-config-${TARGET_CONFIG}" "post-uci-config-${TARGET_CONFIG}"
 }
 
 # Main demo workflow
@@ -171,9 +171,9 @@ function main() {
     if [ "$DEPLOY_ENABLED" = "true" ]; then
         echo "Deployment Mode: ENABLED"
         echo "This demo will:"
-        echo "1. Take a pre-deployment snapshot of your QEMU VM"
+        echo "1. Take a pre-UCI-config snapshot of your QEMU VM"
         echo "2. Deploy ubispot configuration using scripts/run-deploy.sh"
-        echo "3. Capture post-deployment snapshot"
+        echo "3. Capture post-UCI-config snapshot (immediately after UCI command)"
         echo "4. Show intelligent diff view in the orchestration dashboard"
         echo ""
         echo "Configuration:"
@@ -202,7 +202,7 @@ function main() {
     
     # Step 3: Take snapshot (different label based on mode)
     if [ "$DEPLOY_ENABLED" = "true" ]; then
-        take_snapshot "pre-deployment-${TARGET_CONFIG}"
+        take_snapshot "pre-uci-config-${TARGET_CONFIG}"
     else
         take_snapshot "analysis-$(date +%H%M%S)"
     fi
@@ -215,8 +215,8 @@ function main() {
         log_info "Updated ubispot configuration:"
         show_current_ubispot_config
         
-        # Step 6: Take post-deployment snapshot
-        take_snapshot "post-deployment-${TARGET_CONFIG}"
+        # Step 6: Take post-UCI-config snapshot (immediately after UCI command)
+        take_snapshot "post-uci-config-${TARGET_CONFIG}"
         
         # Step 7: Compare snapshots
         compare_snapshots

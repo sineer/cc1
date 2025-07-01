@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ubispot Deployment Diff - QEMU OpenWRT VM</title>
+    <title>Configuration Diff - QEMU OpenWRT VM</title>
     <link rel="stylesheet" href="../assets/dashboard.css">
     <style>
         .diff-container {
@@ -24,26 +24,25 @@
             border-radius: 6px;
             margin-bottom: 20px;
         }
-        .change-category {
-            background: white;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            border-left: 4px solid #3498db;
+        .diff-stats {
+            display: flex;
+            gap: 15px;
+            margin: 10px 0;
         }
-        .category-header {
-            background: linear-gradient(45deg, #3498db, #2980b9);
-            color: white;
-            padding: 15px 20px;
+        .stat {
+            padding: 5px 10px;
+            border-radius: 4px;
             font-weight: bold;
-            font-size: 1.1em;
         }
+        .stat.added { background: #d4edda; color: #155724; }
+        .stat.removed { background: #f8d7da; color: #721c24; }
+        .stat.modified { background: #fff3cd; color: #856404; }
         .change-item {
+            background: white;
             margin-bottom: 15px;
             border-radius: 6px;
             overflow: hidden;
-            border-left: 3px solid #e9ecef;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .change-header {
             background: #e9ecef;
@@ -54,9 +53,9 @@
         .change-content {
             padding: 15px;
         }
-        .removed { color: #dc3545; background-color: #f8d7da; }
-        .added { color: #155724; background-color: #d4edda; }
-        .modified { color: #856404; background-color: #fff3cd; }
+        .removed { color: #dc3545; background-color: #f8d7da; padding: 2px 4px; }
+        .added { color: #155724; background-color: #d4edda; padding: 2px 4px; }
+        .modified { color: #856404; background-color: #fff3cd; padding: 2px 4px; }
         .unchanged { color: #6c757d; }
         .line-number {
             display: inline-block;
@@ -70,202 +69,160 @@
             white-space: pre-wrap;
             font-family: 'Monaco', 'Menlo', monospace;
             font-size: 0.9em;
-        }
-        .impact-high { border-left-color: #e74c3c; }
-        .impact-medium { border-left-color: #f39c12; }
-        .impact-low { border-left-color: #27ae60; }
-        .deployment-badge {
-            display: inline-block;
-            padding: 4px 8px;
+            background: #f8f9fa;
+            padding: 10px;
             border-radius: 4px;
-            font-size: 0.8em;
-            font-weight: bold;
-            margin-left: 10px;
         }
-        .badge-ubispot { background: #3498db; color: white; }
-        .badge-captive { background: #e67e22; color: white; }
-        .badge-security { background: #e74c3c; color: white; }
     </style>
 </head>
 <body>
     <div class="diff-container">
         <header class="diff-header">
-            <h1>🚀 ubispot Deployment Configuration Diff</h1>
+            <h1>🔍 Configuration Diff</h1>
             <nav class="breadcrumb">
                 <a href="../device-QEMU OpenWRT VM.html">← Back to QEMU OpenWRT VM Dashboard</a>
             </nav>
             <div style="margin-top: 15px;">
-                <h2>QEMU OpenWRT VM: pre-ubispot-deployment → post-ubispot-deployment</h2>
+                <h2>QEMU OpenWRT VM: deployment → deployment</h2>
                 <p style="color: #666; margin: 5px 0;">
-                    <strong>Before:</strong> 2025-07-01T16:17:23.256Z (pre-ubispot-deployment)<br>
-                    <strong>After:</strong> 2025-07-01T16:19:21.801Z (post-ubispot-deployment)<br>
-                    <strong>Deployment:</strong> <code>./scripts/run-deploy.sh 192.168.11.2 safe-merge --target default --no-confirm</code>
+                    <strong>Before:</strong> 2025-07-01T16-17-23-256Z-pre-ubispot-deployment<br>
+                    <strong>After:</strong> 2025-07-01T16-19-21-800Z-post-ubispot-deployment
                 </p>
             </div>
         </header>
 
         <div class="diff-summary">
-            <h3>📊 ubispot Deployment Summary</h3>
+            <h3>📊 Change Summary</h3>
             <div class="diff-stats">
-                <div class="stat added">+6 sections added</div>
-                <div class="stat removed">-6 sections removed</div>
-                <div class="stat modified">~12 real configuration changes</div>
+                <div class="stat added">+6 options added</div>
+                <div class="stat removed">-6 options removed</div>
+                <div class="stat modified">~0 options changed</div>
             </div>
-            <p><strong>Packages modified:</strong> 5 (dhcp, firewall, network, ubispot, uhttpd)</p>
-            <p><strong>Deployment result:</strong> ✅ Applied 5 changes successfully</p>
-            <p><strong>Safety measures:</strong> ✅ Backup created, network preserved, services not restarted</p>
+            <p><strong>Files changed:</strong> 5</p>
         </div>
 
-        <div class="change-category impact-high">
-            <div class="category-header">
-                🔥 Firewall Configuration - Captive Portal Security
-                <span class="deployment-badge badge-security">SECURITY</span>
-            </div>
-            <div style="padding: 20px;">
-                <div class="change-item">
-                    <div class="change-header">📋 New Firewall Rules for Captive Portal</div>
-                    <div class="change-content">
-                        <h4>Added Sections:</h4>
-                        <pre><span class="added">+ cfg04dc81 - Captive portal traffic rule
-+ cfg03dc81 - User authentication rule  
-+ cfg10dc81 - DNS redirect rule
-+ cfg02b57b - HTTP redirect rule
-+ cfg01e63d - HTTPS traffic rule
-+ cfg11ad58 - Captive zone forwarding</span></pre>
-                        
-                        <h4>Modified Captive Configuration:</h4>
-                        <pre><span class="modified">~ Section: captive
-    network: [captive] → captive
-~ Section: captive_rule14  
-    proto: [udp, tcp] → udp tcp
-~ Section: captive_ipset1
-    match: [src_mac] → src_mac
-~ Section: captive_ipset2  
-    match: [dest_ip] → dest_ip
-    entry: [10.0.0.1, 10.8.0.1] → 10.0.0.1 10.8.0.1</span></pre>
-                        
-                        <p style="margin-top: 15px; color: #666;">
-                            <strong>Impact:</strong> Configured comprehensive firewall rules for captive portal operation, 
-                            including traffic redirection, user authentication, and network isolation.
-                        </p>
-                    </div>
-                </div>
+
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: @defaults[0] (Removed)</h4>
+                <pre><span class="line-number">-</span><span class="removed">-	config defaults '@defaults[0]'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Removed:</strong> Section @defaults[0] was removed
+                </p>
             </div>
         </div>
-
-        <div class="change-category impact-high">
-            <div class="category-header">
-                🌐 UHTTPd Web Server - Captive Portal Interface
-                <span class="deployment-badge badge-ubispot">UBISPOT</span>
-            </div>
-            <div style="padding: 20px;">
-                <div class="change-item">
-                    <div class="change-header">🔧 Web Server Optimization</div>
-                    <div class="change-content">
-                        <p>UHTTPd web server configuration was optimized during the deployment:</p>
-                        <ul style="margin: 10px 0; padding-left: 20px;">
-                            <li>✅ <strong>Main HTTP server:</strong> Configuration maintained (no functional changes)</li>
-                            <li>✅ <strong>ubispot handlers:</strong> Captive portal endpoints properly configured</li>
-                            <li>✅ <strong>UAM endpoints:</strong> User authentication management active</li>
-                            <li>✅ <strong>Listen addresses:</strong> All services listening on correct interfaces</li>
-                        </ul>
-                        
-                        <p style="margin-top: 15px; color: #666;">
-                            <strong>Impact:</strong> Web server configuration was optimized for format consistency but no functional changes were made.
-                            All captive portal endpoints remain properly configured and operational.
-                        </p>
-                    </div>
-                </div>
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: @firewall[1] (Removed)</h4>
+                <pre><span class="line-number">-</span><span class="removed">-	config firewall '@firewall[1]'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Removed:</strong> Section @firewall[1] was removed
+                </p>
             </div>
         </div>
-
-        <div class="change-category impact-low">
-            <div class="category-header">
-                🌍 Network Configuration - Format Optimization
-                <span class="deployment-badge badge-captive">CAPTIVE</span>
-            </div>
-            <div style="padding: 20px;">
-                <div class="change-item">
-                    <div class="change-header">🔗 Configuration Format Consistency</div>
-                    <div class="change-content">
-                        <p>Network and DHCP configurations were optimized for format consistency:</p>
-                        <ul style="margin: 10px 0; padding-left: 20px;">
-                            <li>✅ <strong>Bridge configuration:</strong> LAN bridge maintained with eth0 port</li>
-                            <li>✅ <strong>DNS resolution:</strong> All DNS servers properly configured</li>
-                            <li>✅ <strong>IPv6 router advertisement:</strong> RA flags maintained</li>
-                            <li>✅ <strong>Captive network:</strong> Interface properly configured for portal operation</li>
-                        </ul>
-                        
-                        <p style="margin-top: 15px; color: #666;">
-                            <strong>Impact:</strong> Configuration format was optimized for consistency but no functional 
-                            changes were made. All network interfaces and DNS resolution continue to work as expected.
-                        </p>
-                    </div>
-                </div>
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: @zone[2] (Removed)</h4>
+                <pre><span class="line-number">-</span><span class="removed">-	config zone '@zone[2]'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Removed:</strong> Section @zone[2] was removed
+                </p>
             </div>
         </div>
-
-        <div class="change-category impact-medium">
-            <div class="category-header">
-                📱 ubispot Service Configuration
-                <span class="deployment-badge badge-ubispot">UBISPOT</span>
-            </div>
-            <div style="padding: 20px;">
-                <div class="change-item">
-                    <div class="change-header">🔧 Captive Portal Service</div>
-                    <div class="change-content">
-                        <p>ubispot configuration was optimized during the merge process:</p>
-                        <ul style="margin: 10px 0; padding-left: 20px;">
-                            <li>✅ Authentication server: 10.8.0.1:1812</li>
-                            <li>✅ Accounting server: 10.8.0.1:1813</li>
-                            <li>✅ UAM server: http://10.8.0.1:8080</li>
-                            <li>✅ Captive interface: configured</li>
-                            <li>✅ Session timeout: 0 (unlimited)</li>
-                            <li>✅ Idle timeout: 600 seconds</li>
-                        </ul>
-                        
-                        <p style="color: #666; margin-top: 15px;">
-                            <strong>Impact:</strong> Core captive portal service maintained existing configuration with format optimizations.
-                        </p>
-                    </div>
-                </div>
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: @zone[3] (Removed)</h4>
+                <pre><span class="line-number">-</span><span class="removed">-	config zone '@zone[3]'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Removed:</strong> Section @zone[3] was removed
+                </p>
             </div>
         </div>
-
-        <div class="change-category">
-            <div class="category-header">
-                ⚙️ System State Changes
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: @zone[15] (Removed)</h4>
+                <pre><span class="line-number">-</span><span class="removed">-	config zone '@zone[15]'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Removed:</strong> Section @zone[15] was removed
+                </p>
             </div>
-            <div style="padding: 20px;">
-                <div class="change-item">
-                    <div class="change-header">📈 Runtime Changes</div>
-                    <div class="change-content">
-                        <h4>Normal System State Updates:</h4>
-                        <ul style="margin: 10px 0; padding-left: 20px;">
-                            <li><strong>Uptime:</strong> System runtime progression</li>
-                            <li><strong>Memory usage:</strong> Deployment process memory allocation</li>
-                            <li><strong>Disk usage:</strong> Framework installation temporary files</li>
-                            <li><strong>Load average:</strong> CPU activity during deployment</li>
-                        </ul>
-                        <p style="color: #666; margin-top: 10px;">
-                            <em>Note: These are expected runtime variations during the deployment process.</em>
-                        </p>
-                    </div>
-                </div>
+        </div>
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: @forwarding[16] (Removed)</h4>
+                <pre><span class="line-number">-</span><span class="removed">-	config forwarding '@forwarding[16]'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Removed:</strong> Section @forwarding[16] was removed
+                </p>
+            </div>
+        </div>
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: cfg04dc81 (Added)</h4>
+                <pre><span class="line-number">+</span><span class="added">+	config zone 'cfg04dc81'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Added:</strong> New section cfg04dc81
+                </p>
+            </div>
+        </div>
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: cfg03dc81 (Added)</h4>
+                <pre><span class="line-number">+</span><span class="added">+	config zone 'cfg03dc81'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Added:</strong> New section cfg03dc81
+                </p>
+            </div>
+        </div>
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: cfg10dc81 (Added)</h4>
+                <pre><span class="line-number">+</span><span class="added">+	config zone 'cfg10dc81'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Added:</strong> New section cfg10dc81
+                </p>
+            </div>
+        </div>
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: cfg02b57b (Added)</h4>
+                <pre><span class="line-number">+</span><span class="added">+	config firewall 'cfg02b57b'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Added:</strong> New section cfg02b57b
+                </p>
+            </div>
+        </div>
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: cfg01e63d (Added)</h4>
+                <pre><span class="line-number">+</span><span class="added">+	config defaults 'cfg01e63d'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Added:</strong> New section cfg01e63d
+                </p>
+            </div>
+        </div>
+        <div class="change-item">
+            <div class="change-header">📄 Package: firewall</div>
+            <div class="change-content">
+                <h4>Section: cfg11ad58 (Added)</h4>
+                <pre><span class="line-number">+</span><span class="added">+	config forwarding 'cfg11ad58'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Added:</strong> New section cfg11ad58
+                </p>
             </div>
         </div>
 
-        <footer style="margin-top: 30px; padding: 20px; text-align: center; color: #666; border-top: 1px solid #dee2e6;">
-            <p>
-                🚀 <strong>ubispot Deployment Completed Successfully</strong><br>
-                Generated by UCI Device Orchestrator • <span id="current-time"></span><br>
-                <small>Deployment logs: /home/s2/cc1/scripts/../logs/deploy-20250701-161907-192.168.11.2.log</small>
-            </p>
-        </footer>
     </div>
-
-    <script>
-        document.getElementById('current-time').textContent = new Date().toLocaleString();
-    </script>
 </body>
 </html>

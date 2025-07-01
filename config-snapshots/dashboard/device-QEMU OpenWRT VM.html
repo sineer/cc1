@@ -17,15 +17,91 @@
 
         <main class="dashboard-main">
             <section class="device-info">
-                <h2>Device Information</h2>
+                <h2>📊 Device Overview & Change Statistics</h2>
                 <div class="info-grid">
                     <div class="info-item">
                         <span class="label">Total Snapshots</span>
-                        <span class="value">5</span>
+                        <span class="value">22</span>
                     </div>
                     <div class="info-item">
                         <span class="label">Latest Snapshot</span>
-                        <span class="value">7/1/2025, 4:19:21 PM</span>
+                        <span class="value">7/1/2025, 7:34:31 PM</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Total Comparisons</span>
+                        <span class="value">21</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Files Changed</span>
+                        <span class="value">35</span>
+                    </div>
+                </div>
+                
+                <div class="change-stats-section">
+                    <h3>🔧 Configuration Changes Summary</h3>
+                    <div class="stats-grid">
+                        <div class="stat-group package-stats">
+                            <h4>📦 Package Changes</h4>
+                            <div class="stat-items">
+                                <div class="stat-item added">
+                                    <span class="stat-icon">+</span>
+                                    <span class="stat-count">0</span>
+                                    <span class="stat-label">Added</span>
+                                </div>
+                                <div class="stat-item removed">
+                                    <span class="stat-icon">-</span>
+                                    <span class="stat-count">0</span>
+                                    <span class="stat-label">Removed</span>
+                                </div>
+                                <div class="stat-item modified">
+                                    <span class="stat-icon">~</span>
+                                    <span class="stat-count">17</span>
+                                    <span class="stat-label">Modified</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-group section-stats">
+                            <h4>📝 Section Changes</h4>
+                            <div class="stat-items">
+                                <div class="stat-item added">
+                                    <span class="stat-icon">+</span>
+                                    <span class="stat-count">6</span>
+                                    <span class="stat-label">Added</span>
+                                </div>
+                                <div class="stat-item removed">
+                                    <span class="stat-icon">-</span>
+                                    <span class="stat-count">6</span>
+                                    <span class="stat-label">Removed</span>
+                                </div>
+                                <div class="stat-item modified">
+                                    <span class="stat-icon">~</span>
+                                    <span class="stat-count">30</span>
+                                    <span class="stat-label">Modified</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-group option-stats">
+                            <h4>⚙️ Option Changes</h4>
+                            <div class="stat-items">
+                                <div class="stat-item added">
+                                    <span class="stat-icon">+</span>
+                                    <span class="stat-count">0</span>
+                                    <span class="stat-label">Added</span>
+                                </div>
+                                <div class="stat-item removed">
+                                    <span class="stat-icon">-</span>
+                                    <span class="stat-count">0</span>
+                                    <span class="stat-label">Removed</span>
+                                </div>
+                                <div class="stat-item modified">
+                                    <span class="stat-icon">~</span>
+                                    <span class="stat-count">30</span>
+                                    <span class="stat-label">Modified</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -34,7 +110,789 @@
                 <h2>📈 Snapshots Timeline</h2>
                 <div class="timeline">
                     
-                        <div class="timeline-item ">
+                        <div class="timeline-item  has-changes">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>post-uci-config-default</h4>
+                                    <span class="timestamp">7/1/2025, 7:34:31 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    <span class="change-indicator">📊 Has changes</span>
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <h5>📊 Changes since previous snapshot:</h5>
+                                    <div class="snapshot-stats-grid">
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📦 Packages:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~2</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📝 Sections:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">⚙️ Options:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📄 Files:</span>
+                                            <div class="stat-badges">
+                                                <span class="stat-badge modified">4 changed</span>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T19-34-31-135Z-post-uci-config-default', '2025-07-01T19-34-18-823Z-pre-uci-config-default')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T19-34-31-135Z-post-uci-config-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>pre-uci-config-default</h4>
+                                    <span class="timestamp">7/1/2025, 7:34:18 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T19-34-18-823Z-pre-uci-config-default', '2025-07-01T19-31-16-285Z-post-uci-config-default')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T19-34-18-823Z-pre-uci-config-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  has-changes">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>post-uci-config-default</h4>
+                                    <span class="timestamp">7/1/2025, 7:31:16 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    <span class="change-indicator">📊 Has changes</span>
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <h5>📊 Changes since previous snapshot:</h5>
+                                    <div class="snapshot-stats-grid">
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📦 Packages:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~2</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📝 Sections:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">⚙️ Options:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📄 Files:</span>
+                                            <div class="stat-badges">
+                                                <span class="stat-badge modified">4 changed</span>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T19-31-16-285Z-post-uci-config-default', '2025-07-01T19-31-04-030Z-pre-uci-config-default')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T19-31-16-285Z-post-uci-config-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>pre-uci-config-default</h4>
+                                    <span class="timestamp">7/1/2025, 7:31:04 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T19-31-04-030Z-pre-uci-config-default', '2025-07-01T19-27-38-001Z-analysis-1751398058001')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T19-31-04-030Z-pre-uci-config-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>analysis-1751398058001</h4>
+                                    <span class="timestamp">7/1/2025, 7:27:38 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T19-27-38-001Z-analysis-1751398058001', '2025-07-01T18-14-12-192Z-post-uci-config-default')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T19-27-38-001Z-analysis-1751398058001')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  has-changes">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>post-uci-config-default</h4>
+                                    <span class="timestamp">7/1/2025, 6:14:12 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    <span class="change-indicator">📊 Has changes</span>
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <h5>📊 Changes since previous snapshot:</h5>
+                                    <div class="snapshot-stats-grid">
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📦 Packages:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~2</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📝 Sections:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">⚙️ Options:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📄 Files:</span>
+                                            <div class="stat-badges">
+                                                <span class="stat-badge modified">4 changed</span>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T18-14-12-192Z-post-uci-config-default', '2025-07-01T18-13-59-307Z-pre-deployment-default')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T18-14-12-192Z-post-uci-config-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  has-changes">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>pre-deployment-default</h4>
+                                    <span class="timestamp">7/1/2025, 6:13:59 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    <span class="change-indicator">📊 Has changes</span>
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <h5>📊 Changes since previous snapshot:</h5>
+                                    <div class="snapshot-stats-grid">
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📦 Packages:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~2</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📝 Sections:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">⚙️ Options:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📄 Files:</span>
+                                            <div class="stat-badges">
+                                                <span class="stat-badge modified">4 changed</span>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T18-13-59-307Z-pre-deployment-default', '2025-07-01T18-12-35-403Z-pre-uci-config-default')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T18-13-59-307Z-pre-deployment-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>pre-uci-config-default</h4>
+                                    <span class="timestamp">7/1/2025, 6:12:35 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T18-12-35-403Z-pre-uci-config-default', '2025-07-01T17-23-44-252Z-analysis-1751390624251')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T18-12-35-403Z-pre-uci-config-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>analysis-1751390624251</h4>
+                                    <span class="timestamp">7/1/2025, 5:23:44 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T17-23-44-252Z-analysis-1751390624251', '2025-07-01T17-18-36-805Z-baseline-cowboy-demo')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T17-23-44-252Z-analysis-1751390624251')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>baseline-cowboy-demo</h4>
+                                    <span class="timestamp">7/1/2025, 5:18:36 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T17-18-36-805Z-baseline-cowboy-demo', '2025-07-01T17-18-17-228Z-mcp-integration-test')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T17-18-36-805Z-baseline-cowboy-demo')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>mcp-integration-test</h4>
+                                    <span class="timestamp">7/1/2025, 5:18:17 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T17-18-17-228Z-mcp-integration-test', '2025-07-01T16-54-49-912Z-post-uci-config-default')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T17-18-17-228Z-mcp-integration-test')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  has-changes">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>post-uci-config-default</h4>
+                                    <span class="timestamp">7/1/2025, 4:54:49 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    <span class="change-indicator">📊 Has changes</span>
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <h5>📊 Changes since previous snapshot:</h5>
+                                    <div class="snapshot-stats-grid">
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📦 Packages:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~2</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📝 Sections:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">⚙️ Options:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📄 Files:</span>
+                                            <div class="stat-badges">
+                                                <span class="stat-badge modified">4 changed</span>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T16-54-49-912Z-post-uci-config-default', '2025-07-01T16-54-15-923Z-pre-uci-config-default')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T16-54-49-912Z-post-uci-config-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  has-changes">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>pre-uci-config-default</h4>
+                                    <span class="timestamp">7/1/2025, 4:54:15 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    <span class="change-indicator">📊 Has changes</span>
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <h5>📊 Changes since previous snapshot:</h5>
+                                    <div class="snapshot-stats-grid">
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📦 Packages:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~2</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📝 Sections:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">⚙️ Options:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📄 Files:</span>
+                                            <div class="stat-badges">
+                                                <span class="stat-badge modified">4 changed</span>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T16-54-15-923Z-pre-uci-config-default', '2025-07-01T16-47-27-888Z-pre-deployment-default')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T16-54-15-923Z-pre-uci-config-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>pre-deployment-default</h4>
+                                    <span class="timestamp">7/1/2025, 4:47:27 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T16-47-27-888Z-pre-deployment-default', '2025-07-01T16-44-11-386Z-post-deployment-default')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T16-47-27-888Z-pre-deployment-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  has-changes">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>post-deployment-default</h4>
+                                    <span class="timestamp">7/1/2025, 4:44:11 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    <span class="change-indicator">📊 Has changes</span>
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <h5>📊 Changes since previous snapshot:</h5>
+                                    <div class="snapshot-stats-grid">
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📦 Packages:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~2</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📝 Sections:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">⚙️ Options:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~4</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📄 Files:</span>
+                                            <div class="stat-badges">
+                                                <span class="stat-badge modified">4 changed</span>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T16-44-11-386Z-post-deployment-default', '2025-07-01T16-43-36-022Z-pre-deployment-default')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T16-44-11-386Z-post-deployment-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>pre-deployment-default</h4>
+                                    <span class="timestamp">7/1/2025, 4:43:36 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T16-43-36-022Z-pre-deployment-default', '2025-07-01T16-25-53-332Z-test-logging-fix')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T16-43-36-022Z-pre-deployment-default')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  ">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h4>test-logging-fix</h4>
+                                    <span class="timestamp">7/1/2025, 4:25:53 PM</span>
+                                </div>
+                                <div class="timeline-details">
+                                    <span class="files-count">20 files captured</span>
+                                    
+                                    
+                                </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
+                                <div class="timeline-actions">
+                                    
+                                        <button class="btn btn-sm" onclick="compareTo('2025-07-01T16-25-53-332Z-test-logging-fix', '2025-07-01T16-19-21-800Z-post-ubispot-deployment')">
+                                            Compare with Previous
+                                        </button>
+                                    
+                                    <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T16-25-53-332Z-test-logging-fix')">
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="timeline-item  has-changes">
                             <div class="timeline-marker"></div>
                             <div class="timeline-content">
                                 <div class="timeline-header">
@@ -44,7 +902,49 @@
                                 <div class="timeline-details">
                                     <span class="files-count">20 files captured</span>
                                     
+                                    <span class="change-indicator">📊 Has changes</span>
                                 </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <h5>📊 Changes since previous snapshot:</h5>
+                                    <div class="snapshot-stats-grid">
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📦 Packages:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~1</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📝 Sections:</span>
+                                            <div class="stat-badges">
+                                                <span class="stat-badge added">+6</span>
+                                                <span class="stat-badge removed">-6</span>
+                                                
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">⚙️ Options:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📄 Files:</span>
+                                            <div class="stat-badges">
+                                                <span class="stat-badge modified">5 changed</span>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                
+                                
                                 <div class="timeline-actions">
                                     
                                         <button class="btn btn-sm" onclick="compareTo('2025-07-01T16-19-21-800Z-post-ubispot-deployment', '2025-07-01T16-17-23-256Z-pre-ubispot-deployment')">
@@ -58,7 +958,7 @@
                             </div>
                         </div>
                     
-                        <div class="timeline-item ">
+                        <div class="timeline-item  ">
                             <div class="timeline-marker"></div>
                             <div class="timeline-content">
                                 <div class="timeline-header">
@@ -68,7 +968,15 @@
                                 <div class="timeline-details">
                                     <span class="files-count">20 files captured</span>
                                     
+                                    
                                 </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
                                 <div class="timeline-actions">
                                     
                                         <button class="btn btn-sm" onclick="compareTo('2025-07-01T16-17-23-256Z-pre-ubispot-deployment', '2025-07-01T16-16-14-215Z-pre-ubispot-deployment')">
@@ -82,7 +990,7 @@
                             </div>
                         </div>
                     
-                        <div class="timeline-item ">
+                        <div class="timeline-item  ">
                             <div class="timeline-marker"></div>
                             <div class="timeline-content">
                                 <div class="timeline-header">
@@ -92,7 +1000,15 @@
                                 <div class="timeline-details">
                                     <span class="files-count">20 files captured</span>
                                     
+                                    
                                 </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                
+                                
                                 <div class="timeline-actions">
                                     
                                         <button class="btn btn-sm" onclick="compareTo('2025-07-01T16-16-14-215Z-pre-ubispot-deployment', '2025-07-01T15-48-12-531Z-after-changes')">
@@ -106,7 +1022,7 @@
                             </div>
                         </div>
                     
-                        <div class="timeline-item ">
+                        <div class="timeline-item  has-changes">
                             <div class="timeline-marker"></div>
                             <div class="timeline-content">
                                 <div class="timeline-header">
@@ -116,7 +1032,49 @@
                                 <div class="timeline-details">
                                     <span class="files-count">20 files captured</span>
                                     
+                                    <span class="change-indicator">📊 Has changes</span>
                                 </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <h5>📊 Changes since previous snapshot:</h5>
+                                    <div class="snapshot-stats-grid">
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📦 Packages:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~2</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📝 Sections:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~2</span>
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">⚙️ Options:</span>
+                                            <div class="stat-badges">
+                                                
+                                                
+                                                <span class="stat-badge modified">~2</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📄 Files:</span>
+                                            <div class="stat-badges">
+                                                <span class="stat-badge modified">2 changed</span>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                
+                                
                                 <div class="timeline-actions">
                                     
                                         <button class="btn btn-sm" onclick="compareTo('2025-07-01T15-48-12-531Z-after-changes', '2025-07-01T15-44-23-553Z-baseline-cowboy-demo')">
@@ -130,7 +1088,7 @@
                             </div>
                         </div>
                     
-                        <div class="timeline-item ">
+                        <div class="timeline-item  ">
                             <div class="timeline-marker"></div>
                             <div class="timeline-content">
                                 <div class="timeline-header">
@@ -140,7 +1098,15 @@
                                 <div class="timeline-details">
                                     <span class="files-count">20 files captured</span>
                                     
+                                    
                                 </div>
+                                
+                                
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">🔍 Initial snapshot - no previous snapshot to compare with</p>
+                                </div>
+                                
+                                
                                 <div class="timeline-actions">
                                     
                                     <button class="btn btn-sm btn-secondary" onclick="viewSnapshot('2025-07-01T15-44-23-553Z-baseline-cowboy-demo')">

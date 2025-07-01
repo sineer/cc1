@@ -1,0 +1,96 @@
+#!/bin/bash
+
+# UCI MCP Unified Command Interface
+# Comprehensive UCI configuration management through MCP client
+# Replaces run-tests.sh with expanded functionality
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+function show_help() {
+    cat << 'EOF'
+🔧 UCI MCP Unified Command Interface
+
+Usage:
+  ./uci-mcp [command] [options]
+
+Commands:
+  test [target] [test]           Run UCI config tests (default command)
+  snapshot <device> <label>      Capture device configuration snapshot
+  compare <device> <before> <after>  Compare two snapshots
+  dashboard <device> [--days N]  Generate interactive HTML dashboard
+  demo <type> [options]          Run deployment demos (ubispot, cowboy)
+  history <device> [--days N]    Show configuration timeline
+  help                           Show this help
+
+Test Targets:
+  docker                         Run tests in Docker container (default)
+  <IP>                          Run tests on remote device at IP address
+  <profile>                     Run tests using device profile (gl, openwrt, etc)
+
+Test Options:
+  --password <pass>             SSH password for remote targets (use "" for empty)
+  --key-file <path>             SSH key file for remote targets  
+  --verbose                     Enable verbose output
+  --dry-run                     Perform dry run without making changes
+  --rebuild                     Force rebuild Docker image
+  --days <N>                    Number of days for timeline commands (default: 7)
+
+Examples:
+  # Testing (default command)
+  ./uci-mcp                                    # All Docker tests
+  ./uci-mcp test docker test_uci_config.lua   # Specific Docker test
+  ./uci-mcp test 192.168.11.2 --password ""   # Remote device testing
+  ./uci-mcp test gl --dry-run --verbose        # Safe validation
+
+  # Configuration Management  
+  ./uci-mcp snapshot qemu baseline             # Take device snapshot
+  ./uci-mcp compare qemu baseline after       # Compare configurations
+  ./uci-mcp dashboard "QEMU OpenWRT VM" --days 30  # Generate dashboard (30 days)
+  ./uci-mcp history qemu --days 14             # Show timeline (14 days)
+
+  # Deployment Demos
+  ./uci-mcp demo ubispot --host 192.168.11.2   # Full ubispot deployment
+  ./uci-mcp demo cowboy                        # Cowboy configuration demo
+
+  # Legacy commands (for compatibility)
+  ./uci-mcp build                              # Build Docker image
+  ./uci-mcp build --force                      # Force rebuild
+
+🚨 CRITICAL: All operations use the unified MCP client for consistency and safety!
+EOF
+}
+
+# Parse command
+COMMAND="${1:-test}"
+shift || true
+
+# Handle legacy commands for compatibility
+case "$COMMAND" in
+    build)
+        if [[ "$1" == "--force" ]]; then
+            exec node mcp/client.js test docker all --rebuild
+        else
+            exec node mcp/client.js test docker all --rebuild
+        fi
+        ;;
+    help|--help|-h)
+        show_help
+        exit 0
+        ;;
+esac
+
+# Build MCP client arguments
+MCP_ARGS=("$COMMAND")
+
+# Add remaining arguments
+for arg in "$@"; do
+    MCP_ARGS+=("$arg")
+done
+
+# Execute via MCP client
+echo "🔗 Executing via UCI MCP client..."
+exec node mcp/client.js "${MCP_ARGS[@]}"

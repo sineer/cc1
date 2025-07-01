@@ -335,9 +335,26 @@ export class ConfigSnapshotEngine {
   async executeSSHCommand(deviceProfile, command) {
     const { connection } = deviceProfile;
     
-    let sshCommand = `ssh -o ConnectTimeout=${this.sshTimeout} -o StrictHostKeyChecking=no`;
+    let sshCommand = '';
     
-    // Add key file if specified
+    // Handle password authentication (including empty passwords)
+    if (connection.password !== undefined) {
+      // Use sshpass for password authentication to avoid prompting
+      // Note: sshpass must be installed on the system
+      sshCommand = `sshpass -p "${connection.password || ''}" ssh`;
+    } else {
+      sshCommand = 'ssh';
+    }
+    
+    // Add standard SSH options
+    sshCommand += ` -o ConnectTimeout=${this.sshTimeout} -o StrictHostKeyChecking=no`;
+    
+    // For password auth, disable batch mode to allow sshpass to work
+    if (connection.password !== undefined) {
+      sshCommand += ' -o BatchMode=no -o PasswordAuthentication=yes';
+    }
+    
+    // Add key file if specified (takes precedence over password)
     if (connection.key_file) {
       sshCommand += ` -i ${connection.key_file}`;
     }
@@ -349,12 +366,17 @@ export class ConfigSnapshotEngine {
     
     sshCommand += ` ${connection.username}@${connection.host} "${command}"`;
     
-    this.log(`Executing: ${sshCommand}`);
+    this.log(`Executing: ${sshCommand.replace(/sshpass -p "[^"]*"/, 'sshpass -p "***"')}`);
     
     try {
       const result = await execAsync(sshCommand);
       return result;
     } catch (error) {
+      // Check for sshpass not found error
+      if (error.message.includes('sshpass') && error.message.includes('not found')) {
+        throw new Error('sshpass is required for password authentication but not installed. Please install sshpass or use SSH key authentication.');
+      }
+      
       // Some commands are expected to fail, don't throw unless it's a connection issue
       if (error.code === 255 || error.message.includes('Connection')) {
         throw error;

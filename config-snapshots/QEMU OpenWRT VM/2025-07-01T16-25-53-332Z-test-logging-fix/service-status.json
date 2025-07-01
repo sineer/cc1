@@ -1,0 +1,42 @@
+{
+  "running_services": {
+    "command": "/etc/init.d/* enabled 2>/dev/null | grep -v \"not found\"",
+    "output": "",
+    "timestamp": "2025-07-01T16:26:01.032Z"
+  },
+  "active_processes": {
+    "command": "ps aux",
+    "output": "",
+    "timestamp": "2025-07-01T16:26:01.184Z"
+  },
+  "uci_services": {
+    "command": "uci show | grep -E \"\\.(enabled|disabled)=\" | head -20",
+    "output": "",
+    "timestamp": "2025-07-01T16:26:01.186Z"
+  },
+  "system_log": {
+    "command": "logread | tail -50",
+    "output": "Tue Jul  1 16:25:33 2025 authpriv.info dropbear[10052]: Child connection from 192.168.11.1:52182\nTue Jul  1 16:25:33 2025 authpriv.notice dropbear[10052]: Password auth succeeded for 'root' from 192.168.11.1:52182\nTue Jul  1 16:25:33 2025 authpriv.info dropbear[10052]: Exit (root) from <192.168.11.1:52182>: Disconnect received\nTue Jul  1 16:25:33 2025 authpriv.info dropbear[10055]: Child connection from 192.168.11.1:52190\nTue Jul  1 16:25:33 2025 authpriv.notice dropbear[10055]: Password auth succeeded for 'root' from 192.168.11.1:52190\nTue Jul  1 16:25:33 2025 authpriv.info dropbear[10055]: Exit (root) from <192.168.11.1:52190>: Disconnect received\nTue Jul  1 16:25:33 2025 authpriv.info dropbear[10057]: Child connection from 192.168.11.1:52194\nTue Jul  1 16:25:33 2025 authpriv.notice dropbear[10057]: Password auth succeeded for 'root' from 192.168.11.1:52194\nTue Jul  1 16:25:33 2025 authpriv.info dropbear[10057]: Exit (root) from <192.168.11.1:52194>: Disconnect received\nTue Jul  1 16:25:33 2025 authpriv.info dropbear[10061]: Child connection from 192.168.11.1:52200\nTue Jul  1 16:25:33 2025 authpriv.notice dropbear[10061]: Password auth succeeded for 'root' from 192.168.11.1:52200\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10061]: Exit (root) from <192.168.11.1:52200>: Disconnect received\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10066]: Child connection from 192.168.11.1:52216\nTue Jul  1 16:25:34 2025 authpriv.notice dropbear[10066]: Password auth succeeded for 'root' from 192.168.11.1:52216\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10066]: Exit (root) from <192.168.11.1:52216>: Disconnect received\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10068]: Child connection from 192.168.11.1:52226\nTue Jul  1 16:25:34 2025 authpriv.notice dropbear[10068]: Password auth succeeded for 'root' from 192.168.11.1:52226\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10068]: Exit (root) from <192.168.11.1:52226>: Disconnect received\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10070]: Child connection from 192.168.11.1:52238\nTue Jul  1 16:25:34 2025 authpriv.notice dropbear[10070]: Password auth succeeded for 'root' from 192.168.11.1:52238\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10070]: Exit (root) from <192.168.11.1:52238>: Disconnect received\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10073]: Child connection from 192.168.11.1:52242\nTue Jul  1 16:25:34 2025 authpriv.notice dropbear[10073]: Password auth succeeded for 'root' from 192.168.11.1:52242\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10073]: Exit (root) from <192.168.11.1:52242>: Disconnect received\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10075]: Child connection from 192.168.11.1:52246\nTue Jul  1 16:25:34 2025 authpriv.notice dropbear[10075]: Password auth succeeded for 'root' from 192.168.11.1:52246\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10075]: Exit (root) from <192.168.11.1:52246>: Disconnect received\nTue Jul  1 16:25:34 2025 authpriv.info dropbear[10077]: Child connection from 192.168.11.1:52252\nTue Jul  1 16:25:34 2025 authpriv.notice dropbear[10077]: Password auth succeeded for 'root' from 192.168.11.1:52252\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10077]: Exit (root) from <192.168.11.1:52252>: Disconnect received\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10080]: Child connection from 192.168.11.1:52254\nTue Jul  1 16:25:35 2025 authpriv.notice dropbear[10080]: Password auth succeeded for 'root' from 192.168.11.1:52254\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10080]: Exit (root) from <192.168.11.1:52254>: Disconnect received\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10082]: Child connection from 192.168.11.1:52270\nTue Jul  1 16:25:35 2025 authpriv.notice dropbear[10082]: Password auth succeeded for 'root' from 192.168.11.1:52270\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10082]: Exit (root) from <192.168.11.1:52270>: Disconnect received\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10084]: Child connection from 192.168.11.1:52286\nTue Jul  1 16:25:35 2025 authpriv.notice dropbear[10084]: Password auth succeeded for 'root' from 192.168.11.1:52286\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10084]: Exit (root) from <192.168.11.1:52286>: Disconnect received\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10087]: Child connection from 192.168.11.1:52290\nTue Jul  1 16:25:35 2025 authpriv.notice dropbear[10087]: Password auth succeeded for 'root' from 192.168.11.1:52290\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10087]: Exit (root) from <192.168.11.1:52290>: Disconnect received\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10089]: Child connection from 192.168.11.1:52294\nTue Jul  1 16:25:35 2025 authpriv.notice dropbear[10089]: Password auth succeeded for 'root' from 192.168.11.1:52294\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10089]: Exit (root) from <192.168.11.1:52294>: Disconnect received\nTue Jul  1 16:25:35 2025 authpriv.info dropbear[10101]: Child connection from 192.168.11.1:52298\nTue Jul  1 16:25:36 2025 authpriv.notice dropbear[10101]: Password auth succeeded for 'root' from 192.168.11.1:52298\nTue Jul  1 16:25:36 2025 authpriv.info dropbear[10101]: Exit (root) from <192.168.11.1:52298>: Disconnect received\nTue Jul  1 16:25:36 2025 authpriv.info dropbear[10104]: Child connection from 192.168.11.1:52300\nTue Jul  1 16:25:36 2025 authpriv.notice dropbear[10104]: Password auth succeeded for 'root' from 192.168.11.1:52300\n",
+    "timestamp": "2025-07-01T16:26:01.679Z"
+  },
+  "kernel_log": {
+    "command": "dmesg | tail -20",
+    "output": "[    7.547235] rvu_nicvf: Marvell RVU NIC Virtual Function Driver\n[    7.567677] thunder_xcv, ver 1.0\n[    7.572603] thunder_bgx, ver 1.0\n[    7.575307] nicpf, ver 1.0\n[    7.579326] nicvf, ver 1.0\n[    7.601046] i2c_dev: i2c /dev entries driver\n[    7.650719] e1000e: Intel(R) PRO/1000 Network Driver\n[    7.650996] e1000e: Copyright(c) 1999 - 2015 Intel Corporation.\n[    7.767078] PPP generic driver version 2.4.2\n[    7.770047] NET: Registered PF_PPPOX protocol family\n[    7.784863] kmodloader: done loading kernel modules from /etc/modules.d/*\n[   25.804311] 8021q: adding VLAN 0 to HW filter on device eth0\n[   25.825930] br-lan: port 1(eth0) entered blocking state\n[   25.826624] br-lan: port 1(eth0) entered disabled state\n[   25.833006] device eth0 entered promiscuous mode\n[   25.916978] br-lan: port 1(eth0) entered blocking state\n[   25.917539] br-lan: port 1(eth0) entered forwarding state\n[   26.234910] 8021q: adding VLAN 0 to HW filter on device eth2\n[   26.467148] 8021q: adding VLAN 0 to HW filter on device eth1\n[   26.730544] IPv6: ADDRCONF(NETDEV_CHANGE): br-lan: link becomes ready\n",
+    "timestamp": "2025-07-01T16:26:01.843Z"
+  },
+  "memory_usage": {
+    "command": "free -m",
+    "output": "              total        used        free      shared  buff/cache   available\nMem:         240088       34044      179572         136       26472      168164\nSwap:             0           0           0\n",
+    "timestamp": "2025-07-01T16:26:01.987Z"
+  },
+  "disk_usage": {
+    "command": "df -h",
+    "output": "Filesystem                Size      Used Available Use% Mounted on\n/dev/root                98.3M     72.1M     24.2M  75% /\ntmpfs                   117.2M    136.0K    117.1M   0% /tmp\ntmpfs                   512.0K         0    512.0K   0% /dev\n",
+    "timestamp": "2025-07-01T16:26:02.147Z"
+  },
+  "load_average": {
+    "command": "uptime",
+    "output": " 16:25:37 up 44 min,  load average: 0.16, 0.08, 0.07\n",
+    "timestamp": "2025-07-01T16:26:02.295Z"
+  }
+}

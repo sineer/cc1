@@ -492,11 +492,10 @@ export class ConfigDiffEngine {
   }
 
   /**
-   * Format diff as HTML (basic implementation)
+   * Format diff as HTML (basic implementation for MCP)
    */
   formatDiffAsHTML(diff) {
-    // This would generate a full HTML page with styling
-    // For now, return a basic HTML structure
+    // Basic HTML structure for MCP use
     return `
 <!DOCTYPE html>
 <html>
@@ -519,6 +518,251 @@ export class ConfigDiffEngine {
     </div>
     <!-- Full HTML diff would be implemented here -->
     <pre>${this.formatDiffAsText(diff)}</pre>
+</body>
+</html>`;
+  }
+
+  /**
+   * Format diff as rich HTML for dashboard (proper colored diff viewer)
+   */
+  formatDiffAsDashboardHTML(diff, deviceName, beforeId, afterId) {
+    const beforeLabel = beforeId.split('-').slice(-1)[0] || beforeId;
+    const afterLabel = afterId.split('-').slice(-1)[0] || afterId;
+    
+    let changesHtml = '';
+    let addedCount = 0;
+    let removedCount = 0;
+    let modifiedCount = 0;
+
+    // Process UCI changes
+    if (diff.uci_diff && diff.uci_diff.packages) {
+      for (const [packageName, packageDiff] of Object.entries(diff.uci_diff.packages)) {
+        if (packageDiff.status === 'added') {
+          addedCount++;
+          changesHtml += `
+        <div class="change-item">
+            <div class="change-header">📄 Package: ${packageName} (Added)</div>
+            <div class="change-content">
+                <pre><span class="line-number">+</span><span class="added">+	Package '${packageName}' added</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Added:</strong> New package ${packageName}
+                </p>
+            </div>
+        </div>`;
+        } else if (packageDiff.status === 'removed') {
+          removedCount++;
+          changesHtml += `
+        <div class="change-item">
+            <div class="change-header">📄 Package: ${packageName} (Removed)</div>
+            <div class="change-content">
+                <pre><span class="line-number">-</span><span class="removed">-	Package '${packageName}' removed</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Removed:</strong> Package ${packageName} was removed
+                </p>
+            </div>
+        </div>`;
+        } else if (packageDiff.status === 'modified' && packageDiff.sections) {
+          // Process sections within the modified package
+          for (const [sectionName, sectionDiff] of Object.entries(packageDiff.sections)) {
+            if (sectionDiff.status === 'added') {
+              addedCount++;
+              changesHtml += `
+        <div class="change-item">
+            <div class="change-header">📄 Package: ${packageName}</div>
+            <div class="change-content">
+                <h4>Section: ${sectionName} (Added)</h4>
+                <pre><span class="line-number">+</span><span class="added">+	config ${sectionDiff.section?.['.type'] || 'section'} '${sectionName}'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Added:</strong> New section ${sectionName}
+                </p>
+            </div>
+        </div>`;
+            } else if (sectionDiff.status === 'removed') {
+              removedCount++;
+              changesHtml += `
+        <div class="change-item">
+            <div class="change-header">📄 Package: ${packageName}</div>
+            <div class="change-content">
+                <h4>Section: ${sectionName} (Removed)</h4>
+                <pre><span class="line-number">-</span><span class="removed">-	config ${sectionDiff.section?.['.type'] || 'section'} '${sectionName}'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Removed:</strong> Section ${sectionName} was removed
+                </p>
+            </div>
+        </div>`;
+            } else if (sectionDiff.status === 'modified' && sectionDiff.options) {
+              // Process individual option changes within the section
+              for (const [optionName, optionDiff] of Object.entries(sectionDiff.options)) {
+                if (optionDiff.status === 'added') {
+                  addedCount++;
+                  const value = Array.isArray(optionDiff.value) ? optionDiff.value.join(' ') : optionDiff.value;
+                  changesHtml += `
+        <div class="change-item">
+            <div class="change-header">📄 Package: ${packageName}</div>
+            <div class="change-content">
+                <h4>Section: ${sectionName}</h4>
+                <pre><span class="line-number">+</span><span class="added">+	option ${optionName} '${value}'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Added:</strong> New option ${optionName} with value '${value}'
+                </p>
+            </div>
+        </div>`;
+                } else if (optionDiff.status === 'removed') {
+                  removedCount++;
+                  const value = Array.isArray(optionDiff.value) ? optionDiff.value.join(' ') : optionDiff.value;
+                  changesHtml += `
+        <div class="change-item">
+            <div class="change-header">📄 Package: ${packageName}</div>
+            <div class="change-content">
+                <h4>Section: ${sectionName}</h4>
+                <pre><span class="line-number">-</span><span class="removed">-	option ${optionName} '${value}'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Removed:</strong> Option ${optionName} was removed
+                </p>
+            </div>
+        </div>`;
+                } else if (optionDiff.status === 'modified') {
+                  modifiedCount++;
+                  const fromValue = Array.isArray(optionDiff.from) ? optionDiff.from.join(' ') : optionDiff.from;
+                  const toValue = Array.isArray(optionDiff.to) ? optionDiff.to.join(' ') : optionDiff.to;
+                  changesHtml += `
+        <div class="change-item">
+            <div class="change-header">📄 Package: ${packageName}</div>
+            <div class="change-content">
+                <h4>Section: ${sectionName}</h4>
+                <pre><span class="line-number">-</span><span class="removed">-	option ${optionName} '${fromValue}'</span>
+<span class="line-number">+</span><span class="added">+	option ${optionName} '${toValue}'</span></pre>
+                <p style="margin-top: 10px; color: #666;">
+                    <strong>Change:</strong> ${optionName} changed from '${fromValue}' to '${toValue}'
+                </p>
+            </div>
+        </div>`;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (changesHtml === '') {
+      changesHtml = `
+        <div class="change-item">
+            <div class="change-header">ℹ️ No UCI Configuration Changes</div>
+            <div class="change-content">
+                <p>No changes detected in UCI configuration between these snapshots.</p>
+                ${diff.system_changes && Object.keys(diff.system_changes).length > 0 ? 
+                  `<p>However, system state changes were detected: ${Object.keys(diff.system_changes).join(', ')}</p>` : ''}
+            </div>
+        </div>`;
+    }
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Diff - ${deviceName}</title>
+    <link rel="stylesheet" href="../assets/dashboard.css">
+    <style>
+        .diff-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .diff-header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .diff-summary {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .diff-stats {
+            display: flex;
+            gap: 15px;
+            margin: 10px 0;
+        }
+        .stat {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .stat.added { background: #d4edda; color: #155724; }
+        .stat.removed { background: #f8d7da; color: #721c24; }
+        .stat.modified { background: #fff3cd; color: #856404; }
+        .change-item {
+            background: white;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .change-header {
+            background: #e9ecef;
+            padding: 10px 15px;
+            font-weight: bold;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .change-content {
+            padding: 15px;
+        }
+        .removed { color: #dc3545; background-color: #f8d7da; padding: 2px 4px; }
+        .added { color: #155724; background-color: #d4edda; padding: 2px 4px; }
+        .modified { color: #856404; background-color: #fff3cd; padding: 2px 4px; }
+        .unchanged { color: #6c757d; }
+        .line-number {
+            display: inline-block;
+            width: 40px;
+            text-align: right;
+            margin-right: 10px;
+            color: #6c757d;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="diff-container">
+        <header class="diff-header">
+            <h1>🔍 Configuration Diff</h1>
+            <nav class="breadcrumb">
+                <a href="../device-${deviceName}.html">← Back to ${deviceName} Dashboard</a>
+            </nav>
+            <div style="margin-top: 15px;">
+                <h2>${deviceName}: ${beforeLabel} → ${afterLabel}</h2>
+                <p style="color: #666; margin: 5px 0;">
+                    <strong>Before:</strong> ${beforeId}<br>
+                    <strong>After:</strong> ${afterId}
+                </p>
+            </div>
+        </header>
+
+        <div class="diff-summary">
+            <h3>📊 Change Summary</h3>
+            <div class="diff-stats">
+                <div class="stat added">+${addedCount} options added</div>
+                <div class="stat removed">-${removedCount} options removed</div>
+                <div class="stat modified">~${modifiedCount} options changed</div>
+            </div>
+            <p><strong>Files changed:</strong> ${diff.statistics?.files_changed || Object.keys(diff.file_diffs || {}).length}</p>
+        </div>
+
+${changesHtml}
+
+    </div>
 </body>
 </html>`;
   }

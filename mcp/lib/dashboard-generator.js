@@ -10,6 +10,8 @@ export class DashboardGenerator {
   constructor(options = {}) {
     this.dashboardDir = options.dashboardDir || './config-snapshots/dashboard';
     this.debug = options.debug || false;
+    this.snapshotEngine = options.snapshotEngine;
+    this.diffEngine = options.diffEngine;
   }
 
   /**
@@ -54,25 +56,191 @@ export class DashboardGenerator {
   /**
    * Generate device-specific dashboard
    */
-  async generateDeviceDashboard(deviceName, snapshots) {
+  async generateDeviceDashboard(deviceName, days = 7) {
     this.log(`Generating device dashboard for ${deviceName}...`);
+
+    // Load snapshots for device
+    const snapshots = await this.snapshotEngine.listSnapshots(deviceName, {
+      since: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+    });
+
+    // Generate static assets first
+    await this.generateStaticAssets();
+
+    // Pre-generate diff files and collect per-snapshot statistics
+    let totalChanges = {
+      options_added: 0,
+      options_removed: 0, 
+      options_modified: 0,
+      sections_added: 0,
+      sections_removed: 0,
+      sections_modified: 0,
+      packages_added: 0,
+      packages_removed: 0,
+      packages_modified: 0,
+      files_changed: 0,
+      total_diffs: 0
+    };
+
+    // Add diff statistics to each snapshot
+    const snapshotsWithStats = snapshots.map(s => ({
+      ...s,
+      diff_stats: {
+        options_added: 0,
+        options_removed: 0,
+        options_modified: 0,
+        sections_added: 0,
+        sections_removed: 0,
+        sections_modified: 0,
+        packages_added: 0,
+        packages_removed: 0,
+        packages_modified: 0,
+        files_changed: 0,
+        has_changes: false
+      }
+    }));
+
+    if (snapshots.length > 1) {
+      this.log(`Pre-generating ${snapshots.length - 1} diff files...`);
+      
+      // Ensure diffs directory exists
+      const diffsDir = path.join(this.dashboardDir, 'diffs');
+      await fs.mkdir(diffsDir, { recursive: true });
+      
+      for (let i = 0; i < snapshots.length - 1; i++) {
+        const afterSnapshot = snapshots[i];
+        const beforeSnapshot = snapshots[i + 1];
+        
+        try {
+          // Generate diff between snapshots
+          const diff = await this.diffEngine.generateSnapshotDiff(
+            beforeSnapshot.path,
+            afterSnapshot.path,
+            'json'
+          );
+          
+          // Parse diff data to collect statistics
+          const diffData = JSON.parse(diff);
+          
+          // Initialize per-snapshot statistics for the "after" snapshot
+          let snapshotStats = {
+            options_added: 0,
+            options_removed: 0,
+            options_modified: 0,
+            sections_added: 0,
+            sections_removed: 0,
+            sections_modified: 0,
+            packages_added: 0,
+            packages_removed: 0,
+            packages_modified: 0,
+            files_changed: 0,
+            has_changes: false
+          };
+          
+          if (diffData.uci_diff && diffData.uci_diff.packages) {
+            totalChanges.total_diffs++;
+            
+            // Count package-level changes for this specific snapshot
+            for (const [packageName, packageDiff] of Object.entries(diffData.uci_diff.packages)) {
+              if (packageDiff.status === 'added') {
+                totalChanges.packages_added++;
+                snapshotStats.packages_added++;
+                snapshotStats.has_changes = true;
+              } else if (packageDiff.status === 'removed') {
+                totalChanges.packages_removed++;
+                snapshotStats.packages_removed++;
+                snapshotStats.has_changes = true;
+              } else if (packageDiff.status === 'modified') {
+                totalChanges.packages_modified++;
+                snapshotStats.packages_modified++;
+                snapshotStats.has_changes = true;
+                
+                // Count section-level changes
+                if (packageDiff.sections) {
+                  for (const [sectionName, sectionDiff] of Object.entries(packageDiff.sections)) {
+                    if (sectionDiff.status === 'added') {
+                      totalChanges.sections_added++;
+                      snapshotStats.sections_added++;
+                    } else if (sectionDiff.status === 'removed') {
+                      totalChanges.sections_removed++;
+                      snapshotStats.sections_removed++;
+                    } else if (sectionDiff.status === 'modified') {
+                      totalChanges.sections_modified++;
+                      snapshotStats.sections_modified++;
+                      
+                      // Count option-level changes
+                      if (sectionDiff.options) {
+                        for (const [optionName, optionDiff] of Object.entries(sectionDiff.options)) {
+                          if (optionDiff.status === 'added') {
+                            totalChanges.options_added++;
+                            snapshotStats.options_added++;
+                          } else if (optionDiff.status === 'removed') {
+                            totalChanges.options_removed++;
+                            snapshotStats.options_removed++;
+                          } else if (optionDiff.status === 'modified') {
+                            totalChanges.options_modified++;
+                            snapshotStats.options_modified++;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          // Count file changes for this snapshot
+          if (diffData.statistics && diffData.statistics.files_changed) {
+            totalChanges.files_changed += diffData.statistics.files_changed;
+            snapshotStats.files_changed = diffData.statistics.files_changed;
+            if (diffData.statistics.files_changed > 0) {
+              snapshotStats.has_changes = true;
+            }
+          }
+          
+          // Assign statistics to the "after" snapshot (the one that contains the changes)
+          snapshotsWithStats[i].diff_stats = snapshotStats;
+          
+          // Extract labels from snapshots
+          const beforeLabel = beforeSnapshot.label;
+          const afterLabel = afterSnapshot.label;
+          
+          // Save diff as HTML file
+          const diffFileName = `${deviceName}-${beforeLabel}-${afterLabel}.html`;
+          const diffPath = path.join(diffsDir, diffFileName);
+          
+          // Generate and save rich dashboard diff HTML 
+          const diffHtml = this.diffEngine.formatDiffAsDashboardHTML(diffData, deviceName, beforeSnapshot.id, afterSnapshot.id);
+          await fs.writeFile(diffPath, diffHtml);
+          
+          this.log(`Generated diff: ${diffFileName}`);
+        } catch (error) {
+          this.log(`Warning: Could not generate diff for ${beforeSnapshot.label} -> ${afterSnapshot.label}: ${error.message}`);
+        }
+      }
+    }
 
     const deviceData = {
       device_name: deviceName,
       generated_at: new Date().toISOString(),
-      snapshots: snapshots.map(s => ({
+      snapshots: snapshotsWithStats.map(s => ({
         id: s.id,
         label: s.label,
         timestamp: s.timestamp,
         files_count: s.files_count,
-        has_errors: s.has_errors
-      }))
+        has_errors: s.has_errors,
+        diff_stats: s.diff_stats
+      })),
+      change_statistics: totalChanges
     };
 
     const html = this.generateDeviceDashboardHTML(deviceData);
     
     const deviceDashboardPath = path.join(this.dashboardDir, `device-${deviceName}.html`);
     await fs.writeFile(deviceDashboardPath, html);
+    
+    this.log(`Dashboard generated with ${snapshots.length} snapshots and ${Math.max(0, snapshots.length - 1)} diffs`);
     
     return {
       path: deviceDashboardPath,
@@ -86,7 +254,14 @@ export class DashboardGenerator {
   async generateDiffVisualization(diffData, deviceName, beforeId, afterId) {
     this.log(`Generating diff visualization for ${deviceName}...`);
 
-    const diffHtml = this.generateDiffHTML(diffData, deviceName, beforeId, afterId);
+    // Use the rich dashboard HTML formatter if we have structured diff data
+    let diffHtml;
+    if (typeof diffData === 'object' && diffData.uci_diff) {
+      diffHtml = this.diffEngine.formatDiffAsDashboardHTML(diffData, deviceName, beforeId, afterId);
+    } else {
+      // Fallback to basic HTML for simple diffs
+      diffHtml = this.generateDiffHTML(diffData, deviceName, beforeId, afterId);
+    }
     
     const diffPath = path.join(
       this.dashboardDir, 
@@ -227,7 +402,7 @@ export class DashboardGenerator {
 
         <main class="dashboard-main">
             <section class="device-info">
-                <h2>Device Information</h2>
+                <h2>📊 Device Overview & Change Statistics</h2>
                 <div class="info-grid">
                     <div class="info-item">
                         <span class="label">Total Snapshots</span>
@@ -237,6 +412,82 @@ export class DashboardGenerator {
                         <span class="label">Latest Snapshot</span>
                         <span class="value">${data.snapshots[0] ? new Date(data.snapshots[0].timestamp).toLocaleString() : 'None'}</span>
                     </div>
+                    <div class="info-item">
+                        <span class="label">Total Comparisons</span>
+                        <span class="value">${data.change_statistics.total_diffs}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Files Changed</span>
+                        <span class="value">${data.change_statistics.files_changed}</span>
+                    </div>
+                </div>
+                
+                <div class="change-stats-section">
+                    <h3>🔧 Configuration Changes Summary</h3>
+                    <div class="stats-grid">
+                        <div class="stat-group package-stats">
+                            <h4>📦 Package Changes</h4>
+                            <div class="stat-items">
+                                <div class="stat-item added">
+                                    <span class="stat-icon">+</span>
+                                    <span class="stat-count">${data.change_statistics.packages_added}</span>
+                                    <span class="stat-label">Added</span>
+                                </div>
+                                <div class="stat-item removed">
+                                    <span class="stat-icon">-</span>
+                                    <span class="stat-count">${data.change_statistics.packages_removed}</span>
+                                    <span class="stat-label">Removed</span>
+                                </div>
+                                <div class="stat-item modified">
+                                    <span class="stat-icon">~</span>
+                                    <span class="stat-count">${data.change_statistics.packages_modified}</span>
+                                    <span class="stat-label">Modified</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-group section-stats">
+                            <h4>📝 Section Changes</h4>
+                            <div class="stat-items">
+                                <div class="stat-item added">
+                                    <span class="stat-icon">+</span>
+                                    <span class="stat-count">${data.change_statistics.sections_added}</span>
+                                    <span class="stat-label">Added</span>
+                                </div>
+                                <div class="stat-item removed">
+                                    <span class="stat-icon">-</span>
+                                    <span class="stat-count">${data.change_statistics.sections_removed}</span>
+                                    <span class="stat-label">Removed</span>
+                                </div>
+                                <div class="stat-item modified">
+                                    <span class="stat-icon">~</span>
+                                    <span class="stat-count">${data.change_statistics.sections_modified}</span>
+                                    <span class="stat-label">Modified</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-group option-stats">
+                            <h4>⚙️ Option Changes</h4>
+                            <div class="stat-items">
+                                <div class="stat-item added">
+                                    <span class="stat-icon">+</span>
+                                    <span class="stat-count">${data.change_statistics.options_added}</span>
+                                    <span class="stat-label">Added</span>
+                                </div>
+                                <div class="stat-item removed">
+                                    <span class="stat-icon">-</span>
+                                    <span class="stat-count">${data.change_statistics.options_removed}</span>
+                                    <span class="stat-label">Removed</span>
+                                </div>
+                                <div class="stat-item modified">
+                                    <span class="stat-icon">~</span>
+                                    <span class="stat-count">${data.change_statistics.options_modified}</span>
+                                    <span class="stat-label">Modified</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -244,7 +495,7 @@ export class DashboardGenerator {
                 <h2>📈 Snapshots Timeline</h2>
                 <div class="timeline">
                     ${data.snapshots.map((snapshot, index) => `
-                        <div class="timeline-item ${snapshot.has_errors ? 'has-errors' : ''}">
+                        <div class="timeline-item ${snapshot.has_errors ? 'has-errors' : ''} ${snapshot.diff_stats.has_changes ? 'has-changes' : ''}">
                             <div class="timeline-marker"></div>
                             <div class="timeline-content">
                                 <div class="timeline-header">
@@ -254,7 +505,57 @@ export class DashboardGenerator {
                                 <div class="timeline-details">
                                     <span class="files-count">${snapshot.files_count} files captured</span>
                                     ${snapshot.has_errors ? '<span class="error-indicator">⚠️ Has warnings</span>' : ''}
+                                    ${snapshot.diff_stats.has_changes ? '<span class="change-indicator">📊 Has changes</span>' : ''}
                                 </div>
+                                
+                                ${snapshot.diff_stats.has_changes ? `
+                                <div class="snapshot-diff-stats">
+                                    <h5>📊 Changes since previous snapshot:</h5>
+                                    <div class="snapshot-stats-grid">
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📦 Packages:</span>
+                                            <div class="stat-badges">
+                                                ${snapshot.diff_stats.packages_added > 0 ? `<span class="stat-badge added">+${snapshot.diff_stats.packages_added}</span>` : ''}
+                                                ${snapshot.diff_stats.packages_removed > 0 ? `<span class="stat-badge removed">-${snapshot.diff_stats.packages_removed}</span>` : ''}
+                                                ${snapshot.diff_stats.packages_modified > 0 ? `<span class="stat-badge modified">~${snapshot.diff_stats.packages_modified}</span>` : ''}
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📝 Sections:</span>
+                                            <div class="stat-badges">
+                                                ${snapshot.diff_stats.sections_added > 0 ? `<span class="stat-badge added">+${snapshot.diff_stats.sections_added}</span>` : ''}
+                                                ${snapshot.diff_stats.sections_removed > 0 ? `<span class="stat-badge removed">-${snapshot.diff_stats.sections_removed}</span>` : ''}
+                                                ${snapshot.diff_stats.sections_modified > 0 ? `<span class="stat-badge modified">~${snapshot.diff_stats.sections_modified}</span>` : ''}
+                                            </div>
+                                        </div>
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">⚙️ Options:</span>
+                                            <div class="stat-badges">
+                                                ${snapshot.diff_stats.options_added > 0 ? `<span class="stat-badge added">+${snapshot.diff_stats.options_added}</span>` : ''}
+                                                ${snapshot.diff_stats.options_removed > 0 ? `<span class="stat-badge removed">-${snapshot.diff_stats.options_removed}</span>` : ''}
+                                                ${snapshot.diff_stats.options_modified > 0 ? `<span class="stat-badge modified">~${snapshot.diff_stats.options_modified}</span>` : ''}
+                                            </div>
+                                        </div>
+                                        ${snapshot.diff_stats.files_changed > 0 ? `
+                                        <div class="snapshot-stat-group">
+                                            <span class="stat-label">📄 Files:</span>
+                                            <div class="stat-badges">
+                                                <span class="stat-badge modified">${snapshot.diff_stats.files_changed} changed</span>
+                                            </div>
+                                        </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                                ` : index === data.snapshots.length - 1 ? `
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">🔍 Initial snapshot - no previous snapshot to compare with</p>
+                                </div>
+                                ` : `
+                                <div class="snapshot-diff-stats">
+                                    <p class="no-changes">✅ No configuration changes since previous snapshot</p>
+                                </div>
+                                `}
+                                
                                 <div class="timeline-actions">
                                     ${index < data.snapshots.length - 1 ? `
                                         <button class="btn btn-sm" onclick="compareTo('${snapshot.id}', '${data.snapshots[index + 1].id}')">
@@ -282,10 +583,13 @@ export class DashboardGenerator {
    * Generate diff visualization HTML
    */
   generateDiffHTML(diffData, deviceName, beforeId, afterId) {
-    // Parse diff data if it's a string
-    let diff = diffData;
+    // If diffData is already HTML (starts with <!DOCTYPE), return it directly
+    if (typeof diffData === 'string' && diffData.trim().startsWith('<!DOCTYPE')) {
+      return diffData;
+    }
+    
+    // If it's plain text diff, wrap it in our template
     if (typeof diffData === 'string') {
-      // For now, display as preformatted text
       return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -293,6 +597,17 @@ export class DashboardGenerator {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configuration Diff - ${deviceName}</title>
     <link rel="stylesheet" href="../assets/dashboard.css">
+    <style>
+        .diff-content { font-family: 'Courier New', monospace; }
+        .diff-text { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 4px; 
+            white-space: pre-wrap;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+    </style>
 </head>
 <body>
     <div class="dashboard">
@@ -687,6 +1002,121 @@ body {
     color: #856404;
 }
 
+/* Change Statistics Styles */
+.change-stats-section {
+    margin-top: 25px;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.change-stats-section h3 {
+    margin-bottom: 20px;
+    color: #2c3e50;
+    border-bottom: 2px solid #ecf0f1;
+    padding-bottom: 10px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.stat-group {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.stat-group h4 {
+    margin-bottom: 15px;
+    color: #495057;
+    font-size: 1em;
+    text-align: center;
+}
+
+.stat-items {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    border-radius: 4px;
+    min-width: 60px;
+}
+
+.stat-item.added {
+    background: #d4edda;
+    color: #155724;
+}
+
+.stat-item.removed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.stat-item.modified {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.stat-icon {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.stat-count {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.stat-label {
+    font-size: 0.8em;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.info-item .label {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.info-item .value {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #2c3e50;
+    text-align: center;
+}
+
 @media (max-width: 768px) {
     .devices-grid {
         grid-template-columns: 1fr;
@@ -698,6 +1128,117 @@ body {
     
     .device-stats {
         grid-template-columns: 1fr;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .info-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .stat-items {
+        justify-content: space-between;
+    }
+}
+
+/* Per-Snapshot Diff Statistics */
+.timeline-item.has-changes {
+    border-left: 4px solid #28a745;
+}
+
+.change-indicator {
+    background: #d4edda;
+    color: #155724;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+.snapshot-diff-stats {
+    margin: 15px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.snapshot-diff-stats h5 {
+    margin: 0 0 10px 0;
+    color: #495057;
+    font-size: 0.9em;
+}
+
+.snapshot-stats-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+}
+
+.snapshot-stat-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.stat-label {
+    font-size: 0.8em;
+    font-weight: 500;
+    color: #6c757d;
+    white-space: nowrap;
+}
+
+.stat-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.stat-badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.75em;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.stat-badge.added {
+    background: #d4edda;
+    color: #155724;
+}
+
+.stat-badge.removed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.stat-badge.modified {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.no-changes {
+    margin: 0;
+    color: #6c757d;
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+@media (max-width: 768px) {
+    .snapshot-stats-grid {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .snapshot-stat-group {
+        width: 100%;
+        justify-content: space-between;
     }
 }`;
   }
@@ -767,9 +1308,12 @@ console.log('UCI Configuration Dashboard loaded');`;
   }
 
   escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   log(message) {

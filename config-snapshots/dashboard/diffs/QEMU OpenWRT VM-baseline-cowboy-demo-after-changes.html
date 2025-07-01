@@ -24,6 +24,19 @@
             border-radius: 6px;
             margin-bottom: 20px;
         }
+        .diff-stats {
+            display: flex;
+            gap: 15px;
+            margin: 10px 0;
+        }
+        .stat {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .stat.added { background: #d4edda; color: #155724; }
+        .stat.removed { background: #f8d7da; color: #721c24; }
+        .stat.modified { background: #fff3cd; color: #856404; }
         .change-item {
             background: white;
             margin-bottom: 15px;
@@ -40,9 +53,9 @@
         .change-content {
             padding: 15px;
         }
-        .removed { color: #dc3545; background-color: #f8d7da; }
-        .added { color: #155724; background-color: #d4edda; }
-        .modified { color: #856404; background-color: #fff3cd; }
+        .removed { color: #dc3545; background-color: #f8d7da; padding: 2px 4px; }
+        .added { color: #155724; background-color: #d4edda; padding: 2px 4px; }
+        .modified { color: #856404; background-color: #fff3cd; padding: 2px 4px; }
         .unchanged { color: #6c757d; }
         .line-number {
             display: inline-block;
@@ -56,6 +69,9 @@
             white-space: pre-wrap;
             font-family: 'Monaco', 'Menlo', monospace;
             font-size: 0.9em;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -67,10 +83,10 @@
                 <a href="../device-QEMU OpenWRT VM.html">← Back to QEMU OpenWRT VM Dashboard</a>
             </nav>
             <div style="margin-top: 15px;">
-                <h2>QEMU OpenWRT VM: baseline-cowboy-demo → after-changes</h2>
+                <h2>QEMU OpenWRT VM: demo → changes</h2>
                 <p style="color: #666; margin: 5px 0;">
-                    <strong>Before:</strong> 2025-07-01T15:44:23.554Z (baseline-cowboy-demo)<br>
-                    <strong>After:</strong> 2025-07-01T15:48:12.531Z (after-changes)
+                    <strong>Before:</strong> 2025-07-01T15-44-23-553Z-baseline-cowboy-demo<br>
+                    <strong>After:</strong> 2025-07-01T15-48-12-531Z-after-changes
                 </p>
             </div>
         </header>
@@ -78,79 +94,37 @@
         <div class="diff-summary">
             <h3>📊 Change Summary</h3>
             <div class="diff-stats">
-                <div class="stat added">+0 sections added</div>
-                <div class="stat removed">-0 sections removed</div>
+                <div class="stat added">+0 options added</div>
+                <div class="stat removed">-0 options removed</div>
                 <div class="stat modified">~2 options changed</div>
             </div>
-            <p><strong>Files changed:</strong> 2 (dhcp, system)</p>
+            <p><strong>Files changed:</strong> 2</p>
         </div>
+
 
         <div class="change-item">
             <div class="change-header">📄 Package: dhcp</div>
             <div class="change-content">
                 <h4>Section: lan</h4>
-                <pre><span class="line-number">29</span><span class="removed">-	option leasetime '12h'</span>
-<span class="line-number">29</span><span class="added">+	option leasetime '24h'</span></pre>
+                <pre><span class="line-number">-</span><span class="removed">-	option leasetime '12h'</span>
+<span class="line-number">+</span><span class="added">+	option leasetime '24h'</span></pre>
                 <p style="margin-top: 10px; color: #666;">
-                    <strong>Change:</strong> DHCP lease time extended from 12 hours to 24 hours
+                    <strong>Change:</strong> leasetime changed from '12h' to '24h'
                 </p>
             </div>
         </div>
-
         <div class="change-item">
             <div class="change-header">📄 Package: system</div>
             <div class="change-content">
-                <h4>Section: system[0]</h4>
-                <pre><span class="line-number">3</span><span class="removed">-	option hostname '52-55-00-D1-55-11'</span>
-<span class="line-number">3</span><span class="added">+	option hostname 'qemu-cowboy-demo'</span></pre>
+                <h4>Section: system</h4>
+                <pre><span class="line-number">-</span><span class="removed">-	option hostname '52-55-00-D1-55-11'</span>
+<span class="line-number">+</span><span class="added">+	option hostname 'qemu-cowboy-demo'</span></pre>
                 <p style="margin-top: 10px; color: #666;">
-                    <strong>Change:</strong> Hostname changed from auto-generated MAC-based name to custom name
+                    <strong>Change:</strong> hostname changed from '52-55-00-D1-55-11' to 'qemu-cowboy-demo'
                 </p>
             </div>
         </div>
 
-        <div class="change-item">
-            <div class="change-header">⚙️ System State Changes</div>
-            <div class="change-content">
-                <h4>Runtime Changes Detected</h4>
-                <ul>
-                    <li><strong>Uptime:</strong> System uptime changed (expected)</li>
-                    <li><strong>Memory usage:</strong> Memory allocation shifted</li>
-                    <li><strong>Load average:</strong> CPU load variation</li>
-                </ul>
-                <p style="color: #666; margin-top: 10px;">
-                    <em>Note: These are normal runtime variations and not configuration changes.</em>
-                </p>
-            </div>
-        </div>
-
-        <div class="change-item">
-            <div class="change-header">📋 Unchanged Configurations</div>
-            <div class="change-content">
-                <p>The following configuration packages remained unchanged:</p>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px;">
-                    <span>✅ network</span>
-                    <span>✅ firewall</span>
-                    <span>✅ dropbear</span>
-                    <span>✅ uhttpd</span>
-                    <span>✅ luci</span>
-                    <span>✅ openvpn</span>
-                    <span>✅ openwisp</span>
-                    <span>✅ ubispot</span>
-                    <span>✅ rpcd</span>
-                    <span>✅ socat</span>
-                    <span>✅ ucitrack</span>
-                </div>
-            </div>
-        </div>
-
-        <footer style="margin-top: 30px; padding: 20px; text-align: center; color: #666; border-top: 1px solid #dee2e6;">
-            <p>Generated by UCI Device Orchestrator • <span id="current-time"></span></p>
-        </footer>
     </div>
-
-    <script>
-        document.getElementById('current-time').textContent = new Date().toLocaleString();
-    </script>
 </body>
 </html>
