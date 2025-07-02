@@ -71,10 +71,10 @@ class SimpleMCPClient {
           }
         });
 
-        // Timeout after 10 seconds
+        // Timeout after 30 seconds
         setTimeout(() => {
           reject(new Error('Server startup timeout'));
-        }, 10000);
+        }, 30000);
 
       } catch (error) {
         reject(new Error(`Failed to start server: ${error.message}`));
@@ -109,13 +109,13 @@ class SimpleMCPClient {
       
       this.serverProcess.stdin.write(JSON.stringify(request) + '\n');
       
-      // Timeout after 30 seconds for remote testing
+      // Timeout after 120 seconds for remote testing and demos
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
           reject(new Error('Request timeout'));
         }
-      }, 30000);
+      }, 120000);
     });
   }
 

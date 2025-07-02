@@ -3,6 +3,8 @@
  * Handles ubispot deployment and cowboy snapshot analysis workflows
  */
 
+import path from 'path';
+
 export class DemoOrchestrator {
   constructor(engines) {
     this.snapshotEngine = engines.snapshotEngine;
@@ -58,7 +60,7 @@ export class DemoOrchestrator {
       // Take pre-deployment snapshot
       output += '📸 Taking pre-deployment snapshot...\n';
       const preLabel = 'pre-ubispot-deployment';
-      await this.snapshotEngine.captureSnapshot(deviceProfile, preLabel);
+      const preSnapshot = await this.snapshotEngine.captureSnapshot(deviceProfile, preLabel);
       output += '✅ Pre-deployment snapshot captured\n\n';
       
       if (deploy) {
@@ -76,13 +78,16 @@ export class DemoOrchestrator {
         // Take post-deployment snapshot
         output += '📸 Taking post-deployment snapshot...\n';
         const postLabel = 'post-ubispot-deployment';
-        await this.snapshotEngine.captureSnapshot(deviceProfile, postLabel);
+        const postSnapshot = await this.snapshotEngine.captureSnapshot(deviceProfile, postLabel);
         output += '✅ Post-deployment snapshot captured\n\n';
         
         // Generate configuration diff
         output += '🔍 Generating configuration diff...\n';
-        const diffPath = await this.diffEngine.compareSnapshots(deviceName, preLabel, postLabel);
-        output += `✅ Configuration diff generated: ${diffPath}\n\n`;
+        const diffResult = await this.diffEngine.generateSnapshotDiff(
+          preSnapshot.snapshotPath,
+          postSnapshot.snapshotPath
+        );
+        output += `✅ Configuration diff generated\n\n`;
       }
       
       // Generate dashboard
