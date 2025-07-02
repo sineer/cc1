@@ -25,6 +25,8 @@ import { ConfigDiffEngine } from './lib/config-differ.js';
 import { DashboardGenerator } from './lib/dashboard-generator.js';
 import { SSHManager } from './lib/ssh-manager.js';
 import { CommandRunner } from './lib/command-runner.js';
+import { DemoOrchestrator } from './lib/demo-orchestrator.js';
+import { ResponseFormatter } from './lib/response-formatter.js';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -86,6 +88,20 @@ class UnifiedTestServer {
       repoRoot: REPO_ROOT,
       timeout: 30000,
       maxBuffer: 10 * 1024 * 1024
+    });
+
+    this.demoOrchestrator = new DemoOrchestrator({
+      snapshotEngine: this.snapshotEngine,
+      diffEngine: this.diffEngine,
+      dashboardGenerator: this.dashboardGenerator,
+      sshManager: this.sshManager,
+      commandRunner: this.commandRunner,
+      debug: true
+    });
+
+    this.responseFormatter = new ResponseFormatter({
+      includeTimestamp: false,
+      debug: true
     });
 
     this.setupToolHandlers();
@@ -591,24 +607,14 @@ class UnifiedTestServer {
    * Format successful result
    */
   formatResult(text) {
-    return {
-      content: [{
-        type: 'text',
-        text: text,
-      }],
-    };
+    return this.responseFormatter.formatResult(text);
   }
 
   /**
    * Format error result
    */
   formatError(message) {
-    return {
-      content: [{
-        type: 'text',
-        text: `❌ Error: ${message}`,
-      }],
-    };
+    return this.responseFormatter.formatError(message);
   }
 
   /**
@@ -724,29 +730,10 @@ Open the dashboard to explore your ${device === 'all' ? 'infrastructure' : 'devi
   }
 
   /**
-   * Run complete deployment demo workflows
+   * Run complete deployment demo workflows - delegates to DemoOrchestrator
    */
   async runDemo(args) {
-    const {
-      type = 'ubispot',
-      host = '192.168.11.2',
-      deploy = true,
-      target = 'default',
-      mode = 'safe-merge',
-      password
-    } = args;
-    
-    try {
-      if (type === 'ubispot') {
-        return await this.runUbispotDemo({ host, deploy, target, mode, password });
-      } else if (type === 'cowboy') {
-        return await this.runCowboyDemo({ host, deploy, target, mode, password });
-      } else {
-        return this.formatError(`Unknown demo type: ${type}. Available: ubispot, cowboy`);
-      }
-    } catch (error) {
-      return this.formatError(`Demo failed: ${error.message}`);
-    }
+    return this.demoOrchestrator.runDemo(args);
   }
 
   /**
@@ -793,134 +780,6 @@ Use 'dashboard' tool to explore the interactive timeline.`;
     }
   }
 
-  /**
-   * Run ubispot deployment demo
-   */
-  async runUbispotDemo(args) {
-    const { host, deploy, target, mode, password } = args;
-    const device = 'qemu';
-    const deviceName = 'QEMU OpenWRT VM';
-    
-    let output = '🔧 ubispot Deployment Demo\n';
-    output += '================================\n\n';
-    
-    if (deploy) {
-      output += 'Deployment Mode: ENABLED\n';
-      output += `Target: ${target}, Mode: ${mode}, Host: ${host}\n\n`;
-    } else {
-      output += 'Analysis Mode: DEPLOYMENT DISABLED\n\n';
-    }
-    
-    try {
-      // Step 1: Pre-deployment snapshot
-      const preLabel = deploy ? `pre-uci-config-${target}` : `analysis-${Date.now()}`;
-      output += `📸 Taking ${deploy ? 'pre-deployment' : 'analysis'} snapshot...\n`;
-      
-      const deviceProfile = await this.loadDeviceProfile(device, password);
-      await this.snapshotEngine.captureSnapshot(deviceProfile, preLabel);
-      output += `✅ Snapshot captured: ${preLabel}\n\n`;
-      
-      if (deploy) {
-        // Step 2: Run deployment
-        output += '🚀 Running UCI configuration deployment...\n';
-        const deployResult = await this.runDeployment(host, mode, target, password);
-        output += deployResult.success ? '✅ Deployment completed\n\n' : '⚠️ Deployment completed with warnings\n\n';
-        
-        // Step 3: Post-deployment snapshot
-        const postLabel = `post-uci-config-${target}`;
-        output += '📸 Taking post-deployment snapshot...\n';
-        await this.snapshotEngine.captureSnapshot(deviceProfile, postLabel);
-        output += `✅ Snapshot captured: ${postLabel}\n\n`;
-        
-        // Step 4: Generate comparison
-        output += '🔍 Generating configuration diff...\n';
-        const diff = await this.diffEngine.generateSnapshotDiff(
-          await this.getSnapshotPath(deviceName, preLabel),
-          await this.getSnapshotPath(deviceName, postLabel),
-          'text'
-        );
-        output += 'Configuration changes:\n' + diff + '\n\n';
-      }
-      
-      // Step 5: Generate dashboard
-      output += '📊 Generating dashboard...\n';
-      const dashboardUrl = await this.dashboardGenerator.generateDeviceDashboard(deviceName, 7);
-      output += `✅ Dashboard available: file://${dashboardUrl}\n\n`;
-      
-      output += '🎉 Demo completed successfully!\n\n';
-      output += deploy ? 
-        '🔍 Check the dashboard for detailed configuration changes.' :
-        '🔍 Check the dashboard for current configuration state.';
-      
-      return this.formatResult(output);
-      
-    } catch (error) {
-      return this.formatError(`ubispot demo failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Run cowboy demo (configuration snapshot analysis)
-   */
-  async runCowboyDemo(args) {
-    const device = 'qemu';
-    const deviceName = 'QEMU OpenWRT VM';
-    
-    let output = '🤠 Cowboy Configuration Demo\n';
-    output += '============================\n\n';
-    output += 'This demo shows configuration snapshot and analysis workflow.\n\n';
-    
-    try {
-      // Take baseline snapshot
-      output += '📸 Taking baseline snapshot...\n';
-      const deviceProfile = await this.loadDeviceProfile(device, args.password);
-      await this.snapshotEngine.captureSnapshot(deviceProfile, 'baseline-cowboy-demo');
-      output += '✅ Baseline snapshot captured\n\n';
-      
-      output += '👉 Now make some configuration changes on your device...\n';
-      output += '   (This demo captured the baseline - you can compare against it later)\n\n';
-      
-      // Generate dashboard
-      output += '📊 Generating dashboard...\n';
-      const dashboardUrl = await this.dashboardGenerator.generateDeviceDashboard(deviceName, 7);
-      output += `✅ Dashboard available: file://${dashboardUrl}\n\n`;
-      
-      output += '🤠 Cowboy demo baseline completed!\n\n';
-      output += 'Next steps:\n';
-      output += '1. Make configuration changes on your device\n';
-      output += '2. Run: snapshot tool with label "after-changes"\n';
-      output += '3. Run: compare tool to see differences\n';
-      output += '4. Check the dashboard for visual timeline\n';
-      
-      return this.formatResult(output);
-      
-    } catch (error) {
-      return this.formatError(`Cowboy demo failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Helper methods
-   */
-  async loadDeviceProfile(device, password, keyFile) {
-    return this.sshManager.loadDeviceProfile(device, password, keyFile);
-  }
-
-  getDeviceName(device) {
-    return device.includes('.') ? device : `QEMU OpenWRT VM`;
-  }
-
-  async runDeployment(host, mode, target, password) {
-    const cmd = `./scripts/run-deploy.sh ${host} ${mode} --target ${target} --no-confirm --password "${password || ''}"`;
-    const result = await this.execute(cmd);
-    return result;
-  }
-
-  async getSnapshotPath(deviceName, label) {
-    const snapshots = await this.snapshotEngine.listSnapshots(deviceName);
-    const snapshot = snapshots.find(s => s.label === label);
-    return snapshot ? snapshot.path : null;
-  }
 
   /**
    * Start the server
