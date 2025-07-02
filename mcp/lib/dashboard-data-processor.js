@@ -91,7 +91,60 @@ export class DashboardDataProcessor {
       return JSON.parse(metadataContent);
     } catch (error) {
       this.log(`Warning: Could not load metadata: ${error.message}`);
-      return null;
+      
+      // Generate fallback metadata from available files
+      return await this.generateFallbackMetadata(snapshotDir);
+    }
+  }
+
+  /**
+   * Generate fallback metadata when metadata.json is missing
+   */
+  async generateFallbackMetadata(snapshotDir) {
+    try {
+      const files = await fs.readdir(snapshotDir);
+      const snapshotId = path.basename(snapshotDir);
+      let totalSize = 0;
+      const fileList = [];
+
+      for (const file of files) {
+        try {
+          const filePath = path.join(snapshotDir, file);
+          const stat = await fs.stat(filePath);
+          if (stat.isFile()) {
+            totalSize += stat.size;
+            fileList.push({
+              name: file,
+              size: stat.size
+            });
+          }
+        } catch (error) {
+          this.log(`Warning: Could not stat file ${file}: ${error.message}`);
+        }
+      }
+
+      return {
+        snapshot_id: snapshotId,
+        timestamp: new Date().toISOString(),
+        files: fileList,
+        file_count: fileList.length,
+        total_size: totalSize,
+        files_captured: files,
+        errors: [],
+        capture_method: 'unknown'
+      };
+    } catch (error) {
+      this.log(`Warning: Could not generate fallback metadata: ${error.message}`);
+      return {
+        snapshot_id: 'unknown',
+        timestamp: new Date().toISOString(),
+        files: [],
+        file_count: 0,
+        total_size: 0,
+        files_captured: [],
+        errors: ['Metadata generation failed'],
+        capture_method: 'unknown'
+      };
     }
   }
 
@@ -105,7 +158,18 @@ export class DashboardDataProcessor {
       return JSON.parse(systemInfoContent);
     } catch (error) {
       this.log(`Warning: Could not load system info: ${error.message}`);
-      return null;
+      
+      // Return default system info structure
+      return {
+        hostname: { output: 'Unknown' },
+        uptime: { output: 'Unknown' },
+        date: { output: 'Unknown' },
+        openwrt_release: { output: 'OpenWrt (version unknown)' },
+        kernel: { output: 'Linux (kernel unknown)' },
+        memory_usage: { output: 'Memory information not available' },
+        disk_usage: { output: 'Disk information not available' },
+        load_average: { output: 'Load information not available' }
+      };
     }
   }
 
@@ -119,7 +183,15 @@ export class DashboardDataProcessor {
       return JSON.parse(networkContent);
     } catch (error) {
       this.log(`Warning: Could not load network status: ${error.message}`);
-      return null;
+      
+      // Return default network status structure
+      return {
+        ip_addresses: { output: 'Interface information not available' },
+        routing_table: { output: 'Routing information not available' },
+        interface_stats: { output: 'Interface statistics not available' },
+        dns_test: { output: 'DNS test not available' },
+        ping_gateway: { output: 'Gateway connectivity not available' }
+      };
     }
   }
 
@@ -133,7 +205,13 @@ export class DashboardDataProcessor {
       return JSON.parse(serviceContent);
     } catch (error) {
       this.log(`Warning: Could not load service status: ${error.message}`);
-      return null;
+      
+      // Return default service status structure
+      return {
+        active_processes: { output: 'Process information not available' },
+        running_services: { output: 'Service configuration not available' },
+        system_log: { output: 'Log information not available' }
+      };
     }
   }
 

@@ -219,15 +219,15 @@ async function loadSystemTab(snapshotId, container) {
                         <div class="info-grid">
                             <div class="info-item">
                                 <strong>Hostname:</strong>
-                                <span>\${systemInfo.hostname || 'Unknown'}</span>
+                                <span>\${systemInfo.hostname?.output || systemInfo.hostname || 'Unknown'}</span>
                             </div>
                             <div class="info-item">
                                 <strong>Uptime:</strong>
-                                <span>\${systemInfo.uptime || 'Unknown'}</span>
+                                <span>\${systemInfo.uptime?.output || systemInfo.uptime || 'Unknown'}</span>
                             </div>
                             <div class="info-item">
                                 <strong>Date:</strong>
-                                <span>\${systemInfo.date || 'Unknown'}</span>
+                                <span>\${systemInfo.date?.output || systemInfo.date || 'Unknown'}</span>
                             </div>
                         </div>
                     </div>
@@ -237,11 +237,11 @@ async function loadSystemTab(snapshotId, container) {
                         <div class="info-grid">
                             <div class="info-item">
                                 <strong>Kernel:</strong>
-                                <span>\${systemInfo.uname || 'Unknown'}</span>
+                                <span>\${systemInfo.kernel?.output || systemInfo.uname?.output || systemInfo.kernel || systemInfo.uname || 'Unknown'}</span>
                             </div>
                             <div class="info-item">
                                 <strong>OpenWRT Release:</strong>
-                                <span>\${systemInfo.openwrt_release || 'Unknown'}</span>
+                                <span>\${systemInfo.openwrt_release?.output ? systemInfo.openwrt_release.output.split('\\n')[0] : systemInfo.openwrt_release || 'Unknown'}</span>
                             </div>
                         </div>
                     </div>
@@ -251,15 +251,15 @@ async function loadSystemTab(snapshotId, container) {
                         <div class="info-grid">
                             <div class="info-item">
                                 <strong>Memory Usage:</strong>
-                                <span>\${systemInfo.memory_usage || 'Unknown'}</span>
+                                <span>\${systemInfo.memory_usage?.output ? systemInfo.memory_usage.output.split('\\n')[1] : systemInfo.memory_usage || 'Unknown'}</span>
                             </div>
                             <div class="info-item">
                                 <strong>Disk Usage:</strong>
-                                <span>\${systemInfo.disk_usage || 'Unknown'}</span>
+                                <span>\${systemInfo.disk_usage?.output ? systemInfo.disk_usage.output.split('\\n')[1] : systemInfo.disk_usage || 'Unknown'}</span>
                             </div>
                             <div class="info-item">
                                 <strong>Load Average:</strong>
-                                <span>\${systemInfo.load_average || 'Unknown'}</span>
+                                <span>\${systemInfo.load_average?.output || systemInfo.load_average || 'Unknown'}</span>
                             </div>
                         </div>
                     </div>
@@ -298,11 +298,11 @@ async function loadNetworkTab(snapshotId, container) {
                         <h4>Interface Information</h4>
                         <div class="network-info">
                             <strong>IP Addresses:</strong>
-                            <pre>\${networkInfo.ip_addresses || 'Not available'}</pre>
+                            <pre>\${networkInfo.ip_addresses?.output || networkInfo.ip_addresses || 'Not available'}</pre>
                         </div>
                         <div class="network-info">
                             <strong>Routing Table:</strong>
-                            <pre>\${networkInfo.routes || 'Not available'}</pre>
+                            <pre>\${networkInfo.routing_table?.output || networkInfo.routes?.output || networkInfo.routing_table || networkInfo.routes || 'Not available'}</pre>
                         </div>
                     </div>
                     
@@ -310,7 +310,7 @@ async function loadNetworkTab(snapshotId, container) {
                         <h4>Network Statistics</h4>
                         <div class="network-info">
                             <strong>Interface Statistics:</strong>
-                            <pre>\${networkInfo.interface_stats || 'Not available'}</pre>
+                            <pre>\${networkInfo.interface_stats?.output || networkInfo.interface_stats || 'Not available'}</pre>
                         </div>
                     </div>
                     
@@ -318,11 +318,11 @@ async function loadNetworkTab(snapshotId, container) {
                         <h4>Connectivity</h4>
                         <div class="network-info">
                             <strong>DNS Resolution:</strong>
-                            <pre>\${networkInfo.dns_test || 'Not available'}</pre>
+                            <pre>\${networkInfo.dns_test?.output || networkInfo.dns_test || 'Not available'}</pre>
                         </div>
                         <div class="network-info">
                             <strong>Gateway Ping:</strong>
-                            <pre>\${networkInfo.gateway_ping || 'Not available'}</pre>
+                            <pre>\${networkInfo.ping_gateway?.output || networkInfo.gateway_ping?.output || networkInfo.ping_gateway || networkInfo.gateway_ping || 'Not available'}</pre>
                         </div>
                     </div>
                 </div>
@@ -359,14 +359,14 @@ async function loadServicesTab(snapshotId, container) {
                     <div class="info-section">
                         <h4>Running Processes</h4>
                         <div class="service-info">
-                            <pre>\${serviceInfo.processes || 'Process information not available'}</pre>
+                            <pre>\${serviceInfo.active_processes?.output || serviceInfo.processes || 'Process information not available'}</pre>
                         </div>
                     </div>
                     
                     <div class="info-section">
                         <h4>Service Configuration</h4>
                         <div class="service-info">
-                            <pre>\${serviceInfo.enabled_services || 'Service configuration not available'}</pre>
+                            <pre>\${serviceInfo.running_services?.output || serviceInfo.uci_services?.output || serviceInfo.enabled_services || 'Service configuration not available'}</pre>
                         </div>
                     </div>
                     
@@ -374,7 +374,7 @@ async function loadServicesTab(snapshotId, container) {
                         <h4>System Logs</h4>
                         <div class="service-info">
                             <strong>Recent Log Entries:</strong>
-                            <pre>\${serviceInfo.recent_logs || 'Log information not available'}</pre>
+                            <pre>\${serviceInfo.system_log?.output || serviceInfo.recent_logs || 'Log information not available'}</pre>
                         </div>
                     </div>
                 </div>
