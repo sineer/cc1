@@ -27,6 +27,7 @@ import { SSHManager } from './lib/ssh-manager.js';
 import { CommandRunner } from './lib/command-runner.js';
 import { DemoOrchestrator } from './lib/demo-orchestrator.js';
 import { ResponseFormatter } from './lib/response-formatter.js';
+import { ProfileManager } from './lib/profile-manager.js';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -102,6 +103,12 @@ class UnifiedTestServer {
     this.responseFormatter = new ResponseFormatter({
       includeTimestamp: false,
       debug: true
+    });
+
+    this.profileManager = new ProfileManager({
+      debug: true,
+      repoRoot: REPO_ROOT,
+      sshManager: this.sshManager
     });
 
     this.setupToolHandlers();
@@ -780,6 +787,19 @@ Use 'dashboard' tool to explore the interactive timeline.`;
     }
   }
 
+  /**
+   * Load device profile with authentication - delegates to ProfileManager
+   */
+  async loadDeviceProfile(device, password, keyFile) {
+    return this.profileManager.loadDeviceProfile(device, password, keyFile);
+  }
+
+  /**
+   * Get device name from profile or device identifier - delegates to ProfileManager
+   */
+  getDeviceName(device) {
+    return this.profileManager.getDeviceName(device);
+  }
 
   /**
    * Start the server
