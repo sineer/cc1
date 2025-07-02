@@ -63,7 +63,7 @@ class UnifiedTestServer {
     
     this.snapshotEngine = new ConfigSnapshotEngine({
       snapshotDir: this.snapshotDir,
-      debug: true
+      debug: false  // Will be set dynamically based on verbose flag
     });
     
     this.diffEngine = new ConfigDiffEngine({
@@ -192,6 +192,11 @@ class UnifiedTestServer {
                 keyFile: {
                   type: 'string',
                   description: 'SSH key file path',
+                },
+                verbose: {
+                  type: 'boolean',
+                  description: 'Enable verbose logging with detailed progress and timing',
+                  default: false,
                 },
               },
               required: ['device'],
@@ -628,14 +633,26 @@ class UnifiedTestServer {
    * Take device configuration snapshot
    */
   async runSnapshot(args) {
-    const { device = 'qemu', label = 'manual', password, keyFile } = args;
+    const { device = 'qemu', label = 'manual', password, keyFile, verbose = false } = args;
+    
+    // Store original debug state
+    const originalDebugState = this.snapshotEngine.debug;
     
     try {
       // Load device profile
       const deviceProfile = await this.loadDeviceProfile(device, password, keyFile);
       
+      // Enable verbose logging if requested
+      if (verbose) {
+        console.error(`🔍 Verbose mode enabled for snapshot capture`);
+        this.snapshotEngine.debug = true;
+      }
+      
       // Capture snapshot
       const result = await this.snapshotEngine.captureSnapshot(deviceProfile, label);
+      
+      // Restore original debug state
+      this.snapshotEngine.debug = originalDebugState;
       
       return this.formatResult(`✅ Configuration snapshot captured successfully
 
@@ -654,6 +671,8 @@ Use 'compare' tool to see differences between snapshots.
 Use 'history' tool to see all snapshots for this device.`);
       
     } catch (error) {
+      // Restore original debug state even on error
+      this.snapshotEngine.debug = originalDebugState;
       return this.formatError(`Snapshot failed: ${error.message}`);
     }
   }

@@ -48,6 +48,7 @@ Examples:
 
   # Configuration Management  
   ./uci-mcp snapshot qemu baseline             # Take device snapshot
+  ./uci-mcp snapshot qemu manual --verbose     # Take snapshot with detailed logging
   ./uci-mcp compare qemu baseline after       # Compare configurations
   ./uci-mcp dashboard "QEMU OpenWRT VM" --days 30  # Generate dashboard (30 days)
   ./uci-mcp history qemu --days 14             # Show timeline (14 days)

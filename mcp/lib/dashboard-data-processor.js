@@ -88,12 +88,59 @@ export class DashboardDataProcessor {
     try {
       const metadataPath = path.join(snapshotDir, 'metadata.json');
       const metadataContent = await fs.readFile(metadataPath, 'utf8');
-      return JSON.parse(metadataContent);
+      const metadata = JSON.parse(metadataContent);
+      
+      // Enhance metadata with file size information if missing
+      if (!metadata.files || metadata.files.length === 0) {
+        const enhancedMetadata = await this.enhanceMetadataWithFileSizes(snapshotDir, metadata);
+        return enhancedMetadata;
+      }
+      
+      return metadata;
     } catch (error) {
       this.log(`Warning: Could not load metadata: ${error.message}`);
       
       // Generate fallback metadata from available files
       return await this.generateFallbackMetadata(snapshotDir);
+    }
+  }
+
+  /**
+   * Enhance existing metadata with file size information
+   */
+  async enhanceMetadataWithFileSizes(snapshotDir, metadata) {
+    try {
+      const files = await fs.readdir(snapshotDir);
+      let totalSize = 0;
+      const fileList = [];
+
+      for (const file of files) {
+        try {
+          const filePath = path.join(snapshotDir, file);
+          const stat = await fs.stat(filePath);
+          if (stat.isFile()) {
+            totalSize += stat.size;
+            fileList.push({
+              name: file,
+              size: stat.size
+            });
+          }
+        } catch (error) {
+          this.log(`Warning: Could not stat file ${file}: ${error.message}`);
+        }
+      }
+
+      // Merge with existing metadata
+      return {
+        ...metadata,
+        files: fileList,
+        file_count: fileList.length,
+        total_size: totalSize,
+        files_captured: metadata.files_captured || files.filter(f => f.endsWith('.conf') || f.endsWith('.txt') || f.endsWith('.json'))
+      };
+    } catch (error) {
+      this.log(`Warning: Could not enhance metadata with file sizes: ${error.message}`);
+      return metadata; // Return original metadata if enhancement fails
     }
   }
 
@@ -220,15 +267,15 @@ export class DashboardDataProcessor {
    */
   async loadConfigFiles(snapshotDir) {
     const configFiles = {};
-    const configDir = path.join(snapshotDir, 'config');
     
     try {
-      const files = await fs.readdir(configDir);
+      // Config files are stored directly in the snapshot directory, not in a 'config' subdirectory
+      const files = await fs.readdir(snapshotDir);
       
       for (const file of files) {
         if (file.endsWith('.conf')) {
           try {
-            const filePath = path.join(configDir, file);
+            const filePath = path.join(snapshotDir, file);
             const content = await fs.readFile(filePath, 'utf8');
             configFiles[file] = content;
           } catch (error) {
@@ -237,7 +284,7 @@ export class DashboardDataProcessor {
         }
       }
     } catch (error) {
-      this.log(`Warning: Could not read config directory: ${error.message}`);
+      this.log(`Warning: Could not read snapshot directory for config files: ${error.message}`);
     }
     
     return configFiles;
@@ -255,11 +302,23 @@ export class DashboardDataProcessor {
       const previousSnapshot = snapshots[i + 1];
       
       try {
-        const diffPath = await this.diffEngine.compareSnapshots(
-          deviceName, 
-          previousSnapshot.label, 
-          currentSnapshot.label
+        // Generate diff using the correct method and parameters
+        const diff = await this.diffEngine.generateSnapshotDiff(
+          previousSnapshot.path,
+          currentSnapshot.path,
+          'html'
         );
+        
+        // Create HTML diff file
+        const diffFileName = `${deviceName}-${currentSnapshot.label}-${previousSnapshot.label}.html`.replace(/ /g, '-');
+        const diffPath = path.join('./config-snapshots/dashboard/diffs', diffFileName);
+        
+        // Ensure diffs directory exists
+        await fs.mkdir(path.dirname(diffPath), { recursive: true });
+        
+        // Generate HTML content for the diff
+        const htmlContent = this.generateDiffHTML(diff, previousSnapshot, currentSnapshot, deviceName);
+        await fs.writeFile(diffPath, htmlContent, 'utf8');
         
         diffs.push({
           before: previousSnapshot,
@@ -273,6 +332,177 @@ export class DashboardDataProcessor {
     }
     
     return diffs;
+  }
+
+  /**
+   * Generate HTML content for diff visualization
+   */
+  generateDiffHTML(diff, beforeSnapshot, afterSnapshot, deviceName) {
+    const timestamp = new Date().toISOString();
+    
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Diff: ${beforeSnapshot.label} → ${afterSnapshot.label}</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f5f5f5; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        .diff-header { 
+            border-bottom: 2px solid #e0e0e0; 
+            padding-bottom: 15px; 
+            margin-bottom: 20px; 
+        }
+        .diff-header h1 { 
+            color: #333; 
+            margin: 0 0 10px 0; 
+        }
+        .diff-info { 
+            color: #666; 
+            font-size: 14px; 
+        }
+        .diff-section { 
+            margin: 20px 0; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+        }
+        .diff-section-header { 
+            background: #f8f9fa; 
+            padding: 10px 15px; 
+            font-weight: bold; 
+            border-bottom: 1px solid #ddd; 
+        }
+        .diff-content { 
+            padding: 15px; 
+        }
+        .diff-line { 
+            padding: 2px 5px; 
+            font-family: monospace; 
+            white-space: pre-wrap; 
+        }
+        .added { 
+            background-color: #d4edda; 
+            color: #155724; 
+        }
+        .removed { 
+            background-color: #f8d7da; 
+            color: #721c24; 
+        }
+        .modified { 
+            background-color: #fff3cd; 
+            color: #856404; 
+        }
+        .unchanged { 
+            color: #6c757d; 
+        }
+        .statistics { 
+            background: #e9ecef; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin: 20px 0; 
+        }
+        .statistics h3 { 
+            margin: 0 0 10px 0; 
+        }
+        .stat-item { 
+            display: inline-block; 
+            margin-right: 20px; 
+            padding: 5px 10px; 
+            background: white; 
+            border-radius: 3px; 
+            font-size: 14px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="diff-header">
+            <h1>📊 Configuration Diff: ${deviceName}</h1>
+            <div class="diff-info">
+                <strong>Before:</strong> ${beforeSnapshot.label} (${beforeSnapshot.id})<br>
+                <strong>After:</strong> ${afterSnapshot.label} (${afterSnapshot.id})<br>
+                <strong>Generated:</strong> ${timestamp}
+            </div>
+        </div>
+
+        <div class="statistics">
+            <h3>📈 Change Statistics</h3>
+            <span class="stat-item">Total Changes: ${diff.statistics?.total_changes || 0}</span>
+            <span class="stat-item">Files Changed: ${diff.statistics?.files_changed || 0}</span>
+            <span class="stat-item">Sections Added: ${diff.statistics?.sections_added || 0}</span>
+            <span class="stat-item">Sections Removed: ${diff.statistics?.sections_removed || 0}</span>
+            <span class="stat-item">Options Changed: ${diff.statistics?.options_changed || 0}</span>
+        </div>
+
+        ${this.generateDiffSections(diff)}
+    </div>
+</body>
+</html>`;
+  }
+
+  /**
+   * Generate HTML sections for diff content
+   */
+  generateDiffSections(diff) {
+    let sectionsHTML = '';
+    
+    if (diff.changes?.added && Object.keys(diff.changes.added).length > 0) {
+      sectionsHTML += `
+        <div class="diff-section">
+            <div class="diff-section-header">➕ Added Configurations</div>
+            <div class="diff-content">
+                ${this.generateChangeHTML(diff.changes.added, 'added')}
+            </div>
+        </div>`;
+    }
+    
+    if (diff.changes?.removed && Object.keys(diff.changes.removed).length > 0) {
+      sectionsHTML += `
+        <div class="diff-section">
+            <div class="diff-section-header">➖ Removed Configurations</div>
+            <div class="diff-content">
+                ${this.generateChangeHTML(diff.changes.removed, 'removed')}
+            </div>
+        </div>`;
+    }
+    
+    if (diff.changes?.modified && Object.keys(diff.changes.modified).length > 0) {
+      sectionsHTML += `
+        <div class="diff-section">
+            <div class="diff-section-header">🔄 Modified Configurations</div>
+            <div class="diff-content">
+                ${this.generateChangeHTML(diff.changes.modified, 'modified')}
+            </div>
+        </div>`;
+    }
+    
+    return sectionsHTML || '<div class="diff-section"><div class="diff-content">No changes detected between snapshots.</div></div>';
+  }
+
+  /**
+   * Generate HTML for specific changes
+   */
+  generateChangeHTML(changes, changeType) {
+    let html = '';
+    
+    for (const [key, value] of Object.entries(changes)) {
+      html += `<div class="diff-line ${changeType}">${key}: ${JSON.stringify(value, null, 2)}</div>`;
+    }
+    
+    return html || `<div class="diff-line">No ${changeType} changes</div>`;
   }
 
   /**

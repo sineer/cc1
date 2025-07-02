@@ -153,6 +153,41 @@ async function loadOverviewTab(snapshotId, container) {
             metadata = window.SNAPSHOT_DATA[snapshotId].metadata;
         }
         
+        // Calculate file information from available data
+        let fileCount = 'Unknown';
+        let totalSize = 'Unknown';
+        let fileListHtml = '<p>File information not available</p>';
+        
+        if (metadata.files_captured && Array.isArray(metadata.files_captured)) {
+            fileCount = metadata.files_captured.length;
+            
+            // If we have detailed file info with sizes
+            if (metadata.files && Array.isArray(metadata.files)) {
+                totalSize = metadata.files.reduce((sum, file) => sum + (file.size || 0), 0);
+                totalSize = (totalSize / 1024).toFixed(1) + ' KB';
+                
+                fileListHtml = metadata.files.map(file => \`
+                    <div class="file-item">
+                        <span class="file-name">\${file.name}</span>
+                        <span class="file-size">\${((file.size || 0) / 1024).toFixed(1)} KB</span>
+                    </div>
+                \`).join('');
+            } else {
+                // Just show file names from files_captured
+                fileListHtml = metadata.files_captured.map(fileName => \`
+                    <div class="file-item">
+                        <span class="file-name">\${fileName}</span>
+                        <span class="file-size">Size unknown</span>
+                    </div>
+                \`).join('');
+            }
+        } else if (metadata.file_count) {
+            fileCount = metadata.file_count;
+            if (metadata.total_size) {
+                totalSize = (metadata.total_size / 1024).toFixed(1) + ' KB';
+            }
+        }
+        
         container.innerHTML = \`
             <div class="tab-content">
                 <h3>📊 Snapshot Overview</h3>
@@ -167,22 +202,17 @@ async function loadOverviewTab(snapshotId, container) {
                     </div>
                     <div class="overview-item">
                         <strong>Files Count:</strong>
-                        <span>\${metadata.file_count || 'Unknown'}</span>
+                        <span>\${fileCount}</span>
                     </div>
                     <div class="overview-item">
                         <strong>Total Size:</strong>
-                        <span>\${metadata.total_size ? (metadata.total_size / 1024).toFixed(1) + ' KB' : 'Unknown'}</span>
+                        <span>\${totalSize}</span>
                     </div>
                 </div>
                 
                 <h4>📁 Captured Files</h4>
                 <div class="file-list">
-                    \${metadata.files ? metadata.files.map(file => \`
-                        <div class="file-item">
-                            <span class="file-name">\${file.name}</span>
-                            <span class="file-size">\${(file.size / 1024).toFixed(1)} KB</span>
-                        </div>
-                    \`).join('') : '<p>File information not available</p>'}
+                    \${fileListHtml}
                 </div>
             </div>
         \`;
@@ -203,11 +233,55 @@ async function loadSystemTab(snapshotId, container) {
         const deviceName = window.DEVICE_NAME || 'QEMU OpenWRT VM';
         let systemInfo = null;
         
-        // Use embedded data if available
-        if (window.SNAPSHOT_DATA && window.SNAPSHOT_DATA[snapshotId] && window.SNAPSHOT_DATA[snapshotId].systemInfo) {
-            systemInfo = window.SNAPSHOT_DATA[snapshotId].systemInfo;
-        } else {
+        // Try to get system info from metadata first, then from separate systemInfo
+        if (window.SNAPSHOT_DATA && window.SNAPSHOT_DATA[snapshotId]) {
+            const snapshotData = window.SNAPSHOT_DATA[snapshotId];
+            systemInfo = snapshotData.metadata?.system_info || snapshotData.systemInfo;
+        }
+        
+        if (!systemInfo) {
             throw new Error('System information not available for this snapshot');
+        }
+        
+        // Helper function to extract value, handling both output and error cases
+        function getValue(cmdObj, defaultValue = 'Unknown') {
+            if (!cmdObj) return defaultValue;
+            if (typeof cmdObj === 'string') return cmdObj;
+            if (cmdObj.output) return cmdObj.output;
+            if (cmdObj.error) return \`Error: \${cmdObj.error}\`;
+            return defaultValue;
+        }
+        
+        // Extract OpenWRT release version from multi-line output
+        function getOpenWrtVersion(cmdObj) {
+            const output = getValue(cmdObj);
+            if (output && output.includes('DISTRIB_DESCRIPTION=')) {
+                const match = output.match(/DISTRIB_DESCRIPTION='([^']+)'/);
+                return match ? match[1] : output.split('\\n')[0];
+            }
+            return output;
+        }
+        
+        // Extract memory info from free command output
+        function getMemoryInfo(cmdObj) {
+            const output = getValue(cmdObj);
+            if (output && output.includes('Mem:')) {
+                const lines = output.split('\\n');
+                const memLine = lines.find(line => line.trim().startsWith('Mem:'));
+                return memLine ? memLine.trim() : output;
+            }
+            return output;
+        }
+        
+        // Extract disk usage from df command output  
+        function getDiskInfo(cmdObj) {
+            const output = getValue(cmdObj);
+            if (output && output.includes('/dev/root')) {
+                const lines = output.split('\\n');
+                const rootLine = lines.find(line => line.includes('/dev/root'));
+                return rootLine ? rootLine.trim() : output;
+            }
+            return output;
         }
         
         container.innerHTML = \`
@@ -219,15 +293,15 @@ async function loadSystemTab(snapshotId, container) {
                         <div class="info-grid">
                             <div class="info-item">
                                 <strong>Hostname:</strong>
-                                <span>\${systemInfo.hostname?.output || systemInfo.hostname || 'Unknown'}</span>
+                                <span>\${getValue(systemInfo.hostname, 'Not available')}</span>
                             </div>
                             <div class="info-item">
                                 <strong>Uptime:</strong>
-                                <span>\${systemInfo.uptime?.output || systemInfo.uptime || 'Unknown'}</span>
+                                <span>\${getValue(systemInfo.uptime).trim()}</span>
                             </div>
                             <div class="info-item">
                                 <strong>Date:</strong>
-                                <span>\${systemInfo.date?.output || systemInfo.date || 'Unknown'}</span>
+                                <span>\${getValue(systemInfo.date).trim()}</span>
                             </div>
                         </div>
                     </div>
@@ -237,11 +311,11 @@ async function loadSystemTab(snapshotId, container) {
                         <div class="info-grid">
                             <div class="info-item">
                                 <strong>Kernel:</strong>
-                                <span>\${systemInfo.kernel?.output || systemInfo.uname?.output || systemInfo.kernel || systemInfo.uname || 'Unknown'}</span>
+                                <span>\${getValue(systemInfo.kernel).trim()}</span>
                             </div>
                             <div class="info-item">
                                 <strong>OpenWRT Release:</strong>
-                                <span>\${systemInfo.openwrt_release?.output ? systemInfo.openwrt_release.output.split('\\n')[0] : systemInfo.openwrt_release || 'Unknown'}</span>
+                                <span>\${getOpenWrtVersion(systemInfo.openwrt_release)}</span>
                             </div>
                         </div>
                     </div>
@@ -251,15 +325,15 @@ async function loadSystemTab(snapshotId, container) {
                         <div class="info-grid">
                             <div class="info-item">
                                 <strong>Memory Usage:</strong>
-                                <span>\${systemInfo.memory_usage?.output ? systemInfo.memory_usage.output.split('\\n')[1] : systemInfo.memory_usage || 'Unknown'}</span>
+                                <span style="font-family: monospace; font-size: 0.85em;">\${getMemoryInfo(systemInfo.memory_usage)}</span>
                             </div>
                             <div class="info-item">
                                 <strong>Disk Usage:</strong>
-                                <span>\${systemInfo.disk_usage?.output ? systemInfo.disk_usage.output.split('\\n')[1] : systemInfo.disk_usage || 'Unknown'}</span>
+                                <span style="font-family: monospace; font-size: 0.85em;">\${getDiskInfo(systemInfo.disk_usage)}</span>
                             </div>
                             <div class="info-item">
                                 <strong>Load Average:</strong>
-                                <span>\${systemInfo.load_average?.output || systemInfo.load_average || 'Unknown'}</span>
+                                <span>\${getValue(systemInfo.load_average).trim()}</span>
                             </div>
                         </div>
                     </div>
@@ -290,6 +364,25 @@ async function loadNetworkTab(snapshotId, container) {
             throw new Error('Network information not available for this snapshot');
         }
         
+        // Helper function to extract value, handling both output and error cases
+        function getValue(cmdObj, defaultValue = 'Not available') {
+            if (!cmdObj) return defaultValue;
+            if (typeof cmdObj === 'string') return cmdObj;
+            if (cmdObj.output) return cmdObj.output.trim();
+            if (cmdObj.error) return \`Error: \${cmdObj.error}\`;
+            return defaultValue;
+        }
+        
+        // Helper to format network output with proper wrapping
+        function formatNetworkOutput(cmdObj) {
+            const output = getValue(cmdObj);
+            if (output === 'Not available' || output.startsWith('Error:')) {
+                return output;
+            }
+            // Keep network output as-is for proper formatting
+            return output;
+        }
+        
         container.innerHTML = \`
             <div class="tab-content">
                 <h3>🌐 Network Status</h3>
@@ -298,11 +391,15 @@ async function loadNetworkTab(snapshotId, container) {
                         <h4>Interface Information</h4>
                         <div class="network-info">
                             <strong>IP Addresses:</strong>
-                            <pre>\${networkInfo.ip_addresses?.output || networkInfo.ip_addresses || 'Not available'}</pre>
+                            <pre>\${formatNetworkOutput(networkInfo.ip_addresses)}</pre>
                         </div>
                         <div class="network-info">
                             <strong>Routing Table:</strong>
-                            <pre>\${networkInfo.routing_table?.output || networkInfo.routes?.output || networkInfo.routing_table || networkInfo.routes || 'Not available'}</pre>
+                            <pre>\${formatNetworkOutput(networkInfo.routing_table)}</pre>
+                        </div>
+                        <div class="network-info">
+                            <strong>Bridge Information:</strong>
+                            <pre>\${formatNetworkOutput(networkInfo.bridge_info)}</pre>
                         </div>
                     </div>
                     
@@ -310,19 +407,27 @@ async function loadNetworkTab(snapshotId, container) {
                         <h4>Network Statistics</h4>
                         <div class="network-info">
                             <strong>Interface Statistics:</strong>
-                            <pre>\${networkInfo.interface_stats?.output || networkInfo.interface_stats || 'Not available'}</pre>
+                            <pre>\${formatNetworkOutput(networkInfo.interface_stats)}</pre>
+                        </div>
+                        <div class="network-info">
+                            <strong>ARP Table:</strong>
+                            <pre>\${formatNetworkOutput(networkInfo.arp_table)}</pre>
                         </div>
                     </div>
                     
                     <div class="info-section">
-                        <h4>Connectivity</h4>
+                        <h4>Connectivity & Security</h4>
                         <div class="network-info">
                             <strong>DNS Resolution:</strong>
-                            <pre>\${networkInfo.dns_test?.output || networkInfo.dns_test || 'Not available'}</pre>
+                            <pre>\${formatNetworkOutput(networkInfo.dns_test)}</pre>
                         </div>
                         <div class="network-info">
                             <strong>Gateway Ping:</strong>
-                            <pre>\${networkInfo.ping_gateway?.output || networkInfo.gateway_ping?.output || networkInfo.ping_gateway || networkInfo.gateway_ping || 'Not available'}</pre>
+                            <pre>\${formatNetworkOutput(networkInfo.ping_gateway)}</pre>
+                        </div>
+                        <div class="network-info">
+                            <strong>Firewall Rules:</strong>
+                            <pre>\${formatNetworkOutput(networkInfo.iptables_rules)}</pre>
                         </div>
                     </div>
                 </div>
@@ -352,29 +457,80 @@ async function loadServicesTab(snapshotId, container) {
             throw new Error('Service information not available for this snapshot');
         }
         
+        // Helper function to extract value, handling both output and error cases
+        function getValue(cmdObj, defaultValue = 'Not available') {
+            if (!cmdObj) return defaultValue;
+            if (typeof cmdObj === 'string') return cmdObj;
+            if (cmdObj.output) {
+                // Handle empty output
+                const output = cmdObj.output.trim();
+                return output || 'No output returned';
+            }
+            if (cmdObj.error) return \`Error: \${cmdObj.error}\`;
+            return defaultValue;
+        }
+        
+        // Helper to format service output, handling empty or no data gracefully
+        function formatServiceOutput(cmdObj, emptyMessage = 'No data available') {
+            const output = getValue(cmdObj);
+            if (output === 'Not available' || output.startsWith('Error:')) {
+                return output;
+            }
+            if (output === 'No output returned') {
+                return emptyMessage;
+            }
+            return output;
+        }
+        
         container.innerHTML = \`
             <div class="tab-content">
                 <h3>⚙ Services Status</h3>
                 <div class="info-sections">
                     <div class="info-section">
-                        <h4>Running Processes</h4>
+                        <h4>System Resources</h4>
                         <div class="service-info">
-                            <pre>\${serviceInfo.active_processes?.output || serviceInfo.processes || 'Process information not available'}</pre>
+                            <strong>Memory Usage:</strong>
+                            <pre>\${formatServiceOutput(serviceInfo.memory_usage, 'Memory information not available')}</pre>
+                        </div>
+                        <div class="service-info">
+                            <strong>Disk Usage:</strong>
+                            <pre>\${formatServiceOutput(serviceInfo.disk_usage, 'Disk information not available')}</pre>
+                        </div>
+                        <div class="service-info">
+                            <strong>Load Average:</strong>
+                            <pre>\${formatServiceOutput(serviceInfo.load_average, 'Load information not available')}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="info-section">
+                        <h4>Process Information</h4>
+                        <div class="service-info">
+                            <strong>Active Processes:</strong>
+                            <pre>\${formatServiceOutput(serviceInfo.active_processes, 'Process list not available')}</pre>
                         </div>
                     </div>
                     
                     <div class="info-section">
                         <h4>Service Configuration</h4>
                         <div class="service-info">
-                            <pre>\${serviceInfo.running_services?.output || serviceInfo.uci_services?.output || serviceInfo.enabled_services || 'Service configuration not available'}</pre>
+                            <strong>Running Services:</strong>
+                            <pre>\${formatServiceOutput(serviceInfo.running_services, 'Service list not available')}</pre>
+                        </div>
+                        <div class="service-info">
+                            <strong>UCI Services:</strong>
+                            <pre>\${formatServiceOutput(serviceInfo.uci_services, 'UCI service configuration not available')}</pre>
                         </div>
                     </div>
                     
                     <div class="info-section">
                         <h4>System Logs</h4>
                         <div class="service-info">
-                            <strong>Recent Log Entries:</strong>
-                            <pre>\${serviceInfo.system_log?.output || serviceInfo.recent_logs || 'Log information not available'}</pre>
+                            <strong>System Log (Recent):</strong>
+                            <pre style="max-height: 300px; overflow-y: auto;">\${formatServiceOutput(serviceInfo.system_log, 'System log not available')}</pre>
+                        </div>
+                        <div class="service-info">
+                            <strong>Kernel Log (Recent):</strong>
+                            <pre style="max-height: 200px; overflow-y: auto;">\${formatServiceOutput(serviceInfo.kernel_log, 'Kernel log not available')}</pre>
                         </div>
                     </div>
                 </div>

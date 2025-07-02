@@ -222,13 +222,14 @@ class SimpleMCPClient {
    * Take device configuration snapshot
    */
   async runSnapshot(options) {
-    const { device = 'qemu', label = 'manual', password, keyFile } = options;
+    const { device = 'qemu', label = 'manual', password, keyFile, verbose = false } = options;
     
     const response = await this.callTool('snapshot', {
       device,
       label,
       password,
-      keyFile
+      keyFile,
+      verbose
     });
     
     return {
