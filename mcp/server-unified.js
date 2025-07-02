@@ -23,6 +23,8 @@ import { promisify } from 'util';
 import { ConfigSnapshotEngine } from './lib/config-snapshot.js';
 import { ConfigDiffEngine } from './lib/config-differ.js';
 import { DashboardGenerator } from './lib/dashboard-generator.js';
+import { SSHManager } from './lib/ssh-manager.js';
+import { CommandRunner } from './lib/command-runner.js';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -71,6 +73,19 @@ class UnifiedTestServer {
       debug: true,
       snapshotEngine: this.snapshotEngine,
       diffEngine: this.diffEngine
+    });
+
+    this.sshManager = new SSHManager({
+      debug: true,
+      repoRoot: REPO_ROOT,
+      timeout: 30000
+    });
+
+    this.commandRunner = new CommandRunner({
+      debug: true,
+      repoRoot: REPO_ROOT,
+      timeout: 30000,
+      maxBuffer: 10 * 1024 * 1024
     });
 
     this.setupToolHandlers();
@@ -527,102 +542,43 @@ class UnifiedTestServer {
   }
 
   /**
-   * Load target profile - handles JSON files and direct IPs
+   * Load target profile - delegates to SSHManager
    */
   async loadProfile(target) {
-    // Check if it's an IP address
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(target)) {
-      return {
-        name: `Direct IP (${target})`,
-        connection: {
-          host: target,
-          username: 'root',
-          port: 22,
-        },
-      };
-    }
-
-    // Try to load profile JSON
-    try {
-      const profilePath = path.join(REPO_ROOT, 'test/targets', `${target}.json`);
-      const profileData = await fs.readFile(profilePath, 'utf8');
-      return JSON.parse(profileData);
-    } catch (error) {
-      throw new Error(`Cannot load profile '${target}': ${error.message}`);
-    }
+    return this.sshManager.loadProfile(target);
   }
 
   /**
-   * Setup SSH commands with authentication
+   * Setup SSH commands with authentication - delegates to SSHManager
    */
   setupSSH(profile, options) {
-    const host = `${profile.connection.username || 'root'}@${profile.connection.host}`;
-    const port = profile.connection.port || 22;
-    const sshBaseArgs = `-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${port}`;
-    const scpBaseArgs = `-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P ${port}`;
-    
-    let sshCmd, scpCmd;
-    
-    if (options.password !== undefined) {
-      // Password authentication (including empty password)
-      sshCmd = `sshpass -p '${options.password}' ssh ${sshBaseArgs}`;
-      scpCmd = `sshpass -p '${options.password}' scp -O ${scpBaseArgs}`;
-    } else if (options.keyFile || profile.connection.key_file) {
-      // Key file authentication
-      const keyFile = options.keyFile || profile.connection.key_file;
-      sshCmd = `ssh -i ${keyFile} ${sshBaseArgs}`;
-      scpCmd = `scp -i ${keyFile} -O ${scpBaseArgs}`;
-    } else {
-      // Default key authentication
-      sshCmd = `ssh ${sshBaseArgs}`;
-      scpCmd = `scp -O ${scpBaseArgs}`;
-    }
-
-    return {
-      exec: async (cmd) => this.execute(`${sshCmd} ${host} "${cmd}"`),
-      upload: async (local, remote) => {
-        // Handle absolute paths vs relative paths
-        const localPath = path.isAbsolute(local) ? local : path.join(REPO_ROOT, local);
-        return this.execute(`${scpCmd} -r "${localPath}" ${host}:"${remote}"`);
-      },
-    };
+    return this.sshManager.setupSSH(profile, options);
   }
 
   /**
-   * Execute shell command
+   * Execute shell command - delegates to CommandRunner
    */
   async execute(cmd) {
-    try {
-      const { stdout, stderr } = await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024 });
-      return { success: true, stdout, stderr };
-    } catch (error) {
-      return { 
-        success: false, 
-        stdout: error.stdout || '', 
-        stderr: error.stderr || error.message,
-        code: error.code || 1,
-      };
-    }
+    return this.commandRunner.execute(cmd);
   }
 
   /**
-   * Check if Docker image exists
+   * Check if Docker image exists - delegates to CommandRunner
    */
   async dockerImageExists() {
-    const result = await this.execute('docker image inspect uci-config-test');
-    return result.success;
+    return this.commandRunner.dockerImageExists('uci-config-test');
   }
 
   /**
-   * Build Docker image
+   * Build Docker image - delegates to CommandRunner
    */
   async buildDockerImage(force = false) {
-    const cmd = force 
-      ? 'docker build --no-cache -t uci-config-test .'
-      : 'docker build -t uci-config-test .';
-    
     process.stderr.write('🔨 Building Docker image...\n');
-    const result = await this.execute(cmd);
+    
+    const result = await this.commandRunner.buildDockerImage('uci-config-test', '.', {
+      timeout: 300000, // 5 minutes
+      extraArgs: force ? '--no-cache' : ''
+    });
     
     if (result.success) {
       process.stderr.write('✅ Docker image built successfully\n');
@@ -947,31 +903,7 @@ Use 'dashboard' tool to explore the interactive timeline.`;
    * Helper methods
    */
   async loadDeviceProfile(device, password, keyFile) {
-    // Convert device parameter to proper profile format
-    const profilesDir = path.join(REPO_ROOT, 'test', 'targets');
-    
-    if (device.includes('.')) {
-      // IP address - create dynamic profile
-      return {
-        name: device,
-        connection: {
-          host: device,
-          username: 'root',
-          password: password || '',
-          key_file: keyFile
-        }
-      };
-    } else {
-      // Profile name - load from file
-      const profilePath = path.join(profilesDir, `${device}.json`);
-      const profile = JSON.parse(await fs.readFile(profilePath, 'utf8'));
-      
-      // Override with provided credentials
-      if (password !== undefined) profile.connection.password = password;
-      if (keyFile) profile.connection.key_file = keyFile;
-      
-      return profile;
-    }
+    return this.sshManager.loadDeviceProfile(device, password, keyFile);
   }
 
   getDeviceName(device) {
