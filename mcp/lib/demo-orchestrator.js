@@ -55,7 +55,7 @@ export class DemoOrchestrator {
     try {
       // Load device profile and get device name
       const deviceProfile = await this.loadDeviceProfile(host, password);
-      const deviceName = this.getDeviceName(host);
+      const deviceName = this.snapshotEngine.getDeviceName(deviceProfile);
       
       // Take pre-deployment snapshot
       output += '📸 Taking pre-deployment snapshot...\n';
@@ -161,12 +161,6 @@ export class DemoOrchestrator {
     return this.sshManager.loadDeviceProfile(device, password, keyFile);
   }
 
-  /**
-   * Get standardized device name
-   */
-  getDeviceName(device) {
-    return device.includes('.') ? device : 'QEMU OpenWRT VM';
-  }
 
   /**
    * Run UCI configuration deployment
