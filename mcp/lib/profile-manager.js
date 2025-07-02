@@ -3,11 +3,19 @@
  * Handles device profile loading, authentication, and name resolution
  */
 
+import { createLogger } from './logger.js';
+
 export class ProfileManager {
   constructor(options = {}) {
     this.debug = options.debug || false;
     this.repoRoot = options.repoRoot;
     this.sshManager = options.sshManager;
+    
+    // Initialize unified logger
+    this.logger = createLogger('ProfileManager', {
+      debug: this.debug,
+      verbose: options.verbose || false
+    });
   }
 
   /**
@@ -172,12 +180,10 @@ export class ProfileManager {
   }
 
   /**
-   * Log debug messages
+   * Log debug messages using unified logger
    */
   log(message) {
-    if (this.debug) {
-      console.error(`[ProfileManager] ${message}`);
-    }
+    this.logger.debug(message);
   }
 
   /**

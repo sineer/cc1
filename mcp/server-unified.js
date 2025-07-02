@@ -646,6 +646,10 @@ class UnifiedTestServer {
       if (verbose) {
         console.error(`🔍 Verbose mode enabled for snapshot capture`);
         this.snapshotEngine.debug = true;
+        // Update logger configuration for verbose mode
+        if (this.snapshotEngine.logger && this.snapshotEngine.logger.configure) {
+          this.snapshotEngine.logger.configure({ verbose: true });
+        }
       }
       
       // Capture snapshot
@@ -653,6 +657,10 @@ class UnifiedTestServer {
       
       // Restore original debug state
       this.snapshotEngine.debug = originalDebugState;
+      // Restore original logger verbose setting
+      if (this.snapshotEngine.logger && this.snapshotEngine.logger.configure) {
+        this.snapshotEngine.logger.configure({ verbose: false });
+      }
       
       return this.formatResult(`✅ Configuration snapshot captured successfully
 

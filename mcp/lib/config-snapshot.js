@@ -7,6 +7,7 @@ import { exec } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { promisify } from 'util';
+import { createLogger } from './logger.js';
 
 const execAsync = promisify(exec);
 
@@ -15,6 +16,12 @@ export class ConfigSnapshotEngine {
     this.snapshotDir = options.snapshotDir || './config-snapshots';
     this.sshTimeout = options.sshTimeout || 30;
     this.debug = options.debug || false;
+    
+    // Initialize unified logger
+    this.logger = createLogger('ConfigSnapshot', {
+      debug: this.debug,
+      verbose: options.verbose || false
+    });
   }
 
   /**
@@ -754,11 +761,9 @@ export class ConfigSnapshotEngine {
   }
 
   /**
-   * Logging helper
+   * Logging helper using unified logger
    */
   log(message) {
-    if (this.debug) {
-      console.error(`[ConfigSnapshot] ${message}`);
-    }
+    this.logger.verbose(message);
   }
 }

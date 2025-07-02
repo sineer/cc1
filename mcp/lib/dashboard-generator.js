@@ -10,6 +10,7 @@ import path from 'path';
 import { StylesheetGenerator } from './dashboard-assets/stylesheet-generator.js';
 import { ScriptGenerator } from './dashboard-assets/script-generator.js';
 import { DashboardDataProcessor } from './dashboard-data-processor.js';
+import { createLogger } from './logger.js';
 
 export class DashboardGenerator {
   constructor(options = {}) {
@@ -17,6 +18,12 @@ export class DashboardGenerator {
     this.debug = options.debug || false;
     this.snapshotEngine = options.snapshotEngine;
     this.diffEngine = options.diffEngine;
+    
+    // Initialize unified logger
+    this.logger = createLogger('DashboardGenerator', {
+      debug: this.debug,
+      verbose: options.verbose || false
+    });
 
     // Initialize extracted components
     this.stylesheetGenerator = new StylesheetGenerator({
@@ -519,11 +526,9 @@ export class DashboardGenerator {
   }
 
   /**
-   * Log debug messages
+   * Log debug messages using unified logger
    */
   log(message) {
-    if (this.debug) {
-      console.error(`[DashboardGenerator] ${message}`);
-    }
+    this.logger.debug(message);
   }
 }

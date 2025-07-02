@@ -6,12 +6,19 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { CommandRunner } from './command-runner.js';
+import { createLogger } from './logger.js';
 
 export class SSHManager {
   constructor(options = {}) {
     this.debug = options.debug || false;
     this.timeout = options.timeout || 30000;
     this.repoRoot = options.repoRoot;
+    
+    // Initialize unified logger
+    this.logger = createLogger('SSH', {
+      debug: this.debug,
+      verbose: options.verbose || false
+    });
     
     this.commandRunner = new CommandRunner({
       debug: this.debug,
@@ -167,9 +174,7 @@ export class SSHManager {
   async createBackup(connection, backupPath = '/tmp/test-backup.uci') {
     try {
       await connection.exec(`uci export > ${backupPath}`);
-      if (this.debug) {
-        console.error(`[SSH] Configuration backup created at ${backupPath}`);
-      }
+      this.logger.debug(`Configuration backup created at ${backupPath}`);
       return backupPath;
     } catch (error) {
       throw new Error(`Failed to create configuration backup: ${error.message}`);
@@ -182,9 +187,7 @@ export class SSHManager {
   async restoreBackup(connection, backupPath = '/tmp/test-backup.uci') {
     try {
       await connection.exec(`uci import < ${backupPath} && uci commit`);
-      if (this.debug) {
-        console.error(`[SSH] Configuration restored from ${backupPath}`);
-      }
+      this.logger.debug(`Configuration restored from ${backupPath}`);
       return true;
     } catch (error) {
       throw new Error(`Failed to restore configuration backup: ${error.message}`);
@@ -205,9 +208,7 @@ export class SSHManager {
       const archiveName = path.basename(archivePath);
       await connection.exec(`cd ${remotePath} && tar -xzf ${archiveName}`);
       
-      if (this.debug) {
-        console.error(`[SSH] Test framework uploaded and extracted to ${remotePath}`);
-      }
+      this.logger.debug(`Test framework uploaded and extracted to ${remotePath}`);
       
       return remotePath;
     } catch (error) {
@@ -223,15 +224,11 @@ export class SSHManager {
       const cleanupCmd = `rm -rf ${paths.join(' ')}`;
       await connection.exec(cleanupCmd);
       
-      if (this.debug) {
-        console.error(`[SSH] Cleaned up remote files: ${paths.join(', ')}`);
-      }
+      this.logger.debug(`Cleaned up remote files: ${paths.join(', ')}`);
       
       return true;
     } catch (error) {
-      if (this.debug) {
-        console.error(`[SSH] Warning: Failed to cleanup remote files: ${error.message}`);
-      }
+      this.logger.warn(`Failed to cleanup remote files: ${error.message}`);
       // Don't fail the whole operation for cleanup issues
       return false;
     }
