@@ -1,0 +1,171 @@
+{
+  "device": {
+    "deviceName": "Direct IP (192.168.11.2)",
+    "totalSnapshots": 3,
+    "latestSnapshot": "2025-07-06T14:53:39.020Z",
+    "firstSnapshot": "2025-07-06T14:35:15.270Z",
+    "totalComparisons": 2,
+    "filesChanged": 22,
+    "timeRange": {
+      "start": "2025-07-06T14:35:15.270Z",
+      "end": "2025-07-06T14:53:39.020Z",
+      "duration": "18 minutes"
+    },
+    "totalStats": {
+      "packageStats": {
+        "added": 1,
+        "removed": 0,
+        "modified": 5
+      },
+      "sectionStats": {
+        "added": 17,
+        "removed": 0,
+        "modified": 0
+      },
+      "optionStats": {
+        "added": 67,
+        "removed": 0,
+        "modified": 2
+      }
+    }
+  },
+  "snapshots": [
+    {
+      "id": "2025-07-06T14-35-15-270Z-baseline-cowboy-demo",
+      "label": "baseline-cowboy-demo",
+      "timestamp": "2025-07-06T14:35:15.270Z",
+      "path": "/tmp/snapshots/2025-07-06T14-35-15-270Z-baseline-cowboy-demo",
+      "metadata": {
+        "deviceName": "Direct IP (192.168.11.2)",
+        "type": "baseline",
+        "demo": "cowboy"
+      }
+    },
+    {
+      "id": "2025-07-06T14-53-04-788Z-pre-ubispot-deployment",
+      "label": "pre-ubispot-deployment", 
+      "timestamp": "2025-07-06T14:53:04.788Z",
+      "path": "/tmp/snapshots/2025-07-06T14-53-04-788Z-pre-ubispot-deployment",
+      "metadata": {
+        "deviceName": "Direct IP (192.168.11.2)",
+        "type": "pre-deployment",
+        "demo": "ubispot"
+      }
+    },
+    {
+      "id": "2025-07-06T14-53-39-020Z-post-ubispot-deployment",
+      "label": "post-ubispot-deployment",
+      "timestamp": "2025-07-06T14:53:39.020Z", 
+      "path": "/tmp/snapshots/2025-07-06T14-53-39-020Z-post-ubispot-deployment",
+      "metadata": {
+        "deviceName": "Direct IP (192.168.11.2)",
+        "type": "post-deployment",
+        "demo": "ubispot"
+      }
+    }
+  ],
+  "perSnapshotStats": {
+    "2025-07-06T14-35-15-270Z-baseline-cowboy-demo": {
+      "hasChanges": false,
+      "changeCount": 0,
+      "packagesAffected": 0,
+      "sectionsAffected": 0
+    },
+    "2025-07-06T14-53-04-788Z-pre-ubispot-deployment": {
+      "hasChanges": true,
+      "changeCount": 5,
+      "packagesAffected": 2,
+      "sectionsAffected": 3,
+      "details": {
+        "packages": ["system", "dhcp"],
+        "sections": ["system.@system[0]", "dhcp.lan", "dhcp.dnsmasq"],
+        "changes": ["modified system hostname", "modified dhcp lease time", "added dhcp domain"]
+      }
+    },
+    "2025-07-06T14-53-39-020Z-post-ubispot-deployment": {
+      "hasChanges": true,
+      "changeCount": 17,
+      "packagesAffected": 5,
+      "sectionsAffected": 17,
+      "details": {
+        "packages": ["dhcp", "firewall", "network", "ubispot", "uhttpd"],
+        "sections": [
+          "dhcp.captive_domain1", "dhcp.captive",
+          "firewall.captive_rule10", "firewall.captive_rule11", "firewall.captive_rule12",
+          "firewall.captive_rule13", "firewall.captive_rule14", "firewall.captive_rule15", 
+          "firewall.captive_rule16", "firewall.captive_redirect1", "firewall.captive_ipset1",
+          "firewall.captive_ipset2", "firewall.captive",
+          "network.captive", "ubispot.captive", "uhttpd.uam3990", "uhttpd.ubispot"
+        ],
+        "changes": ["added captive portal configuration", "added firewall rules", "added network interface"]
+      }
+    }
+  },
+  "packageStats": {
+    "added": 1,
+    "removed": 0,
+    "modified": 5,
+    "details": {
+      "added": ["ubispot"],
+      "removed": [],
+      "modified": ["dhcp", "firewall", "network", "uhttpd", "system"]
+    }
+  },
+  "sectionStats": {
+    "added": 17,
+    "removed": 0,
+    "modified": 2,
+    "details": {
+      "added": [
+        "dhcp.captive_domain1", "dhcp.captive", "firewall.captive_rule10",
+        "firewall.captive_rule11", "firewall.captive_rule12", "firewall.captive_rule13",
+        "firewall.captive_rule14", "firewall.captive_rule15", "firewall.captive_rule16",
+        "firewall.captive_redirect1", "firewall.captive_ipset1", "firewall.captive_ipset2",
+        "firewall.captive", "network.captive", "ubispot.captive", "uhttpd.uam3990", "uhttpd.ubispot"
+      ],
+      "removed": [],
+      "modified": ["system.@system[0]", "dhcp.lan"]
+    }
+  },
+  "optionStats": {
+    "added": 67,
+    "removed": 0,
+    "modified": 2,
+    "details": {
+      "added_count_by_package": {
+        "dhcp": 7,
+        "firewall": 35,
+        "network": 5,
+        "ubispot": 12,
+        "uhttpd": 18
+      },
+      "modified": ["system.hostname", "dhcp.lan.leasetime"],
+      "removed": []
+    }
+  },
+  "comparisons": [
+    {
+      "before": "2025-07-06T14-35-15-270Z-baseline-cowboy-demo",
+      "after": "2025-07-06T14-53-04-788Z-pre-ubispot-deployment",
+      "diff_file": "diffs/Direct-IP-(192.168.11.2)-baseline-cowboy-demo-pre-ubispot-deployment.html",
+      "changes": 5,
+      "timestamp": "2025-07-06T14:53:04.788Z"
+    },
+    {
+      "before": "2025-07-06T14-53-04-788Z-pre-ubispot-deployment", 
+      "after": "2025-07-06T14-53-39-020Z-post-ubispot-deployment",
+      "diff_file": "diffs/Direct-IP-(192.168.11.2)-pre-ubispot-deployment-post-ubispot-deployment.html",
+      "changes": 17,
+      "timestamp": "2025-07-06T14:53:39.020Z"
+    }
+  ],
+  "metadata": {
+    "generated_at": "2025-07-06T14:53:45.123Z",
+    "dashboard_version": "2.1.0",
+    "total_processing_time": "2.345s",
+    "diff_files_generated": 2,
+    "snapshot_count": 3,
+    "device_type": "remote_ssh",
+    "time_window": "30_days"
+  }
+}

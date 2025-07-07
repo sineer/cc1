@@ -1,0 +1,35 @@
+{
+  "responses": {
+    "snapshot": {
+      "stdout": "Snapshot created successfully: 2025-07-06T14-53-04-788Z-pre-ubispot-deployment\nSnapshot saved to /tmp/snapshots/2025-07-06T14-53-04-788Z-pre-ubispot-deployment\nSnapshot creation completed successfully\n",
+      "stderr": "",
+      "exit_code": 0
+    },
+    "remove": {
+      "stdout": "REMOVE INFO: Removed 17 sections from configuration\nREMOVE INFO: The following sections were removed:\n  dhcp.captive_domain1\n  dhcp.captive\n  firewall.captive_rule10\n  firewall.captive_rule11\n  firewall.captive_rule12\n  firewall.captive_rule13\n  firewall.captive_rule14\n  firewall.captive_rule15\n  firewall.captive_rule16\n  firewall.captive_redirect1\n  firewall.captive_ipset1\n  firewall.captive_ipset2\n  firewall.captive\n  network.captive\n  ubispot.captive\n  uhttpd.uam3990\n  uhttpd.ubispot\nREMOVE INFO: Remove operation completed successfully\n",
+      "stderr": "",
+      "exit_code": 0
+    },
+    "deploy": {
+      "stdout": "SAFE-MERGE INFO: Applied 17 changes to configuration\nSAFE-MERGE INFO: The following changes were applied:\n  Added dhcp.captive_domain1\n  Added dhcp.captive\n  Added firewall.captive_rule10\n  Added firewall.captive_rule11\n  Added firewall.captive_rule12\n  Added firewall.captive_rule13\n  Added firewall.captive_rule14\n  Added firewall.captive_rule15\n  Added firewall.captive_rule16\n  Added firewall.captive_redirect1\n  Added firewall.captive_ipset1\n  Added firewall.captive_ipset2\n  Added firewall.captive\n  Added network.captive\n  Added ubispot.captive\n  Added uhttpd.uam3990\n  Added uhttpd.ubispot\nMERGE INFO: Merge operation completed successfully\nMERGE INFO: Configuration is now active\n",
+      "stderr": "",
+      "exit_code": 0
+    },
+    "safe-merge": {
+      "stdout": "SAFE-MERGE INFO: Applied 17 changes to configuration\nSAFE-MERGE INFO: The following changes were applied:\n  Added dhcp.captive_domain1\n  Added dhcp.captive\n  Added firewall.captive_rule10\n  Added firewall.captive_rule11\n  Added firewall.captive_rule12\n  Added firewall.captive_rule13\n  Added firewall.captive_rule14\n  Added firewall.captive_rule15\n  Added firewall.captive_rule16\n  Added firewall.captive_redirect1\n  Added firewall.captive_ipset1\n  Added firewall.captive_ipset2\n  Added firewall.captive\n  Added network.captive\n  Added ubispot.captive\n  Added uhttpd.uam3990\n  Added uhttpd.ubispot\nMERGE INFO: Merge operation completed successfully\nMERGE INFO: Configuration is now active\n",
+      "stderr": "",
+      "exit_code": 0
+    },
+    "version": {
+      "stdout": "uci-config version 2.1.0\nBuild date: 2025-07-06\nSupported features: merge, diff, snapshot, remove, backup, restore\n",
+      "stderr": "",
+      "exit_code": 0
+    }
+  },
+  "metadata": {
+    "device_ip": "192.168.11.2",
+    "device_name": "Direct IP (192.168.11.2)",
+    "test_scenario": "successful_ubispot_deployment",
+    "timestamp": "2025-07-06T14:53:39.020Z"
+  }
+}

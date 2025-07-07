@@ -1,0 +1,50 @@
+{
+  "responses": {
+    "connection_refused": {
+      "stdout": "",
+      "stderr": "ssh: connect to host 192.168.11.2 port 22: Connection refused",
+      "exit_code": 255
+    },
+    "permission_denied": {
+      "stdout": "",
+      "stderr": "Permission denied (publickey,password).",
+      "exit_code": 255
+    },
+    "authentication_failed": {
+      "stdout": "",
+      "stderr": "Authentication failed.",
+      "exit_code": 255
+    },
+    "timeout": {
+      "stdout": "",
+      "stderr": "ssh: connect to host 192.168.11.2 port 22: Operation timed out",
+      "exit_code": 255
+    },
+    "host_unreachable": {
+      "stdout": "",
+      "stderr": "ssh: connect to host 192.168.11.2 port 22: No route to host",
+      "exit_code": 255
+    },
+    "askpass_error": {
+      "stdout": "SAFE-MERGE INFO: Applied 5 changes to configuration\nMERGE INFO: Merge operation completed successfully\n",
+      "stderr": "ssh_askpass: exec(/usr/lib64/misc/ssh-askpass): No such file or directory",
+      "exit_code": 0
+    },
+    "network_unreachable": {
+      "stdout": "",
+      "stderr": "ssh: connect to host 192.168.11.2 port 22: Network is unreachable",
+      "exit_code": 255
+    },
+    "wrong_password": {
+      "stdout": "",
+      "stderr": "Permission denied, please try again.\nPermission denied, please try again.\nPermission denied (publickey,password).",
+      "exit_code": 255
+    }
+  },
+  "metadata": {
+    "device_ip": "192.168.11.2",
+    "device_name": "Direct IP (192.168.11.2)",
+    "test_scenario": "authentication_and_network_errors",
+    "timestamp": "2025-07-06T14:45:12.345Z"
+  }
+}

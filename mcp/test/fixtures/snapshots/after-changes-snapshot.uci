@@ -1,0 +1,101 @@
+config system
+	option hostname 'OpenWrt-Modified'
+	option timezone 'EST'
+	option ttylogin '1'
+	option log_size '128'
+	option urandom_seed '0'
+
+config network
+	option interface 'loopback'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+config interface 'lan'
+	option type 'bridge'
+	option ifname 'eth0'
+	option proto 'static'
+	option ipaddr '192.168.1.1'
+	option netmask '255.255.255.0'
+	option ip6assign '60'
+
+config interface 'wan'
+	option ifname 'eth1'
+	option proto 'dhcp'
+
+config interface 'guest'
+	option proto 'static'
+	option ipaddr '192.168.2.1'
+	option netmask '255.255.255.0'
+	option type 'bridge'
+
+config dhcp 'dnsmasq'
+	option domainneeded '1'
+	option boguspriv '1'
+	option localise_queries '1'
+	option authoritative '1'
+	option leasefile '/tmp/dhcp.leases'
+
+config dhcp 'lan'
+	option interface 'lan'
+	option start '50'
+	option limit '200'
+	option leasetime '24h'
+	option dhcpv4 'server'
+
+config dhcp 'guest'
+	option interface 'guest'
+	option start '10'
+	option limit '50'
+	option leasetime '2h'
+	option dhcpv4 'server'
+
+config firewall
+	option syn_flood '1'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+config zone
+	option name 'lan'
+	option network 'lan'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
+
+config zone
+	option name 'wan'
+	option network 'wan'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option masq '1'
+
+config zone
+	option name 'guest'
+	option network 'guest'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+config forwarding
+	option src 'lan'
+	option dest 'wan'
+
+config forwarding
+	option src 'guest'
+	option dest 'wan'
+
+config rule
+	option name 'Allow-Guest-DNS'
+	option src 'guest'
+	option proto 'udp'
+	option dest_port '53'
+	option target 'ACCEPT'
+
+config rule
+	option name 'Allow-Guest-DHCP'
+	option src 'guest'
+	option proto 'udp'
+	option dest_port '67'
+	option target 'ACCEPT'

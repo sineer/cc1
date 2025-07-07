@@ -1,0 +1,228 @@
+{
+  "uci_diff": {
+    "packages": {
+      "dhcp": {
+        "status": "modified",
+        "sections": {
+          "captive_domain1": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "captive.local" },
+              "ip": { "status": "added", "value": "10.0.0.1" }
+            }
+          },
+          "captive": {
+            "status": "added",
+            "options": {
+              "interface": { "status": "added", "value": "captive" },
+              "start": { "status": "added", "value": "10" },
+              "limit": { "status": "added", "value": "100" },
+              "leasetime": { "status": "added", "value": "1h" },
+              "dhcpv4": { "status": "added", "value": "server" }
+            }
+          }
+        }
+      },
+      "firewall": {
+        "status": "modified",
+        "sections": {
+          "captive_rule10": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "Captive-Portal-HTTP" },
+              "src": { "status": "added", "value": "captive" },
+              "proto": { "status": "added", "value": "tcp" },
+              "dest_port": { "status": "added", "value": "80" },
+              "target": { "status": "added", "value": "ACCEPT" }
+            }
+          },
+          "captive_rule11": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "Captive-Portal-HTTPS" },
+              "src": { "status": "added", "value": "captive" },
+              "proto": { "status": "added", "value": "tcp" },
+              "dest_port": { "status": "added", "value": "443" },
+              "target": { "status": "added", "value": "ACCEPT" }
+            }
+          },
+          "captive_rule12": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "Captive-Portal-DNS" },
+              "src": { "status": "added", "value": "captive" },
+              "proto": { "status": "added", "value": "udp" },
+              "dest_port": { "status": "added", "value": "53" },
+              "target": { "status": "added", "value": "ACCEPT" }
+            }
+          },
+          "captive_rule13": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "Captive-Portal-DHCP" },
+              "src": { "status": "added", "value": "captive" },
+              "proto": { "status": "added", "value": "udp" },
+              "dest_port": { "status": "added", "value": "67" },
+              "target": { "status": "added", "value": "ACCEPT" }
+            }
+          },
+          "captive_rule14": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "Captive-Portal-NTP" },
+              "src": { "status": "added", "value": "captive" },
+              "proto": { "status": "added", "value": "udp" },
+              "dest_port": { "status": "added", "value": "123" },
+              "target": { "status": "added", "value": "ACCEPT" }
+            }
+          },
+          "captive_rule15": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "Captive-Portal-Auth" },
+              "src": { "status": "added", "value": "captive" },
+              "proto": { "status": "added", "value": "tcp" },
+              "dest_port": { "status": "added", "value": "3990" },
+              "target": { "status": "added", "value": "ACCEPT" }
+            }
+          },
+          "captive_rule16": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "Captive-Portal-Radius" },
+              "src": { "status": "added", "value": "captive" },
+              "proto": { "status": "added", "value": "udp" },
+              "dest_port": { "status": "added", "value": "1812" },
+              "target": { "status": "added", "value": "ACCEPT" }
+            }
+          },
+          "captive_redirect1": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "Captive-Portal-Redirect" },
+              "src": { "status": "added", "value": "captive" },
+              "proto": { "status": "added", "value": "tcp" },
+              "src_dport": { "status": "added", "value": "80" },
+              "dest_ip": { "status": "added", "value": "10.0.0.1" },
+              "dest_port": { "status": "added", "value": "3990" },
+              "target": { "status": "added", "value": "DNAT" }
+            }
+          },
+          "captive_ipset1": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "captive_users" },
+              "match": { "status": "added", "value": "src_ip" },
+              "storage": { "status": "added", "value": "hash" },
+              "timeout": { "status": "added", "value": "3600" }
+            }
+          },
+          "captive_ipset2": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "captive_allowed" },
+              "match": { "status": "added", "value": "src_ip" },
+              "storage": { "status": "added", "value": "hash" }
+            }
+          },
+          "captive": {
+            "status": "added",
+            "options": {
+              "name": { "status": "added", "value": "Captive-Portal-Bypass" },
+              "src": { "status": "added", "value": "captive" },
+              "ipset": { "status": "added", "value": "captive_allowed" },
+              "target": { "status": "added", "value": "ACCEPT" }
+            }
+          }
+        }
+      },
+      "network": {
+        "status": "modified",
+        "sections": {
+          "captive": {
+            "status": "added",
+            "options": {
+              "proto": { "status": "added", "value": "static" },
+              "ipaddr": { "status": "added", "value": "10.0.0.1" },
+              "netmask": { "status": "added", "value": "255.255.255.0" },
+              "type": { "status": "added", "value": "bridge" },
+              "ifname": { "status": "added", "value": "wlan0" }
+            }
+          }
+        }
+      },
+      "ubispot": {
+        "status": "modified",
+        "sections": {
+          "captive": {
+            "status": "added",
+            "options": {
+              "enabled": { "status": "added", "value": "1" },
+              "interface": { "status": "added", "value": "captive" },
+              "portal_url": { "status": "added", "value": "http://10.0.0.1:3990/portal" },
+              "auth_server": { "status": "added", "value": "http://10.0.0.1:3990/auth" },
+              "radius_server": { "status": "added", "value": "127.0.0.1" },
+              "radius_port": { "status": "added", "value": "1812" },
+              "radius_secret": { "status": "added", "value": "testing123" },
+              "session_timeout": { "status": "added", "value": "3600" },
+              "idle_timeout": { "status": "added", "value": "900" },
+              "nas_identifier": { "status": "added", "value": "OpenWrt-Ubispot" },
+              "location_id": { "status": "added", "value": "location1" },
+              "location_name": { "status": "added", "value": "Test Location" }
+            }
+          }
+        }
+      },
+      "uhttpd": {
+        "status": "modified",
+        "sections": {
+          "uam3990": {
+            "status": "added",
+            "options": {
+              "home": { "status": "added", "value": "/usr/share/ubispot/portal" },
+              "listen_http": { "status": "added", "value": "0.0.0.0:3990" },
+              "cgi_prefix": { "status": "added", "value": "/cgi-bin" },
+              "script_timeout": { "status": "added", "value": "60" },
+              "network_timeout": { "status": "added", "value": "30" },
+              "http_keepalive": { "status": "added", "value": "20" },
+              "tcp_keepalive": { "status": "added", "value": "1" },
+              "ubus_prefix": { "status": "added", "value": "/ubus" }
+            }
+          },
+          "ubispot": {
+            "status": "added",
+            "options": {
+              "home": { "status": "added", "value": "/usr/share/ubispot/www" },
+              "listen_http": { "status": "added", "value": "0.0.0.0:3990" },
+              "listen_https": { "status": "added", "value": "0.0.0.0:3991" },
+              "cert": { "status": "added", "value": "/etc/ssl/certs/ubispot.crt" },
+              "key": { "status": "added", "value": "/etc/ssl/private/ubispot.key" },
+              "cgi_prefix": { "status": "added", "value": "/cgi-bin" },
+              "script_timeout": { "status": "added", "value": "60" },
+              "network_timeout": { "status": "added", "value": "30" },
+              "http_keepalive": { "status": "added", "value": "20" },
+              "tcp_keepalive": { "status": "added", "value": "1" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "statistics": {
+    "total_changes": 17,
+    "sections_added": 17,
+    "sections_removed": 0,
+    "sections_modified": 0,
+    "options_changed": 67,
+    "packages_modified": 5,
+    "packages_added": 0,
+    "packages_removed": 0
+  },
+  "metadata": {
+    "timestamp": "2025-07-06T14:53:39.020Z",
+    "device": "Direct IP (192.168.11.2)",
+    "before_snapshot": "2025-07-06T14-53-04-788Z-pre-ubispot-deployment",
+    "after_snapshot": "2025-07-06T14-53-39-020Z-post-ubispot-deployment",
+    "comparison_type": "ubispot-deployment"
+  }
+}

@@ -30,12 +30,17 @@ function show_help() {
     echo ""
     echo "Targets:"
     echo "  docker              Run tests in Docker container (default)"
+    echo "  dashboard           Run JavaScript dashboard and infrastructure tests"
+    echo "  javascript          Run all JavaScript tests (vitest)"
     echo "  <IP>                Run tests on remote device at IP address"
     echo "  <profile>           Run tests using device profile (gl, openwrt, etc)"
     echo ""
     echo "Tests:"
-    echo "  all                 Run all tests (default)"
-    echo "  <file.lua>          Run specific test file"
+    echo "  all                 Run all tests (UCI + JavaScript)"
+    echo "  uci                 Run only UCI configuration tests"
+    echo "  js                  Run only JavaScript tests"
+    echo "  <file.lua>          Run specific UCI test file"
+    echo "  <file.test.js>      Run specific JavaScript test file"
     echo ""
     echo "Options:"
     echo "  --password <pass>   SSH password for remote targets (use \"\" for empty)"
@@ -51,8 +56,12 @@ function show_help() {
     echo "  build --force       Force rebuild Docker image"
     echo ""
     echo "Examples:"
-    echo "  ./run-tests.sh                                   # All Docker tests"
-    echo "  ./run-tests.sh docker test_uci_config.lua        # Specific Docker test"
+    echo "  ./run-tests.sh                                   # All tests (UCI + JS)"
+    echo "  ./run-tests.sh docker uci                        # Only UCI Docker tests" 
+    echo "  ./run-tests.sh dashboard                         # Dashboard & infrastructure tests"
+    echo "  ./run-tests.sh javascript                        # All JavaScript tests"
+    echo "  ./run-tests.sh docker test_uci_config.lua        # Specific UCI Docker test"
+    echo "  ./run-tests.sh javascript statistics-engine.test.js # Specific JS test"
     echo "  ./run-tests.sh 192.168.11.2 --password \"\"      # Remote device test"
     echo "  ./run-tests.sh gl test_production_deployment.lua # GL router test"
     echo "  ./run-tests.sh --dry-run --verbose               # Verbose dry run"
@@ -64,6 +73,11 @@ function show_help() {
 function check_requirements() {
     # Use shared Node.js checking
     check_node_requirements
+    
+    # Check JavaScript test requirements for JavaScript targets
+    if [ "$TARGET" = "javascript" ] || [ "$TARGET" = "dashboard" ] || [ "$TEST" = "js" ] || [ "$TEST" = "all" ]; then
+        check_javascript_requirements
+    fi
     
     # Check if unified server exists
     if [ ! -f "../mcp/server-unified.js" ]; then
@@ -82,10 +96,35 @@ function check_requirements() {
     fi
     
     # Check SSH requirements for remote targets
-    if [ "$TARGET" != "docker" ]; then
+    if [ "$TARGET" != "docker" ] && [ "$TARGET" != "javascript" ] && [ "$TARGET" != "dashboard" ]; then
         # Initialize SSH common with current parameters
         ssh_common_init "$TARGET" "$PASSWORD" "$PASSWORD_SET" "$KEY_FILE" "$VERBOSE" ""
     fi
+}
+
+function check_javascript_requirements() {
+    log_info "Checking JavaScript test requirements..."
+    
+    # Check if we're in the correct directory structure
+    if [ ! -f "../mcp/package.json" ]; then
+        error_exit "MCP directory not found. JavaScript tests require mcp/package.json"
+    fi
+    
+    # Check if node_modules exists
+    if [ ! -d "../mcp/node_modules" ]; then
+        log_info "Installing JavaScript test dependencies..."
+        cd ../mcp
+        npm install
+        cd "$SCRIPT_DIR"
+    fi
+    
+    # Check if vitest is available
+    if ! cd ../mcp && npm list vitest >/dev/null 2>&1; then
+        error_exit "Vitest not installed. Run: cd mcp && npm install"
+    fi
+    
+    cd "$SCRIPT_DIR"
+    log_info "✅ JavaScript test requirements satisfied"
 }
 
 function build_docker_image() {
@@ -189,6 +228,72 @@ function run_direct_docker() {
     fi
 }
 
+function run_javascript_tests() {
+    log_info "Running JavaScript tests with vitest"
+    
+    cd ../mcp
+    
+    local npm_args=()
+    
+    # Determine what tests to run
+    case "$TARGET" in
+        "dashboard")
+            log_info "🎯 Running dashboard and infrastructure tests"
+            npm_args+=(test)
+            npm_args+=(lib/__tests__/statistics-engine.test.js)
+            npm_args+=(lib/__tests__/dashboard-generator.test.js)
+            npm_args+=(lib/dashboard-assets/__tests__/script-generator.test.js)
+            npm_args+=(test/integration/dashboard-workflow.test.js)
+            npm_args+=(test/examples/fixture-usage-example.test.js)
+            ;;
+        "javascript")
+            if [ "$TEST" = "all" ] || [ "$TEST" = "js" ]; then
+                log_info "🎯 Running all JavaScript tests"
+                npm_args+=(test)
+            elif [[ "$TEST" == *.test.js ]]; then
+                log_info "🎯 Running specific JavaScript test: $TEST"
+                npm_args+=(test)
+                npm_args+=("$TEST")
+            else
+                log_info "🎯 Running JavaScript tests matching: $TEST"
+                npm_args+=(test)
+                npm_args+=(--run)
+                npm_args+=(--reporter=verbose)
+                npm_args+=("$TEST")
+            fi
+            ;;
+        *)
+            # This is called as part of "all" tests
+            log_info "🎯 Running key JavaScript tests as part of full test suite"
+            npm_args+=(test)
+            npm_args+=(lib/__tests__/statistics-engine.test.js)
+            npm_args+=(test/examples/fixture-usage-example.test.js)
+            ;;
+    esac
+    
+    # Add verbose flag if requested
+    if [ "$VERBOSE" = "true" ]; then
+        npm_args+=(--reporter=verbose)
+    fi
+    
+    # Run the tests
+    if [ ${#npm_args[@]} -gt 1 ]; then
+        npm "${npm_args[@]}"
+        local js_exit_code=$?
+    else
+        npm test
+        local js_exit_code=$?
+    fi
+    
+    cd "$SCRIPT_DIR"
+    
+    if [ $js_exit_code -eq 0 ]; then
+        log_info "✅ JavaScript tests completed successfully"
+    else
+        error_exit "❌ JavaScript tests failed with exit code $js_exit_code"
+    fi
+}
+
 # Parse command line arguments
 TARGET="$DEFAULT_TARGET"
 TEST="$DEFAULT_TEST"
@@ -255,15 +360,88 @@ done
 check_requirements
 
 # Execute tests based on configuration
-if [ "$USE_LEGACY" = "true" ]; then
-    run_legacy_tests
-elif [ -f "../mcp/server-unified.js" ] && [ -f "../mcp/client.js" ]; then
-    run_unified_tests
-else
-    # Fallback to direct Docker execution for docker targets
-    if [ "$TARGET" = "docker" ]; then
-        run_direct_docker
-    else
-        error_exit "Unified test runner not available and target is not docker"
-    fi
-fi
+case "$TARGET" in
+    "javascript"|"dashboard")
+        # Run JavaScript tests only
+        run_javascript_tests
+        ;;
+    "docker")
+        if [ "$TEST" = "all" ]; then
+            # Run both UCI and JavaScript tests for comprehensive testing
+            log_info "🚀 Running comprehensive test suite (UCI + JavaScript)"
+            
+            # First run UCI tests
+            if [ "$USE_LEGACY" = "true" ]; then
+                run_legacy_tests
+            elif [ -f "../mcp/server-unified.js" ] && [ -f "../mcp/client.js" ]; then
+                run_unified_tests
+            else
+                run_direct_docker
+            fi
+            
+            # Then run key JavaScript tests
+            log_info "🔄 Continuing with JavaScript infrastructure tests..."
+            run_javascript_tests
+            
+        elif [ "$TEST" = "uci" ]; then
+            # Run only UCI tests
+            if [ "$USE_LEGACY" = "true" ]; then
+                run_legacy_tests
+            elif [ -f "../mcp/server-unified.js" ] && [ -f "../mcp/client.js" ]; then
+                run_unified_tests
+            else
+                run_direct_docker
+            fi
+            
+        elif [ "$TEST" = "js" ]; then
+            # Run only JavaScript tests
+            run_javascript_tests
+            
+        else
+            # Run specific UCI test
+            if [ "$USE_LEGACY" = "true" ]; then
+                run_legacy_tests
+            elif [ -f "../mcp/server-unified.js" ] && [ -f "../mcp/client.js" ]; then
+                run_unified_tests
+            else
+                run_direct_docker
+            fi
+        fi
+        ;;
+    *)
+        # IP address or device profile - run UCI tests on remote device
+        if [ "$TEST" = "all" ]; then
+            # For remote devices, "all" means UCI tests + key JavaScript tests
+            log_info "🚀 Running remote device tests + JavaScript infrastructure tests"
+            
+            # First run remote UCI tests
+            if [ "$USE_LEGACY" = "true" ]; then
+                run_legacy_tests
+            elif [ -f "../mcp/server-unified.js" ] && [ -f "../mcp/client.js" ]; then
+                run_unified_tests
+            else
+                error_exit "Unified test runner not available for remote target: $TARGET"
+            fi
+            
+            # Then run key JavaScript tests locally
+            log_info "🔄 Continuing with local JavaScript infrastructure tests..."
+            run_javascript_tests
+            
+        elif [ "$TEST" = "js" ]; then
+            # Run only JavaScript tests (locally)
+            run_javascript_tests
+            
+        else
+            # Run specific UCI test on remote device
+            if [ "$USE_LEGACY" = "true" ]; then
+                run_legacy_tests
+            elif [ -f "../mcp/server-unified.js" ] && [ -f "../mcp/client.js" ]; then
+                run_unified_tests
+            else
+                error_exit "Unified test runner not available for remote target: $TARGET"
+            fi
+        fi
+        ;;
+esac
+
+log_info "🎉 All requested tests completed successfully!"

@@ -1,0 +1,66 @@
+{
+  "name": "Generic OpenWRT",
+  "model": "Generic",
+  "manufacturer": "OpenWRT",
+  "arch": "x86_64",
+  "cpu": "Generic x86_64",
+  "memory": "512MB",
+  "flash": "64MB",
+  "default_ip": "192.168.1.1",
+  "default_username": "root",
+  "default_password": "",
+  "ssh_port": 22,
+  "web_port": 80,
+  "capabilities": [
+    "wifi",
+    "ethernet",
+    "firewall",
+    "dhcp",
+    "vpn"
+  ],
+  "interfaces": {
+    "lan": {
+      "type": "bridge",
+      "default_ip": "192.168.1.1",
+      "netmask": "255.255.255.0",
+      "bridge_ports": ["eth0"]
+    },
+    "wan": {
+      "type": "ethernet",
+      "proto": "dhcp",
+      "ifname": "eth1"
+    },
+    "wlan": {
+      "type": "wifi",
+      "band": "2.4GHz",
+      "default_ssid": "OpenWrt"
+    }
+  },
+  "uci_packages": [
+    "system",
+    "network",
+    "dhcp",
+    "firewall",
+    "wireless",
+    "uhttpd",
+    "dropbear"
+  ],
+  "testing": {
+    "ssh_options": [
+      "-o StrictHostKeyChecking=no",
+      "-o UserKnownHostsFile=/dev/null",
+      "-o LogLevel=ERROR",
+      "-o PasswordAuthentication=yes",
+      "-o PreferredAuthentications=password",
+      "-o PubkeyAuthentication=no"
+    ],
+    "pre_test_commands": [
+      "uci-config backup --name pre-test-backup"
+    ],
+    "post_test_commands": [
+      "uci-config restore --name pre-test-backup"
+    ],
+    "safe_mode": true,
+    "timeout": 300
+  }
+}

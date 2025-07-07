@@ -1,0 +1,80 @@
+{
+  "uci_diff": {
+    "packages": {
+      "dhcp": {
+        "status": "modified",
+        "sections": {
+          "captive_domain1": {
+            "status": "removed",
+            "options": {
+              "name": { "status": "removed", "value": "captive.local" },
+              "ip": { "status": "removed", "value": "10.0.0.1" }
+            }
+          },
+          "captive": {
+            "status": "removed",
+            "options": {
+              "interface": { "status": "removed", "value": "captive" },
+              "start": { "status": "removed", "value": "10" },
+              "limit": { "status": "removed", "value": "100" },
+              "leasetime": { "status": "removed", "value": "1h" },
+              "dhcpv4": { "status": "removed", "value": "server" }
+            }
+          }
+        }
+      },
+      "firewall": {
+        "status": "modified",
+        "sections": {
+          "captive_rule10": { "status": "removed" },
+          "captive_rule11": { "status": "removed" },
+          "captive_rule12": { "status": "removed" },
+          "captive_rule13": { "status": "removed" },
+          "captive_rule14": { "status": "removed" },
+          "captive_rule15": { "status": "removed" },
+          "captive_rule16": { "status": "removed" },
+          "captive_redirect1": { "status": "removed" },
+          "captive_ipset1": { "status": "removed" },
+          "captive_ipset2": { "status": "removed" },
+          "captive": { "status": "removed" }
+        }
+      },
+      "network": {
+        "status": "modified",
+        "sections": {
+          "captive": { "status": "removed" }
+        }
+      },
+      "ubispot": {
+        "status": "modified",
+        "sections": {
+          "captive": { "status": "removed" }
+        }
+      },
+      "uhttpd": {
+        "status": "modified",
+        "sections": {
+          "uam3990": { "status": "removed" },
+          "ubispot": { "status": "removed" }
+        }
+      }
+    }
+  },
+  "statistics": {
+    "total_changes": 17,
+    "sections_added": 0,
+    "sections_removed": 17,
+    "sections_modified": 0,
+    "options_changed": 2,
+    "packages_modified": 5,
+    "packages_added": 0,
+    "packages_removed": 0
+  },
+  "metadata": {
+    "timestamp": "2025-07-06T14:45:12.345Z",
+    "device": "Direct IP (192.168.11.2)",
+    "before_snapshot": "2025-07-06T14-44-50-123Z-pre-removal",
+    "after_snapshot": "2025-07-06T14-45-12-345Z-post-removal",
+    "comparison_type": "config-removal"
+  }
+}

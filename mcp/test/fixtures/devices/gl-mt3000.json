@@ -1,0 +1,70 @@
+{
+  "name": "GL-iNet GL-MT3000",
+  "model": "GL-MT3000",
+  "manufacturer": "GL-iNet",
+  "arch": "mips",
+  "cpu": "MediaTek MT7981B",
+  "memory": "256MB",
+  "flash": "32MB",
+  "default_ip": "192.168.8.1",
+  "default_username": "root",
+  "default_password": "",
+  "ssh_port": 22,
+  "web_port": 80,
+  "capabilities": [
+    "wifi",
+    "ethernet",
+    "vpn",
+    "captive_portal",
+    "firewall",
+    "dhcp"
+  ],
+  "interfaces": {
+    "lan": {
+      "type": "ethernet",
+      "default_ip": "192.168.8.1",
+      "netmask": "255.255.255.0"
+    },
+    "wan": {
+      "type": "ethernet",
+      "proto": "dhcp"
+    },
+    "wlan0": {
+      "type": "wifi",
+      "band": "2.4GHz",
+      "default_ssid": "GL-MT3000-WiFi"
+    },
+    "wlan1": {
+      "type": "wifi", 
+      "band": "5GHz",
+      "default_ssid": "GL-MT3000-WiFi-5G"
+    }
+  },
+  "uci_packages": [
+    "system",
+    "network",
+    "dhcp",
+    "firewall",
+    "wireless",
+    "uhttpd",
+    "dropbear"
+  ],
+  "testing": {
+    "ssh_options": [
+      "-o StrictHostKeyChecking=no",
+      "-o UserKnownHostsFile=/dev/null",
+      "-o LogLevel=ERROR",
+      "-o PasswordAuthentication=yes",
+      "-o PreferredAuthentications=password",
+      "-o PubkeyAuthentication=no"
+    ],
+    "pre_test_commands": [
+      "uci-config backup --name pre-test-backup"
+    ],
+    "post_test_commands": [
+      "uci-config restore --name pre-test-backup"
+    ],
+    "safe_mode": true,
+    "timeout": 300
+  }
+}
