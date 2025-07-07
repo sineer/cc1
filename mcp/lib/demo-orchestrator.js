@@ -166,10 +166,51 @@ export class DemoOrchestrator {
    * Run UCI configuration deployment
    */
   async runDeployment(host, mode, target, password) {
-    // This would integrate with the actual deployment logic
-    // For now, simulate deployment via command execution
-    const deployCmd = `echo "Simulated UCI deployment to ${host} with mode ${mode}"`;
-    return this.commandRunner.execute(deployCmd);
+    // Build deployment command using the actual deployment script
+    let deployCmd = `./scripts/run-deploy.sh ${host} ${mode} --target ${target} --no-confirm`;
+    
+    // Add password parameter if provided
+    if (password !== undefined) {
+      deployCmd += ` --password "${password}"`;
+    }
+    
+    // Add verbose flag if debug is enabled
+    if (this.debug) {
+      deployCmd += ' --verbose';
+    }
+    
+    // Execute the actual deployment
+    const result = await this.commandRunner.execute(deployCmd);
+    
+    // Check if deployment was successful
+    if (result.code !== 0 && !result.success) {
+      return {
+        success: false,
+        stderr: result.stderr || 'Deployment failed'
+      };
+    }
+    
+    // Check for critical SSH authentication errors that should fail deployment
+    if (result.stderr) {
+      // Only treat as fatal if deployment actually failed
+      if (result.stderr.includes('Permission denied') || result.stderr.includes('Authentication failed')) {
+        return {
+          success: false,
+          stderr: 'SSH authentication failed. Check password or SSH key configuration.'
+        };
+      }
+      
+      // ssh_askpass error is a warning if deployment succeeded overall
+      if (result.stderr.includes('ssh_askpass: exec(') && result.stdout.includes('✅')) {
+        console.warn('⚠️  SSH warning: ssh_askpass not found (non-fatal)');
+      }
+    }
+    
+    return {
+      success: true,
+      stdout: result.stdout,
+      stderr: result.stderr // Include stderr for visibility
+    };
   }
 
   /**

@@ -110,6 +110,14 @@ function build_ssh_command() {
     local ssh_cmd="ssh"
     local ssh_opts="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
     
+    # Disable askpass when using password authentication
+    if [ "$SSH_PASSWORD_SET" = "true" ]; then
+        ssh_opts="$ssh_opts -o PasswordAuthentication=yes -o PreferredAuthentications=password -o PubkeyAuthentication=no"
+        # Disable SSH_ASKPASS to prevent fallback to askpass programs
+        export SSH_ASKPASS=""
+        export DISPLAY=""
+    fi
+    
     # Add port if not default
     if [ "$TARGET_PORT" != "22" ]; then
         ssh_opts="$ssh_opts -p $TARGET_PORT"
