@@ -1,120 +1,126 @@
 # UCI Configuration Tool for OpenWRT
 
-A production-ready UCI configuration management tool for OpenWRT 23.05+ with intelligent merging, service management, and safety features.
+A production-ready UCI configuration management tool for OpenWRT 23.05+ with intelligent merging, service management, MCP integration, and comprehensive safety features.
 
 ## Features
 
+- **Unified MCP Interface** - Single command for all UCI operations through Model Context Protocol
 - **Safe Configuration Merging** - Merge UCI configs with network connectivity preservation
-- **Intelligent List Deduplication** - Network-aware duplicate removal from configuration lists
-- **Service Management** - Automatic service restart with dependency resolution and rollback
-- **Comprehensive Testing** - Docker-based test suite with OpenWRT environment
-- **Production Ready** - Battle-tested with uspot captive portal deployments
+- **Configuration Snapshots** - Capture and compare device configurations over time
+- **Interactive Dashboards** - HTML visualization of configuration changes with statistics
+- **Deployment Automation** - Demo workflows for ubispot captive portal and other deployments
+- **Comprehensive Testing** - Docker-based test suite with authentic OpenWRT 23.05 environment
+- **Production Ready** - Battle-tested with real-world OpenWRT deployments
 
 ## Quick Start
 
 ```bash
-# Install dependencies on OpenWRT
-opkg update && opkg install lua luafilesystem libuci-lua
-
-# Clone and setup
+# Clone the repository
 git clone https://github.com/sineer/uci-config-tool.git
 cd uci-config-tool
-chmod +x bin/uci-config
 
-# Run tests
-docker build -t uci-config-test . && docker run uci-config-test
+# Run all tests (default command)
+./bin/uci-mcp
 
-# Deploy configurations
-./bin/uci-config backup --name pre-deploy
-./bin/uci-config merge --dry-run ./etc/config/default
-./bin/uci-config merge --preserve-network --dedupe-lists ./etc/config/default
+# View available commands
+./bin/uci-mcp help
 ```
 
-## Core Commands
+## Primary Command: `./bin/uci-mcp`
 
-### merge
-Merge UCI configurations with service restart:
+All UCI operations are unified through a single command interface:
+
+### Testing
 ```bash
-./bin/uci-config merge [options] <source-directory>
+./bin/uci-mcp                                    # Run all Docker tests
+./bin/uci-mcp test docker test_uci_config.lua    # Run specific test
+./bin/uci-mcp test 192.168.11.2 --password ""    # Test on remote device
 ```
 
-### safe-merge
-Quick merge with default safety options:
+### Configuration Management
 ```bash
-./bin/uci-config safe-merge --target default
+./bin/uci-mcp snapshot qemu baseline              # Capture device configuration
+./bin/uci-mcp compare qemu baseline after        # Compare two snapshots
+./bin/uci-mcp dashboard "QEMU OpenWRT VM"         # Generate HTML dashboard
+./bin/uci-mcp history qemu --days 14              # View configuration timeline
 ```
 
-### backup
-Create timestamped configuration backup:
+### Deployment Demos
 ```bash
-./bin/uci-config backup --name <backup-name>
+./bin/uci-mcp demo ubispot                        # Deploy ubispot captive portal
+./bin/uci-mcp demo cowboy                         # Configuration snapshot demo
 ```
 
-### validate
-Validate UCI configuration syntax:
-```bash
-./bin/uci-config validate --check-services
-```
+## Available Tools
 
-### remove
-Remove configurations matching target:
-```bash
-./bin/uci-config remove --target default --dry-run
-```
-
-## Options
-
-- `--dry-run` - Preview changes without applying
-- `--preserve-network` - Ensure network connectivity preservation
-- `--dedupe-lists` - Remove duplicate list entries
-- `--no-restart` - Skip automatic service restarts
-- `--rollback-on-failure` - Rollback on service failures (default)
-- `--verbose` - Show detailed operation logs
+The unified MCP server provides 6 powerful tools:
+- **test** - Run UCI config tests on Docker or remote targets
+- **snapshot** - Capture complete device configuration via SSH
+- **compare** - Generate intelligent before/after configuration diffs
+- **dashboard** - Create interactive HTML dashboards with change analytics
+- **demo** - Run complete deployment demo workflows
+- **history** - Show device configuration timeline and snapshots
 
 ## Project Structure
 
 ```
-├── bin/uci-config          # Main CLI tool
-├── lib/                    # Core modules
+├── bin/uci-mcp             # Unified command interface
+├── mcp/                    # MCP server and client
+│   ├── server-unified.js   # Unified MCP server
+│   └── client.js          # MCP client implementation
+├── lib/                    # Core Lua modules
 │   ├── uci_merge_engine.lua
 │   ├── service_manager.lua
 │   ├── config_manager.lua
 │   └── list_deduplicator.lua
 ├── test/                   # Test suite
-├── examples/               # Example configurations
 └── docs/                   # Documentation
-    ├── API.md             # Technical reference
-    └── DEPLOYMENT.md      # Production guide
 ```
 
 ## Testing
 
-Run the complete test suite in an OpenWRT environment:
-```bash
-# Build the OpenWRT test container
-docker build -t uci-config-test .
+The project uses Docker to provide an authentic OpenWRT 23.05 environment:
 
-# Run all tests
-docker run uci-config-test
+```bash
+# Build and run all tests
+./bin/uci-mcp
+
+# Build Docker image only
+./bin/uci-mcp build
+
+# Run specific test
+./bin/uci-mcp test docker test_merge_engine.lua
 ```
 
-The Dockerfile provides an authentic OpenWRT 23.05 environment for testing:
-- UCI Config Tests
-- Merge Engine Tests  
-- Advanced Integration Tests
-- Production Deployment Tests
+**Important:** Never run tests directly on the host system. Always use the Docker environment through `./bin/uci-mcp`.
 
-## Documentation
+## Dashboard Tool
 
-- [API Reference](docs/API.md) - Module documentation and usage
-- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment procedures
-- [Usage Examples](docs/USAGE_EXAMPLES.md) - Common use cases
+Generate comprehensive HTML dashboards to visualize configuration changes:
+
+```bash
+./bin/uci-mcp dashboard "QEMU OpenWRT VM"         # Last 7 days
+./bin/uci-mcp dashboard "QEMU OpenWRT VM" --days 30   # Last 30 days
+```
+
+Features:
+- Timeline visualization of all configuration snapshots
+- Package/section/option level change statistics
+- Color-coded change indicators (added/removed/modified)
+- Interactive diff viewing between any two snapshots
 
 ## Requirements
 
-- OpenWRT 23.05+
-- Lua 5.1+ with UCI library
+- OpenWRT 23.05+ (for deployment)
+- Node.js 16+ (for MCP server)
 - Docker (for testing)
+- Lua 5.1+ with UCI library (on target devices)
+
+## Documentation
+
+- [CLAUDE.md](CLAUDE.md) - Claude Code specific configuration
+- [API Reference](docs/API.md) - Module documentation
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment procedures
 
 ## License
 
@@ -125,8 +131,9 @@ GPL-2.0 - See LICENSE file for details
 1. Fork the repository
 2. Create a feature branch
 3. Write tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+4. Run tests: `./bin/uci-mcp`
+5. Ensure all tests pass
+6. Submit a pull request
 
 ---
 
