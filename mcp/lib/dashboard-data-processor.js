@@ -56,7 +56,8 @@ export class DashboardDataProcessor {
       snapshotData,
       statistics,
       comparisons: diffs.length,
-      filesChanged: statistics.packageStats.modified + statistics.sectionStats.modified
+      filesChanged: statistics.packageStats.added + statistics.packageStats.removed + statistics.packageStats.modified + 
+                   statistics.sectionStats.added + statistics.sectionStats.removed + statistics.sectionStats.modified
     };
   }
 
@@ -302,12 +303,15 @@ export class DashboardDataProcessor {
       const previousSnapshot = snapshots[i + 1];
       
       try {
-        // Generate diff using the correct method and parameters
-        const diff = await this.diffEngine.generateSnapshotDiff(
+        // Generate diff using JSON format to get structured data
+        const diffResult = await this.diffEngine.generateSnapshotDiff(
           previousSnapshot.path,
           currentSnapshot.path,
-          'html'
+          'json'
         );
+        
+        // Parse the JSON result  
+        const diff = JSON.parse(diffResult);
         
         // Create HTML diff file
         const diffFileName = `${deviceName}-${currentSnapshot.label}-${previousSnapshot.label}.html`.replace(/ /g, '-');
@@ -459,37 +463,56 @@ export class DashboardDataProcessor {
   generateDiffSections(diff) {
     let sectionsHTML = '';
     
-    if (diff.changes?.added && Object.keys(diff.changes.added).length > 0) {
-      sectionsHTML += `
+    // Check for UCI configuration changes in the correct location
+    if (diff.uci_diff && diff.uci_diff.packages && Object.keys(diff.uci_diff.packages).length > 0) {
+      for (const [packageName, packageDiff] of Object.entries(diff.uci_diff.packages)) {
+        sectionsHTML += `
         <div class="diff-section">
-            <div class="diff-section-header">➕ Added Configurations</div>
+            <div class="diff-section-header">📦 Package: ${packageName} (${packageDiff.status})</div>
             <div class="diff-content">
-                ${this.generateChangeHTML(diff.changes.added, 'added')}
+                ${this.generateUCIPackageHTML(packageName, packageDiff)}
             </div>
         </div>`;
-    }
-    
-    if (diff.changes?.removed && Object.keys(diff.changes.removed).length > 0) {
-      sectionsHTML += `
-        <div class="diff-section">
-            <div class="diff-section-header">➖ Removed Configurations</div>
-            <div class="diff-content">
-                ${this.generateChangeHTML(diff.changes.removed, 'removed')}
-            </div>
-        </div>`;
-    }
-    
-    if (diff.changes?.modified && Object.keys(diff.changes.modified).length > 0) {
-      sectionsHTML += `
-        <div class="diff-section">
-            <div class="diff-section-header">🔄 Modified Configurations</div>
-            <div class="diff-content">
-                ${this.generateChangeHTML(diff.changes.modified, 'modified')}
-            </div>
-        </div>`;
+      }
     }
     
     return sectionsHTML || '<div class="diff-section"><div class="diff-content">No changes detected between snapshots.</div></div>';
+  }
+
+  /**
+   * Generate HTML for UCI package changes
+   */
+  generateUCIPackageHTML(packageName, packageDiff) {
+    let html = '';
+    
+    if (packageDiff.status === 'added') {
+      html += `<p class="added">➕ Entire package '${packageName}' was added</p>`;
+    } else if (packageDiff.status === 'removed') {
+      html += `<p class="removed">➖ Entire package '${packageName}' was removed</p>`;
+    } else if (packageDiff.status === 'modified' && packageDiff.sections) {
+      // Show section-level changes
+      for (const [sectionName, sectionDiff] of Object.entries(packageDiff.sections)) {
+        if (sectionDiff.status === 'added') {
+          html += `<p class="added">➕ Section '${sectionName}' added</p>`;
+        } else if (sectionDiff.status === 'removed') {
+          html += `<p class="removed">➖ Section '${sectionName}' removed</p>`;
+        } else if (sectionDiff.status === 'modified' && sectionDiff.options) {
+          html += `<p class="modified">🔄 Section '${sectionName}' modified:</p><ul>`;
+          for (const [optionName, optionDiff] of Object.entries(sectionDiff.options)) {
+            if (optionDiff.status === 'added') {
+              html += `<li class="added">+ ${optionName}: ${optionDiff.value}</li>`;
+            } else if (optionDiff.status === 'removed') {
+              html += `<li class="removed">- ${optionName}: ${optionDiff.value}</li>`;
+            } else if (optionDiff.status === 'modified') {
+              html += `<li class="modified">~ ${optionName}: ${optionDiff.from} → ${optionDiff.to}</li>`;
+            }
+          }
+          html += '</ul>';
+        }
+      }
+    }
+    
+    return html;
   }
 
   /**

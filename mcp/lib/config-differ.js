@@ -89,6 +89,8 @@ export class ConfigDiffEngine {
         return this.formatDiffAsHTML(diff);
       } else if (format === 'json') {
         return JSON.stringify(diff, null, 2);
+      } else if (format === 'structured') {
+        return diff;  // Return raw object for programmatic use
       } else {
         return this.formatDiffAsText(diff);
       }
@@ -848,6 +850,9 @@ ${changesHtml}
 
   calculateStatistics(diff) {
     let totalChanges = 0;
+    let sectionsAdded = 0;
+    let sectionsRemoved = 0;
+    let optionsChanged = 0;
     
     if (diff.uci_diff) {
       for (const packageDiff of Object.values(diff.uci_diff.packages)) {
@@ -855,10 +860,16 @@ ${changesHtml}
           totalChanges++;
         } else if (packageDiff.status === 'modified') {
           for (const sectionDiff of Object.values(packageDiff.sections)) {
-            if (sectionDiff.status === 'added' || sectionDiff.status === 'removed') {
+            if (sectionDiff.status === 'added') {
+              sectionsAdded++;
+              totalChanges++;
+            } else if (sectionDiff.status === 'removed') {
+              sectionsRemoved++;
               totalChanges++;
             } else if (sectionDiff.status === 'modified') {
-              totalChanges += Object.keys(sectionDiff.options).length;
+              const optionCount = Object.keys(sectionDiff.options).length;
+              optionsChanged += optionCount;
+              totalChanges += optionCount;
             }
           }
         }
@@ -866,6 +877,9 @@ ${changesHtml}
     }
     
     diff.statistics.total_changes = totalChanges;
+    diff.statistics.sections_added = sectionsAdded;
+    diff.statistics.sections_removed = sectionsRemoved;
+    diff.statistics.options_changed = optionsChanged;
   }
 
   log(message) {

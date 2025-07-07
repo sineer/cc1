@@ -277,7 +277,7 @@ export class DashboardGenerator {
             <section class="timeline-section">
                 <h2>📅 Configuration Timeline</h2>
                 <div class="timeline">
-                    ${data.snapshots.map(snapshot => this.generateTimelineItem(snapshot, data.perSnapshotStats)).join('')}
+                    ${data.snapshots.map((snapshot, index) => this.generateTimelineItem(snapshot, data.perSnapshotStats, index < data.snapshots.length - 1 ? data.snapshots[index + 1] : null)).join('')}
                 </div>
             </section>
         </main>
@@ -369,7 +369,7 @@ export class DashboardGenerator {
   /**
    * Generate timeline item for snapshot
    */
-  generateTimelineItem(snapshot, perSnapshotStats) {
+  generateTimelineItem(snapshot, perSnapshotStats, comparisonSnapshot = null) {
     const stats = perSnapshotStats[snapshot.id] || { hasChanges: false };
     const hasChanges = stats.hasChanges;
     const changeClass = hasChanges ? 'has-changes' : '';
@@ -385,7 +385,7 @@ export class DashboardGenerator {
                             
                             <div class="timeline-actions">
                                 <button onclick="viewSnapshot('${snapshot.id}')" class="btn btn-primary">View Details</button>
-                                ${hasChanges ? `<button onclick="compareTo('${snapshot.id}', '${snapshot.id}')" class="btn btn-secondary">Compare Diffs</button>` : ''}
+                                ${comparisonSnapshot ? `<button onclick="compareTo('${snapshot.id}', '${comparisonSnapshot.id}')" class="btn btn-secondary">Compare Diffs</button>` : ''}
                             </div>
                         </div>
                     </div>`;

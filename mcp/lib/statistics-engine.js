@@ -101,12 +101,13 @@ export class StatisticsEngine {
     };
 
     if (!diffResult || typeof diffResult !== 'object') {
+      this.log(`Warning: diffResult is null or not an object: ${typeof diffResult}`);
       return stats;
     }
 
     // Parse the diff data structure
-    if (diffResult.packages) {
-      Object.values(diffResult.packages).forEach(pkg => {
+    if (diffResult.uci_diff && diffResult.uci_diff.packages) {
+      Object.values(diffResult.uci_diff.packages).forEach(pkg => {
         if (pkg.status === 'added') stats.packageStats.added++;
         else if (pkg.status === 'removed') stats.packageStats.removed++;
         else if (pkg.status === 'modified') stats.packageStats.modified++;

@@ -38,9 +38,24 @@ function refreshDashboard() {
 }
 
 function compareTo(snapshotId1, snapshotId2) {
-    const deviceName = window.DEVICE_NAME || document.title.includes('QEMU OpenWRT VM') ? 'QEMU OpenWRT VM' : 'Unknown Device';
-    const fileName = \`\${deviceName}-\${snapshotId2.replace(/2025-\\\\d{2}-\\\\d{2}T\\\\d{2}-\\\\d{2}-\\\\d{2}-\\\\d{3}Z-/, '')}-\${snapshotId1.replace(/2025-\\\\d{2}-\\\\d{2}T\\\\d{2}-\\\\d{2}-\\\\d{2}-\\\\d{3}Z-/, '')}.html\`;
+    // Extract the descriptive part from snapshot IDs (removing timestamps)
+    const getLabel = (id) => id.replace(/^2025-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z-/, '');
+    
+    const label1 = getLabel(snapshotId1);
+    const label2 = getLabel(snapshotId2);
+    
+    // Format device name to match actual file naming convention
+    let deviceName = window.DEVICE_NAME || 'QEMU OpenWRT VM';
+    if (deviceName.includes('(') && deviceName.includes(')')) {
+        // Convert "Direct IP (192.168.11.2)" to "Direct-IP-(192.168.11.2)"
+        deviceName = deviceName.replace(/\\s+/g, '-');
+    }
+    
+    // Construct filename to match actual generated diff files
+    const fileName = \`\${deviceName}-\${label1}-\${label2}.html\`;
     const diffUrl = \`diffs/\${fileName}\`;
+    
+    console.log('Opening diff:', diffUrl); // Debug log
     window.open(diffUrl, '_blank');
 }
 
