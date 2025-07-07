@@ -3,8 +3,10 @@
 *.log
 
 # Backup directories
-/tmp/uci-config-backups/
 backups/
+
+# dashboards
+config-snapshots/
 
 # NPM
 node_modules/

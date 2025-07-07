@@ -70,7 +70,7 @@ function show_help() {
     echo "  --key-file <path>   SSH key file"
     echo "  --prefix <path>     Installation prefix (default: /usr/local)"
     echo "  --verbose           Enable verbose output"
-    echo "  --no-confirm        Skip confirmation prompts"
+    echo "  --force             Skip confirmation prompts"
     echo "  --no-backup         Skip automatic backup"
     echo "  --restart-services  Allow service restarts (default: disabled to prevent SSH hangs)"
     echo "  --help              Show this help"
@@ -184,7 +184,7 @@ function upload_framework() {
 
 function confirm_deployment() {
     if [ "$CONFIRM" = "false" ]; then
-        log_verbose "Skipping confirmation (--no-confirm specified)"
+        log_verbose "Skipping confirmation (--force specified)"
         return 0
     fi
     
@@ -358,8 +358,9 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
-        --no-confirm)
+        --force)
             CONFIRM=false
+            UCI_ARGS+=("$1")  # Pass through to uci-config command
             shift
             ;;
         --no-backup)

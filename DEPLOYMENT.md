@@ -78,7 +78,7 @@ All `uci-config` commands are supported with full argument pass-through:
 | `--password <pass>` | SSH password authentication | `--password ""` (empty password) |
 | `--key-file <path>` | SSH key file authentication | `--key-file ~/.ssh/id_rsa` |
 | `--verbose` | Enable detailed output | Shows all operations |
-| `--no-confirm` | Skip confirmation prompts | For automated deployments |
+| `--force` | Skip confirmation prompts | For automated deployments |
 | `--no-backup` | Skip automatic backup | **Not recommended for production** |
 
 ### Target Types
@@ -285,7 +285,7 @@ Create JSON files in `test/targets/` directory:
 ### Automated Deployments
 ```bash
 # Disable confirmations for automation
-./run-deploy.sh <target> <command> --no-confirm [args...]
+./run-deploy.sh <target> <command> --force [args...]
 
 # Skip backup for speed (not recommended)
 ./run-deploy.sh <target> <command> --no-backup [args...]
@@ -299,10 +299,10 @@ Create JSON files in `test/targets/` directory:
 set -e
 
 # Deploy to staging
-./run-deploy.sh staging-router safe-merge --target staging --no-confirm --password "$STAGING_PASSWORD"
+./run-deploy.sh staging-router safe-merge --target staging --force --password "$STAGING_PASSWORD"
 
 # Validate deployment
-./run-deploy.sh staging-router validate --check-services --no-confirm --password "$STAGING_PASSWORD"
+./run-deploy.sh staging-router validate --check-services --force --password "$STAGING_PASSWORD"
 
 # Deploy to production if staging successful
 ./run-deploy.sh production-router safe-merge --target production --password "$PRODUCTION_PASSWORD"
@@ -317,7 +317,7 @@ set -e
 | **Safety Features** | Test isolation | Production safety |
 | **Logging** | Test results | Deployment audit trail |
 | **Commands** | Test execution | UCI config operations |
-| **Confirmation** | Not required | Required (unless --no-confirm) |
+| **Confirmation** | Not required | Required (unless --force) |
 
 ## Best Practices
 
